@@ -276,6 +276,7 @@ export class UssdService {
       });
 
       await newTicket.save();
+      this.sessionMap.delete(req.SessionId);
       
       // CRITICAL FIX: Return JSON string like the working version
       return JSON.stringify(response);
