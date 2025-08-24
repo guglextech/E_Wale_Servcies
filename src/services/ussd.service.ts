@@ -250,7 +250,6 @@ export class UssdService {
 
   private handleOrderDetails(req: HBussdReq, state: SessionState) {
     if (req.Message === "1") {
-      // Instead of showing another confirm menu, call payment prompt directly
       return this.handlePaymentConfirmation(req, state);
     } else if (req.Message === "2") {
       return this.releaseSession(req.SessionId);
@@ -386,16 +385,16 @@ export class UssdService {
 
         const updatedTicket = await this.ticketModel.findOne({ SessionId: req.SessionId });
         if (updatedTicket) {
-          // await sendVoucherSms(
-          //   {
-          //     mobile: updatedTicket.mobile,
-          //     name: updatedTicket.name,
-          //     voucher_codes: updatedTicket.voucher_codes,
-          //     flow: updatedTicket.flow,
-          //     buyer_name: updatedTicket.boughtForName,
-          //     buyer_mobile: updatedTicket.boughtForMobile
-          //   }
-          // );
+          await sendVoucherSms(
+            {
+              mobile: updatedTicket.mobile,
+              name: updatedTicket.name,
+              voucher_codes: [updatedTicket.ticketCode],
+              flow: updatedTicket.flow as "self" | "other",
+              buyer_name: updatedTicket.boughtForName,
+              buyer_mobile: updatedTicket.boughtForMobile
+            }
+          );
         }
 
         await this.hbPaymentsModel.findOneAndUpdate(
