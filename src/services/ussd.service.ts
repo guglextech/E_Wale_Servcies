@@ -122,7 +122,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Enter Quantity",
-        "I have mobile number already\nEnter quantity:",
+        "Enter quantity:",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER
       );
