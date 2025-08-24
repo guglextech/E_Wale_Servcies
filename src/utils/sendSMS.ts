@@ -16,13 +16,11 @@ export async function sendVoucherSms(voucherData: {
    if (voucherData.flow === 'other') {
        message = `🎉 Good news! ${voucherData.buyer_name} (${voucherData.buyer_mobile}) has purchased voucher(s) for you!\n\n` +
                  `Voucher Code(s): ${voucherCodesText}\n\n` +
-                 `This voucher can be used for the event. Keep it safe and present it at the venue for entry.\n\n` +
-                 `Thank you and enjoy the event!`;
+                 `Best of luck!`;
    } else {
        message = `🎉 Thank you for your purchase, ${voucherData.name}!\n\n` +
-                 `Your voucher code(s): ${voucherCodesText}\n\n` +
-                 `This voucher can be used for the event. Keep it safe and present it at the venue for entry.\n\n` +
-                 `Good luck and enjoy the event!`;
+                 `Your e-voucher code(s): ${voucherCodesText}\n\n` +
+                 `Best of luck!`;
    }
 
    console.log(`Sending voucher SMS to ${voucherData.mobile}:`, message);
@@ -46,4 +44,4 @@ export async function sendVoucherSms(voucherData: {
    }
 }
 
-// module.exports = { sendTicketSms, sendVoucherSms };
+module.exports = {  sendVoucherSms };

@@ -386,7 +386,16 @@ export class UssdService {
 
         const updatedTicket = await this.ticketModel.findOne({ SessionId: req.SessionId });
         if (updatedTicket) {
-          // await sendVoucherSms(updatedTicket);
+          // await sendVoucherSms(
+          //   {
+          //     mobile: updatedTicket.mobile,
+          //     name: updatedTicket.name,
+          //     voucher_codes: updatedTicket.voucher_codes,
+          //     flow: updatedTicket.flow,
+          //     buyer_name: updatedTicket.boughtForName,
+          //     buyer_mobile: updatedTicket.boughtForMobile
+          //   }
+          // );
         }
 
         await this.hbPaymentsModel.findOneAndUpdate(
