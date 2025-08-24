@@ -8,7 +8,7 @@ import axios from "axios";
 import { HbPayments } from "../models/dto/hubtel/callback-ussd.schema";
 import { Ticket } from "src/models/schemas/ticket.schema";
 import { User } from "src/models/schemas/user.shema";
-import { sendTicketSms } from "../utils/sendSMS";
+import { sendVoucherSms } from "../utils/sendSMS";
 import { Transactions } from "src/models/schemas/transaction.schema";
 
 interface SessionState {
@@ -386,7 +386,7 @@ export class UssdService {
 
         const updatedTicket = await this.ticketModel.findOne({ SessionId: req.SessionId });
         if (updatedTicket) {
-          await sendTicketSms(updatedTicket);
+          // await sendVoucherSms(updatedTicket);
         }
 
         await this.hbPaymentsModel.findOneAndUpdate(

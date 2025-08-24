@@ -1,40 +1,49 @@
 import axios from "axios";
 import * as process from "process";
  
- export function sendTicketSms(ticket) {
-    // console.log(ticket, "TICKET LOGGED::");
-    let message = "";
-    let recipientMobile = ticket.flow === "other" ? ticket.boughtForMobile : ticket.mobile;
 
+export async function sendVoucherSms(voucherData: {
+   mobile: string;
+   name: string;
+   voucher_codes: string[];
+   flow: 'self' | 'other';
+   buyer_name?: string;
+   buyer_mobile?: string;
+}) {
+   let message = "";
+   const voucherCodesText = voucherData.voucher_codes.join(', ');
 
-    console.log(ticket.flow);
+   if (voucherData.flow === 'other') {
+       message = `🎉 Good news! ${voucherData.buyer_name} (${voucherData.buyer_mobile}) has purchased voucher(s) for you!\n\n` +
+                 `Voucher Code(s): ${voucherCodesText}\n\n` +
+                 `This voucher can be used for the event. Keep it safe and present it at the venue for entry.\n\n` +
+                 `Thank you and enjoy the event!`;
+   } else {
+       message = `🎉 Thank you for your purchase, ${voucherData.name}!\n\n` +
+                 `Your voucher code(s): ${voucherCodesText}\n\n` +
+                 `This voucher can be used for the event. Keep it safe and present it at the venue for entry.\n\n` +
+                 `Good luck and enjoy the event!`;
+   }
 
-    if ((ticket.flow) == "other") {
-        message = `Good news! Someone has purchased a ticket for you to attend Daddy Lumba Live in Koforidua!\n` +
-                  `Ticket Code: ${ticket.ticketCode}\n` +
-                  `Ticket Type: ${ticket.packageType}\n` +
-                  `Keep and show this code at the venue for entry. Enjoy the show!`;
-    } else {
-        message = `Thank you for your purchase!\n` +`You have successfully bought ${ticket.quantity} ${ticket.packageType} ticket(s) for Daddy Lumba Live in Koforidua.\n` +`Your ticket code: ${ticket.ticketCode}\n` + `Keep and show this code at the venue for entry. See you there!`;
-    }
+   console.log(`Sending voucher SMS to ${voucherData.mobile}:`, message);
 
-    console.log(message);
+   try {
+       const response = await axios.get(process.env.SMS_URL, {
+           params: {
+               clientsecret: process.env.SMS_CLIENT_SECRET,
+               clientid: process.env.SMS_CLIENT_ID,
+               from: process.env.SMS_SENDER,
+               to: voucherData.mobile,
+               content: message,
+           },
+       });
 
-    try {
-        const response =  axios.get(process.env.SMS_URL, {
-            params: {
-                clientsecret: process.env.SMS_CLIENT_SECRET,
-                clientid: process.env.SMS_CLIENT_ID,
-                from: process.env.SMS_SENDER,
-                to: recipientMobile,
-                content: message,
-            },
-        });
-
-        console.log("SMS sent successfully:", response);
-    } catch (error) {
-        console.error("Error sending SMS:", error);
-    }
+       console.log("Voucher SMS sent successfully:", response);
+       return true;
+   } catch (error) {
+       console.error("Error sending voucher SMS:", error);
+       return false;
+   }
 }
 
-// module.exports = { sendTicketSms };
+// module.exports = { sendTicketSms, sendVoucherSms };

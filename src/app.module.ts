@@ -27,8 +27,11 @@ import {
 } from "./models/dto/hubtel/callback-ussd.schema";
 import { Ticket, TicketSchema } from "./models/schemas/ticket.schema";
 import { Transactions, TransactionsSchema } from "./models/schemas/transaction.schema";
+import { Voucher, VoucherSchema } from "./models/schemas/voucher.schema";
 import { TicketController } from "./controllers/tickets.controller";
 import { TicketService } from "./services/tickets.service";
+import { VouchersController } from "./controllers/vouchers.controller";
+import { VouchersService } from "./services/vouchers.service";
 
 @Module({
   imports: [
@@ -52,6 +55,7 @@ import { TicketService } from "./services/tickets.service";
       { name: HbPayments.name, schema: HbPaymentsSchema },
       { name: Ticket.name, schema: TicketSchema },
       { name: Transactions.name, schema: TransactionsSchema },
+      { name: Voucher.name, schema: VoucherSchema },
     ]),
     JwtModule.register({
       secret: jwtConstants.secret,
@@ -65,6 +69,7 @@ import { TicketService } from "./services/tickets.service";
     UssdController,
     AppController,
     TicketController,
+    VouchersController,
   ],
   providers: [
     AppService,
@@ -72,6 +77,7 @@ import { TicketService } from "./services/tickets.service";
     AwsService,
     MailService,
     TicketService,
+    VouchersService,
     // {
     //   provide: APP_GUARD,
     //   useClass: AuthGuards,
