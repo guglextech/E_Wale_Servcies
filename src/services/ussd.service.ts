@@ -294,7 +294,7 @@ export class UssdService {
 
   private async releaseSession(sessionId: string) {
     this.sessionMap.delete(sessionId);
-    return this.createResponse(sessionId, "Thank you", "Thank you for using Guglex Technologies e-voucher service", HbEnums.DATATYPE_DISPLAY, HbEnums.FIELDTYPE_TEXT);
+    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.DATATYPE_DISPLAY);
   }
 
   // CRITICAL FIX: Return JSON string like the working version
