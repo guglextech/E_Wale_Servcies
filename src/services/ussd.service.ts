@@ -73,7 +73,7 @@ export class UssdService {
         HbEnums.RELEASE
       );
     }
-
+  
     switch (req.Sequence) {
       case 2:
         return this.handleServiceSelection(req, state);
@@ -95,12 +95,11 @@ export class UssdService {
         return state.flow === "other"
           ? this.handleOrderDetails(req, state)
           : this.releaseSession(req.SessionId);
-      case 8:
-        return this.handlePaymentConfirmation(req, state);
       default:
         return this.releaseSession(req.SessionId);
     }
   }
+  
 
   private handleServiceSelection(req: HBussdReq, state: SessionState) {
     if (req.Message === "0") {
