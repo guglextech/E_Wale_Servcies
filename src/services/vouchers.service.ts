@@ -3,8 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Voucher } from '../models/schemas/voucher.schema';
 import { Ticket } from '../models/schemas/ticket.schema';
-import { ImportVoucherDto, AssignVoucherDto, PurchaseVoucherDto, VoucherResponseDto } from '../models/dto/voucher.dto';
-import * as ExcelJS from 'exceljs';
+import { AssignVoucherDto, PurchaseVoucherDto, VoucherResponseDto } from '../models/dto/voucher.dto';
 import { sendVoucherSms } from '../utils/sendSMS';
 
 @Injectable()
@@ -14,83 +13,38 @@ export class VouchersService {
     @InjectModel(Ticket.name) private ticketModel: Model<Ticket>,
   ) {}
 
-  async importVouchersFromExcel(fileBuffer: Buffer): Promise<{ success: number; failed: number; errors: string[] }> {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(fileBuffer);
+  async createVoucher(voucherCode: string): Promise<Voucher> {
+    // Normalize voucher code (trim whitespace, convert to uppercase)
+    const normalizedCode = voucherCode.trim().toUpperCase();
     
-    const worksheet = workbook.getWorksheet(1);
-    const voucherCodes: string[] = [];
-    const errors: string[] = [];
-    
-    // Read voucher codes from Excel (assuming first column contains codes)
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) { // Skip header row
-        const voucherCode = row.getCell(1).value?.toString();
-        if (voucherCode && voucherCode.trim()) {
-          voucherCodes.push(voucherCode.trim());
-        }
-      }
+    if (!normalizedCode || normalizedCode.length < 3) {
+      throw new BadRequestException('Voucher code must be at least 3 characters long');
+    }
+
+    // Check for existing voucher with case-insensitive comparison
+    const existingVoucher = await this.voucherModel.findOne({ 
+      voucher_code: { $regex: new RegExp(`^${normalizedCode}$`, 'i') }
     });
-
-    let success = 0;
-    let failed = 0;
-
-    // Import vouchers to database
-    for (const code of voucherCodes) {
-      try {
-        const existingVoucher = await this.voucherModel.findOne({ voucher_code: code });
-        if (existingVoucher) {
-          errors.push(`Voucher ${code} already exists`);
-          failed++;
-          continue;
-        }
-
-        const voucher = new this.voucherModel({
-          voucher_code: code,
-          date: new Date(),
-          used: false,
-        });
-        
-        await voucher.save();
-        success++;
-      } catch (error) {
-        errors.push(`Failed to import voucher ${code}: ${error.message}`);
-        failed++;
-      }
+    
+    if (existingVoucher) {
+      throw new BadRequestException(`Voucher ${normalizedCode} already exists`);
     }
 
-    return { success, failed, errors };
-  }
-
-  async importVouchersFromArray(voucherCodes: string[]): Promise<{ success: number; failed: number; errors: string[] }> {
-    let success = 0;
-    let failed = 0;
-    const errors: string[] = [];
-
-    for (const code of voucherCodes) {
-      try {
-        const existingVoucher = await this.voucherModel.findOne({ voucher_code: code });
-        if (existingVoucher) {
-          errors.push(`Voucher ${code} already exists`);
-          failed++;
-          continue;
-        }
-
-        const voucher = new this.voucherModel({
-          voucher_code: code,
-          date: new Date(),
-          used: false,
-        });
-        
-        await voucher.save();
-        success++;
-      } catch (error) {
-        errors.push(`Failed to import voucher ${code}: ${error.message}`);
-        failed++;
+    try {
+      const voucher = new this.voucherModel({
+        voucher_code: normalizedCode,
+        date: new Date(),
+        used: false,
+      });
+      
+      return await voucher.save();
+    } catch (error) {
+      // Handle MongoDB duplicate key error
+      if (error.code === 11000) {
+        throw new BadRequestException(`Voucher ${normalizedCode} already exists`);
       }
+      throw error;
     }
-
-    return { success, failed, errors };
   }
 
   async assignVoucher(assignDto: AssignVoucherDto): Promise<VoucherResponseDto> {
@@ -148,30 +102,10 @@ export class VouchersService {
       });
     }
 
-    // Send SMS notifications
-    if (purchaseDto.flow === 'other') {
-      // Send to the person the voucher was bought for
-      await sendVoucherSms({
-        mobile: purchaseDto.bought_for_mobile,
-        name: purchaseDto.bought_for_name,
-        voucher_codes: assignedVouchers.map(v => v.voucher_code),
-        flow: 'other',
-        buyer_name: purchaseDto.name,
-        buyer_mobile: purchaseDto.mobile_number,
-      });
-    } else {
-      // Send to the buyer
-      await sendVoucherSms({
-        mobile: purchaseDto.mobile_number,
-        name: purchaseDto.name,
-        voucher_codes: assignedVouchers.map(v => v.voucher_code),
-        flow: 'self',
-      });
-    }
-
+    // Note: SMS will be sent separately after payment confirmation
     const message = purchaseDto.flow === 'other' 
-      ? `Successfully purchased ${purchaseDto.quantity} voucher(s) for ${purchaseDto.bought_for_name} (${purchaseDto.bought_for_mobile})`
-      : `Successfully purchased ${purchaseDto.quantity} voucher(s) for yourself`;
+      ? `Successfully assigned ${purchaseDto.quantity} voucher(s) for ${purchaseDto.bought_for_name} (${purchaseDto.bought_for_mobile})`
+      : `Successfully assigned ${purchaseDto.quantity} voucher(s) for yourself`;
 
     return {
       success: true,
@@ -254,5 +188,106 @@ export class VouchersService {
     ]);
 
     return { total, available, assigned, used };
+  }
+
+  async checkVoucherExists(voucherCode: string): Promise<boolean> {
+    const normalizedCode = voucherCode.trim().toUpperCase();
+    const existingVoucher = await this.voucherModel.findOne({ 
+      voucher_code: { $regex: new RegExp(`^${normalizedCode}$`, 'i') }
+    });
+    return !!existingVoucher;
+  }
+
+  async createVouchersBulk(voucherCodes: string[]): Promise<{
+    success: number;
+    failed: number;
+    duplicates: string[];
+    errors: string[];
+  }> {
+    const results = {
+      success: 0,
+      failed: 0,
+      duplicates: [] as string[],
+      errors: [] as string[]
+    };
+
+    for (const code of voucherCodes) {
+      try {
+        const normalizedCode = code.trim().toUpperCase();
+        
+        if (!normalizedCode || normalizedCode.length < 3) {
+          results.errors.push(`Invalid voucher code: ${code}`);
+          results.failed++;
+          continue;
+        }
+
+        // Check if voucher already exists
+        const exists = await this.checkVoucherExists(normalizedCode);
+        if (exists) {
+          results.duplicates.push(normalizedCode);
+          results.failed++;
+          continue;
+        }
+
+        // Create voucher
+        const voucher = new this.voucherModel({
+          voucher_code: normalizedCode,
+          date: new Date(),
+          used: false,
+        });
+        
+        await voucher.save();
+        results.success++;
+        
+      } catch (error) {
+        if (error.code === 11000) {
+          // MongoDB duplicate key error
+          results.duplicates.push(code);
+        } else {
+          results.errors.push(`Failed to create voucher ${code}: ${error.message}`);
+        }
+        results.failed++;
+      }
+    }
+
+    return results;
+  }
+
+  async sendVoucherSmsAfterPayment(mobileNumber: string, purchaseData: {
+    name: string;
+    flow: 'self' | 'other';
+    bought_for_name?: string;
+    bought_for_mobile?: string;
+  }): Promise<boolean> {
+    const vouchers = await this.voucherModel.find({ 
+      mobile_number_assigned: mobileNumber,
+      used: false
+    });
+
+    if (vouchers.length === 0) {
+      throw new NotFoundException('No vouchers found for this mobile number');
+    }
+
+    const voucherCodes = vouchers.map(v => v.voucher_code);
+
+    if (purchaseData.flow === 'other') {
+      // Send to the person the voucher was bought for
+      return await sendVoucherSms({
+        mobile: purchaseData.bought_for_mobile,
+        name: purchaseData.bought_for_name,
+        voucher_codes: voucherCodes,
+        flow: 'other',
+        buyer_name: purchaseData.name,
+        buyer_mobile: mobileNumber,
+      });
+    } else {
+      // Send to the buyer
+      return await sendVoucherSms({
+        mobile: mobileNumber,
+        name: purchaseData.name,
+        voucher_codes: voucherCodes,
+        flow: 'self',
+      });
+    }
   }
 }

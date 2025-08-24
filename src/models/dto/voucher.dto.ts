@@ -1,10 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsArray, IsBoolean } from 'class-validator';
-
-export class ImportVoucherDto {
-  @IsArray()
-  @IsString({ each: true })
-  voucher_codes: string[];
-}
+import { IsString, IsNumber, IsOptional } from 'class-validator';
 
 export class AssignVoucherDto {
   @IsString()

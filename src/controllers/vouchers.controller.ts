@@ -4,15 +4,11 @@ import {
   Get, 
   Body, 
   Param, 
-  UseInterceptors, 
-  UploadedFile, 
   BadRequestException,
   Query
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { VouchersService } from '../services/vouchers.service';
 import { 
-  ImportVoucherDto, 
   AssignVoucherDto, 
   PurchaseVoucherDto 
 } from '../models/dto/voucher.dto';
@@ -21,30 +17,24 @@ import {
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
-  @Post('import/excel')
-  @UseInterceptors(FileInterceptor('file'))
-  async importVouchersFromExcel(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('No file uploaded');
-    }
-    
-    // Validate file type
-    if (!file.mimetype.includes('excel') && !file.mimetype.includes('spreadsheet')) {
-      throw new BadRequestException('Only Excel files are allowed');
-    }
-    
-    const result = await this.vouchersService.importVouchersFromExcel(file.buffer);
+  @Post('create')
+  async createVoucher(@Body() body: { voucher_code: string }) {
+    const voucher = await this.vouchersService.createVoucher(body.voucher_code);
     return {
-      message: 'Vouchers import completed',
-      ...result,
+      message: 'Voucher created successfully',
+      voucher,
     };
   }
 
-  @Post('import/array')
-  async importVouchersFromArray(@Body() importDto: ImportVoucherDto) {
-    const result = await this.vouchersService.importVouchersFromArray(importDto.voucher_codes);
+  @Post('create-bulk')
+  async createVouchersBulk(@Body() body: { voucher_codes: string[] }) {
+    if (!body.voucher_codes || !Array.isArray(body.voucher_codes)) {
+      throw new BadRequestException('voucher_codes must be an array');
+    }
+
+    const result = await this.vouchersService.createVouchersBulk(body.voucher_codes);
     return {
-      message: 'Vouchers import completed',
+      message: 'Bulk voucher creation completed',
       ...result,
     };
   }
@@ -83,6 +73,40 @@ export class VouchersController {
   async useVoucher(@Param('voucherCode') voucherCode: string) {
     const result = await this.vouchersService.useVoucher(voucherCode);
     return result;
+  }
+
+  @Post('send-sms-after-payment')
+  async sendSmsAfterPayment(@Body() body: {
+    mobile_number: string;
+    name: string;
+    flow: 'self' | 'other';
+    bought_for_name?: string;
+    bought_for_mobile?: string;
+  }) {
+    const result = await this.vouchersService.sendVoucherSmsAfterPayment(
+      body.mobile_number,
+      {
+        name: body.name,
+        flow: body.flow,
+        bought_for_name: body.bought_for_name,
+        bought_for_mobile: body.bought_for_mobile,
+      }
+    );
+    
+    return {
+      message: 'SMS sent successfully after payment confirmation',
+      success: result,
+    };
+  }
+
+  @Get('check/:voucherCode')
+  async checkVoucherExists(@Param('voucherCode') voucherCode: string) {
+    const exists = await this.vouchersService.checkVoucherExists(voucherCode);
+    return {
+      voucher_code: voucherCode,
+      exists,
+      message: exists ? 'Voucher already exists' : 'Voucher code is available'
+    };
   }
 
   @Get('stats')

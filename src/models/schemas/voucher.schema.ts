@@ -3,7 +3,7 @@ import { Document, Types } from "mongoose";
 
 @Schema({ timestamps: true })
 export class Voucher extends Document {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   voucher_code: string;
 
   @Prop({ required: true, default: Date.now })
