@@ -89,7 +89,9 @@ export class UssdService {
         req.SessionId,
         "Contact Us",
         "Phone: +233262195121\nEmail: guglextechnologies@gmail.com",
-        HbEnums.DATATYPE_DISPLAY
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
       );
     }
 
@@ -111,7 +113,8 @@ export class UssdService {
       "Coming Soon",
       "This service is coming soon. Please select BECE checker voucher for now.",
       HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_NUMBER
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RELEASE
     );
   }
 
@@ -280,38 +283,35 @@ export class UssdService {
     });
 
     await newTicket.save();
-    
-    // Don't delete session here - let Hubtel manage the session
-    // this.sessionMap.delete(req.SessionId);
-    
+   
     // Return JSON string like working code
     return JSON.stringify(response);
   }
 
   private async releaseSession(sessionId: string) {
     this.sessionMap.delete(sessionId);
-    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.DATATYPE_DISPLAY, HbEnums.FIELDTYPE_TEXT);
+    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.DATATYPE_DISPLAY, HbEnums.FIELDTYPE_TEXT, HbEnums.RELEASE);
   }
 
 
-  // FIXED createResponse
-  private createResponse(
-    sessionId: string,
-    label: string,
-    message: string,
-    dataType: string,
-    fieldType: string = HbEnums.FIELDTYPE_TEXT,
-    type: string = HbEnums.RESPONSE 
-  ) {
-    return JSON.stringify({
-      SessionId: sessionId,
-      Type: type,   
-      Label: label,
-      Message: message,
-      DataType: dataType,
-      FieldType: fieldType
-    });
-  }
+     // FIX: allow caller to set Type
+    private createResponse(
+      sessionId: string,
+      label: string,
+      message: string,
+      dataType: string,
+      fieldType: string = HbEnums.FIELDTYPE_TEXT,
+      type: string = HbEnums.RESPONSE  
+    ) {
+      return JSON.stringify({
+        SessionId: sessionId,
+        Type: type,                  
+        Label: label,
+        Message: message,
+        DataType: dataType,
+        FieldType: fieldType
+      });
+    }
 
 
   async handleUssdCallback(req: HbPayments) {
