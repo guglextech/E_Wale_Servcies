@@ -54,7 +54,7 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Welcome to Guglex Technologies",
-      `I want buy result check e-voucher \n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
+      `I want buy result check e-voucher\n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER
     );
@@ -240,57 +240,52 @@ export class UssdService {
   }
 
   private async handlePaymentConfirmation(req: HBussdReq, state: SessionState) {
-    if (req.Message === "1") {
-      // Create the proper Hubtel response object for payment
-      const response = new HbUssdResObj();
-      response.SessionId = req.SessionId;
-      response.Type = HbEnums.ADDTOCART;
-      response.Label = "Payment Request Submitted";
-      response.Message = `Payment request for GHS ${state.totalAmount.toFixed(2)} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170#- My Account-My approvals`;
-      response.DataType = HbEnums.DATATYPE_DISPLAY;
-      // CRITICAL: Don't set FieldType for AddToCart responses
+    console.log(req, "HANDLE PAYMENT CONFIRMATION");
+    if (req.Message !== "1") return this.releaseSession(req.SessionId);
 
-      // Set the checkout item for payment processing
-      response.Item = new CheckOutItem(
-        state.service,
-        state.quantity,
-        state.totalAmount
-      );
+    const total = state.totalAmount;
+    console.log(total, "TOTAL AMOUNT:::");
 
-      console.log("Payment response created:", response);
+    // Use the same structure as your working code
+    const response = new HbUssdResObj();
+    response.SessionId = req.SessionId;
+    response.Type = HbEnums.ADDTOCART;
+    response.Label = "The request has been submitted. Please wait for a payment prompt soon!";
+    response.Message = `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170#- My Account-My approvals`;
+    response.DataType = HbEnums.DATATYPE_DISPLAY;
 
-      // Save ticket to database
-      const newTicket = new this.ticketModel({
-        user: req.SessionId, 
-        SessionId: req.SessionId,
-        mobile: req.Mobile,
-        name: state.flow === "self" ? req.Mobile : state.name,
-        packageType: state.service,
-        quantity: state.quantity,
-        flow: state.flow,
-        initialAmount: state.totalAmount,
-        boughtForMobile: state.flow === 'self' ? req.Mobile : state.mobile,
-        boughtForName: state.flow === 'self' ? req.Mobile : state.name,
-        paymentStatus: "pending",
-        isSuccessful: false
-      });
+    // Use CheckOutItem constructor like working code
+    response.Item = new CheckOutItem(
+      state.service,
+      1,  // Use 1 like in working code, not state.quantity
+      total
+    );
 
-      await newTicket.save();
-      this.sessionMap.delete(req.SessionId);
-      
-      // CRITICAL FIX: Return JSON string like the working version
-      return JSON.stringify(response);
-    } else if (req.Message === "2") {
-      return this.releaseSession(req.SessionId);
-    } else {
-      return this.createResponse(
-        req.SessionId,
-        "Invalid Selection",
-        "Please select 1 or 2",
-        HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
-      );
-    }
+    console.log(response.Item, " RESPONSE");
+
+    // Save ticket to database
+    const newTicket = new this.ticketModel({
+      user: req.SessionId, 
+      SessionId: req.SessionId,
+      mobile: req.Mobile,
+      name: state.flow === "self" ? req.Mobile : state.name,
+      packageType: state.service,
+      quantity: state.quantity,
+      flow: state.flow,
+      initialAmount: total,
+      boughtForMobile: state.flow === 'self' ? req.Mobile : state.mobile,
+      boughtForName: state.flow === 'self' ? req.Mobile : state.name,
+      paymentStatus: "pending",
+      isSuccessful: false
+    });
+
+    await newTicket.save();
+    
+    // Don't delete session here - let Hubtel manage the session
+    // this.sessionMap.delete(req.SessionId);
+    
+    // Return JSON string like working code
+    return JSON.stringify(response);
   }
 
   private async releaseSession(sessionId: string) {
@@ -385,7 +380,7 @@ export class UssdService {
         }
 
         // Send SMS with voucher details
-        // await sendTicketSms(updatedTicket);
+        await sendTicketSms(updatedTicket);
 
         // Update Hubtel payments record
         await this.hbPaymentsModel.findOneAndUpdate(
