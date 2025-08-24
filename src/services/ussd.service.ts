@@ -395,6 +395,12 @@ export class UssdService {
               buyer_mobile: updatedTicket.boughtForMobile
             }
           );
+          
+          // Mark voucher as used/verified after SMS is sent
+          await this.ticketModel.findOneAndUpdate(
+            { SessionId: req.SessionId },
+            { $set: { isVerifiedTicket: true } }
+          );
         }
 
         await this.hbPaymentsModel.findOneAndUpdate(
