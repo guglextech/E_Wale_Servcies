@@ -402,10 +402,16 @@ export class UssdService {
             }
           );
           
-          // Update the assigned vouchers to mark them as used
+          // Update the assigned vouchers to mark them as used and successful
           await this.voucherModel.updateMany(
             { voucher_code: { $in: sessionState.assignedVoucherCodes } },
-            { $set: { used: true } }
+            { 
+              $set: { 
+                used: true,
+                isSuccessful: true,
+                paymentStatus: req.OrderInfo.Status
+              } 
+            }
           );
         }
 
@@ -430,6 +436,6 @@ export class UssdService {
   }
 
   private getVoucherPrice(): number {
-    return 0.5;
+    return 0.1;
   }
 }
