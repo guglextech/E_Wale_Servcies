@@ -54,7 +54,7 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Welcome to Guglex Technologies",
-      `I want buy result check e-voucher\n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
+      `I want buy result check e-voucher \n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER
     );
@@ -294,7 +294,7 @@ export class UssdService {
 
   private async releaseSession(sessionId: string) {
     this.sessionMap.delete(sessionId);
-    return this.createResponse(sessionId, "Thank you", "Thank you for using Guglex Technologies e-voucher service", HbEnums.DATATYPE_DISPLAY);
+    return this.createResponse(sessionId, "Thank you", "Thank you for using Guglex Technologies e-voucher service", HbEnums.DATATYPE_DISPLAY, HbEnums.FIELDTYPE_TEXT);
   }
 
   // CRITICAL FIX: Return JSON string like the working version
