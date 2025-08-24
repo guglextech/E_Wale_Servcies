@@ -290,7 +290,7 @@ export class UssdService {
 
   private async releaseSession(sessionId: string) {
     this.sessionMap.delete(sessionId);
-    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.DATATYPE_DISPLAY);
+    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.FIELDTYPE_TEXT);
   }
 
   // CRITICAL FIX: Return JSON string like the working version
