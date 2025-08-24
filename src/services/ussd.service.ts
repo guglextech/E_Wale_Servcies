@@ -251,16 +251,8 @@ export class UssdService {
 
   private handleOrderDetails(req: HBussdReq, state: SessionState) {
     if (req.Message === "1") {
-      return this.createResponse(
-        req.SessionId,
-        "Confirm Payment",
-        `Confirm prompt for payment\n\nService: ${state.service}\nQuantity: ${state.quantity}\nTotal Amount: GHS ${state.totalAmount.toFixed(
-          2
-        )}\n\n1. Confirm payment prompt\n2. Cancel`,
-        HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER,
-        HbEnums.RESPONSE
-      );
+      // Instead of showing another confirm menu, call payment prompt directly
+      return this.handlePaymentConfirmation(req, state);
     } else if (req.Message === "2") {
       return this.releaseSession(req.SessionId);
     } else {
