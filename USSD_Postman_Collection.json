@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "USSD E-Voucher Purchase Flow",
-    "description": "Complete Postman collection for testing the USSD e-voucher purchase system. This collection covers both 'Buy for me' and 'Buy for other' flows with all possible scenarios.",
+    "description": "Complete Postman collection for testing the USSD e-voucher purchase system. This collection covers both 'Buy for me' and 'Buy for other' flows for BECE checker vouchers.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -46,7 +46,7 @@
           "host": ["{{base_url}}"],
           "path": ["api", "v1", "flow", "ussd"]
         },
-        "description": "Initial USSD session initiation. This should return the welcome screen with service options."
+        "description": "Initial USSD session initiation. This should return the welcome screen with e-voucher service options."
       },
       "response": []
     },
@@ -192,30 +192,7 @@
           "response": []
         },
         {
-          "name": "8A. Quantity Input - Invalid (Over 100)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"101\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 4\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/flow/ussd",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "flow", "ussd"]
-            },
-            "description": "Enter invalid quantity (101). Should return validation error."
-          },
-          "response": []
-        },
-        {
-          "name": "9A. Order Confirmation - Confirm",
+          "name": "8A. Order Details - Confirm",
           "request": {
             "method": "POST",
             "header": [
@@ -238,7 +215,7 @@
           "response": []
         },
         {
-          "name": "10A. Order Confirmation - Cancel",
+          "name": "9A. Payment Confirmation - Confirm",
           "request": {
             "method": "POST",
             "header": [
@@ -249,30 +226,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"2\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 5\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/flow/ussd",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "flow", "ussd"]
-            },
-            "description": "Cancel order. Should return thank you message and end session."
-          },
-          "response": []
-        },
-        {
-          "name": "11A. Payment Confirmation - Confirm",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"1\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 6\n}"
+              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"1\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 8\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/flow/ussd",
@@ -280,29 +234,6 @@
               "path": ["api", "v1", "flow", "ussd"]
             },
             "description": "Confirm payment prompt. Should return payment request submitted message and create ticket."
-          },
-          "response": []
-        },
-        {
-          "name": "12A. Payment Confirmation - Cancel",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"2\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 6\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/flow/ussd",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "flow", "ussd"]
-            },
-            "description": "Cancel payment. Should return thank you message and end session."
           },
           "response": []
         }
@@ -358,30 +289,7 @@
           "response": []
         },
         {
-          "name": "7B. Mobile Number Input - Invalid (Too Short)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"123\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 4\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/flow/ussd",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "flow", "ussd"]
-            },
-            "description": "Enter invalid mobile number (too short). Should return validation error."
-          },
-          "response": []
-        },
-        {
-          "name": "8B. Name Input - Valid",
+          "name": "7B. Name Input - Valid",
           "request": {
             "method": "POST",
             "header": [
@@ -404,30 +312,7 @@
           "response": []
         },
         {
-          "name": "9B. Name Input - Invalid (Too Short)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"Message\": \"A\",\n  \"Mobile\": \"{{mobile_number}}\",\n  \"ServiceCode\": \"{{service_code}}\",\n  \"Type\": \"response\",\n  \"Sequence\": 5\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/flow/ussd",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "flow", "ussd"]
-            },
-            "description": "Enter invalid name (too short). Should return validation error."
-          },
-          "response": []
-        },
-        {
-          "name": "10B. Quantity Input - Valid",
+          "name": "8B. Quantity Input - Valid",
           "request": {
             "method": "POST",
             "header": [
@@ -450,7 +335,7 @@
           "response": []
         },
         {
-          "name": "11B. Order Confirmation - Confirm",
+          "name": "9B. Order Details - Confirm",
           "request": {
             "method": "POST",
             "header": [
@@ -473,7 +358,7 @@
           "response": []
         },
         {
-          "name": "12B. Payment Confirmation - Confirm",
+          "name": "10B. Payment Confirmation - Confirm",
           "request": {
             "method": "POST",
             "header": [
@@ -520,29 +405,6 @@
               "path": ["api", "v1", "flow", "ussd", "callback"]
             },
             "description": "Simulate successful payment callback from Hubtel. This should update ticket status and trigger SMS delivery."
-          },
-          "response": []
-        },
-        {
-          "name": "Payment Failure Callback",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"{{session_id}}\",\n  \"OrderId\": \"order-{{$timestamp}}\",\n  \"ExtraData\": \"{}\",\n  \"OrderInfo\": {\n    \"CustomerMobileNumber\": \"{{mobile_number}}\",\n    \"CustomerEmail\": \"test@example.com\",\n    \"CustomerName\": \"Test User\",\n    \"Status\": \"Failed\",\n    \"OrderDate\": \"{{$isoTimestamp}}\",\n    \"Currency\": \"GHS\",\n    \"BranchName\": \"USSD\",\n    \"IsRecurring\": false,\n    \"RecurringInvoiceId\": null,\n    \"Subtotal\": 10.00,\n    \"Items\": [\n      {\n        \"Name\": \"BECE checker voucher\",\n        \"Quantity\": 2,\n        \"UnitPrice\": 5.00\n      }\n    ],\n    \"Payment\": {\n      \"PaymentType\": \"Mobile Money\",\n      \"AmountPaid\": 0.00,\n      \"AmountAfterCharges\": 0.00,\n      \"PaymentDate\": \"{{$isoTimestamp}}\",\n      \"PaymentDescription\": \"USSD Payment Failed\",\n      \"IsSuccessful\": false\n    }\n  }\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/flow/ussd/callback",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "flow", "ussd", "callback"]
-            },
-            "description": "Simulate failed payment callback from Hubtel. This should update ticket status but not trigger SMS delivery."
           },
           "response": []
         }
