@@ -1,0 +1,24 @@
+[
+  {
+    "Type": "Initiation",
+    "Mobile": "233262195121",
+    "SessionId": "3c796dac28174f739de4262d08409c51",
+    "ServiceCode": "*714*51",
+    "Message": "*714*51#",
+    "Operator": "airtel",
+    "Sequence": 1,
+    "ClientState": "",
+    "Platform": "USSD"
+  },
+  {
+     "Type": "Response",
+    "Mobile": "233262195121",
+    "SessionId": "3c796dac28174f739de4262d08409c51",
+    "ServiceCode": "*714*51",
+    "Message": "1",  
+    "Operator": "airtel",
+    "Sequence": 2,
+    "ClientState": "",
+    "Platform": "USSD"
+ }
+]
