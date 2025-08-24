@@ -13,7 +13,7 @@ import {
   PurchaseVoucherDto 
 } from '../models/dto/voucher.dto';
 
-@Controller('vouchers')
+@Controller('api/v1/vouchers')
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
