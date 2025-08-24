@@ -222,7 +222,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Confirm Payment",
-        `Confirm prompt for payment\n\nService: ${state.service}\nQuantity: ${state.quantity}\nTotal Amount: GH₵ ${state.totalAmount.toFixed(2)}\n\n1. Confirm payment prompt\n2. Cancel`,
+        `Confirm prompt for payment\n\nService: ${state.service}\nQuantity: ${state.quantity}\nTotal Amount: GHS ${state.totalAmount.toFixed(2)}\n\n1. Confirm payment prompt\n2. Cancel`,
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER
       );
@@ -246,9 +246,9 @@ export class UssdService {
       response.SessionId = req.SessionId;
       response.Type = HbEnums.ADDTOCART;
       response.Label = "Payment Request Submitted";
-      response.Message = `Payment request for GH₵ ${state.totalAmount.toFixed(2)} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170#- My Account-My approvals`;
+      response.Message = `Payment request for GHS ${state.totalAmount.toFixed(2)} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170#- My Account-My approvals`;
       response.DataType = HbEnums.DATATYPE_DISPLAY;
-      response.FieldType = HbEnums.FIELDTYPE_TEXT;
+      // CRITICAL: Don't set FieldType for AddToCart responses
 
       // Set the checkout item for payment processing
       response.Item = new CheckOutItem(
@@ -277,8 +277,8 @@ export class UssdService {
 
       await newTicket.save();
       
-      // Return the response object directly (not JSON.stringify)
-      return response;
+      // CRITICAL FIX: Return JSON string like the working version
+      return JSON.stringify(response);
     } else if (req.Message === "2") {
       return this.releaseSession(req.SessionId);
     } else {
@@ -297,6 +297,7 @@ export class UssdService {
     return this.createResponse(sessionId, "Thank you", "Thank you for using Guglex Technologies e-voucher service", HbEnums.DATATYPE_DISPLAY);
   }
 
+  // CRITICAL FIX: Return JSON string like the working version
   private createResponse(
     sessionId: string,
     label: string,
@@ -304,14 +305,14 @@ export class UssdService {
     dataType: string,
     fieldType: string = HbEnums.FIELDTYPE_TEXT) {
 
-    return {
+    return JSON.stringify({
       SessionId: sessionId,
       Type: HbEnums.RESPONSE,
       Label: label,
       Message: message,
       DataType: dataType,
       FieldType: fieldType
-    };
+    });
   }
 
   async handleUssdCallback(req: HbPayments) {
@@ -413,6 +414,6 @@ export class UssdService {
 
   private getVoucherPrice(): number {
     // BECE checker voucher price
-    return 5.00; // GH₵ 5.00 per voucher
+    return 5.00; // GHS 5.00 per voucher
   }
 }
