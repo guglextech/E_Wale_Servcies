@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Voucher } from '../models/schemas/voucher.schema';
-import { Ticket } from '../models/schemas/ticket.schema';
 import { AssignVoucherDto, PurchaseVoucherDto, VoucherResponseDto } from '../models/dto/voucher.dto';
 import { sendVoucherSms } from '../utils/sendSMS';
 
@@ -10,7 +9,6 @@ import { sendVoucherSms } from '../utils/sendSMS';
 export class VouchersService {
   constructor(
     @InjectModel(Voucher.name) private voucherModel: Model<Voucher>,
-    @InjectModel(Ticket.name) private ticketModel: Model<Ticket>,
   ) {}
 
   async createVoucher(voucherCode: string): Promise<Voucher> {
@@ -289,5 +287,78 @@ export class VouchersService {
         flow: 'self',
       });
     }
+  }
+
+  async getAllPaidVouchers(): Promise<{ count: number; vouchers: Voucher[] }> {
+    const vouchers = await this.voucherModel.find({
+      paymentStatus: 'Paid',
+      isSuccessful: true,
+    }).exec();
+  
+    return {
+      count: vouchers.length,
+      vouchers,
+    };
+  }
+
+  async searchVoucher(query: string): Promise<Voucher[]> {
+    return await this.voucherModel.find({
+      paymentStatus: 'Paid',
+      isSuccessful: true,
+      $or: [
+        { mobile: query },
+        { voucher_code: query }
+      ]
+    }).exec();
+  }
+
+  async createVoucherFromPurchase(purchaseData: {
+    user: Types.ObjectId;
+    SessionId: string;
+    mobile: string;
+    name: string;
+    packageType: string;
+    quantity: number;
+    flow: string;
+    initialAmount: number;
+    boughtForMobile: string;
+    boughtForName: string;
+    paymentStatus: string;
+    isSuccessful: boolean;
+  }): Promise<Voucher> {
+    const voucher = new this.voucherModel({
+      ...purchaseData,
+      date: new Date(),
+      used: false,
+      isVerifiedVoucher: false,
+    });
+    
+    return await voucher.save();
+  }
+
+  async updateVoucherPaymentStatus(SessionId: string, paymentData: {
+    paymentStatus: string;
+    isSuccessful: boolean;
+    name: string;
+  }): Promise<Voucher> {
+    return await this.voucherModel.findOneAndUpdate(
+      { SessionId },
+      {
+        $set: {
+          paymentStatus: paymentData.paymentStatus,
+          isSuccessful: paymentData.isSuccessful,
+          name: paymentData.name
+        }
+      },
+      { new: true }
+    );
+  }
+
+  async markVoucherAsVerified(SessionId: string): Promise<Voucher> {
+    return await this.voucherModel.findOneAndUpdate(
+      { SessionId },
+      { $set: { isVerifiedVoucher: true } },
+      { new: true }
+    );
   }
 }

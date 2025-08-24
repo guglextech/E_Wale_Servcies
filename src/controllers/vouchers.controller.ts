@@ -114,18 +114,25 @@ export class VouchersController {
     return await this.vouchersService.getVoucherStats();
   }
 
-  @Get('search')
-  async searchVouchers(@Query('code') code?: string, @Query('mobile') mobile?: string) {
-    if (code) {
-      const voucher = await this.vouchersService['voucherModel'].findOne({ voucher_code: code });
-      return voucher ? { voucher } : { message: 'Voucher not found' };
+  /**
+   * Get all paid vouchers
+   * @returns 
+   */
+  @Get("paid")
+  async getPaidVouchers() {
+    return await this.vouchersService.getAllPaidVouchers();
+  }
+
+  /**
+   * Search vouchers
+   * @param query 
+   * @returns 
+   */
+  @Get("search")
+  async searchVouchers(@Query("q") query: string) {
+    if (!query) {
+      throw new BadRequestException("Search query is required");
     }
-    
-    if (mobile) {
-      const vouchers = await this.vouchersService.getAssignedVouchers(mobile);
-      return { mobile_number: mobile, vouchers };
-    }
-    
-    throw new BadRequestException('Please provide either code or mobile parameter');
+    return await this.vouchersService.searchVoucher(query);
   }
 }

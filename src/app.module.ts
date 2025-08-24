@@ -25,11 +25,8 @@ import {
   HbPayments,
   HbPaymentsSchema,
 } from "./models/dto/hubtel/callback-ussd.schema";
-import { Ticket, TicketSchema } from "./models/schemas/ticket.schema";
 import { Transactions, TransactionsSchema } from "./models/schemas/transaction.schema";
 import { Voucher, VoucherSchema } from "./models/schemas/voucher.schema";
-import { TicketController } from "./controllers/tickets.controller";
-import { TicketService } from "./services/tickets.service";
 import { VouchersController } from "./controllers/vouchers.controller";
 import { VouchersService } from "./services/vouchers.service";
 
@@ -53,7 +50,6 @@ import { VouchersService } from "./services/vouchers.service";
       { name: User.name, schema: UserSchema },
       { name: Generics.name, schema: GenericSchema },
       { name: HbPayments.name, schema: HbPaymentsSchema },
-      { name: Ticket.name, schema: TicketSchema },
       { name: Transactions.name, schema: TransactionsSchema },
       { name: Voucher.name, schema: VoucherSchema },
     ]),
@@ -68,7 +64,6 @@ import { VouchersService } from "./services/vouchers.service";
     AuthController,
     UssdController,
     AppController,
-    TicketController,
     VouchersController,
   ],
   providers: [
@@ -76,7 +71,6 @@ import { VouchersService } from "./services/vouchers.service";
     UssdService,
     AwsService,
     MailService,
-    TicketService,
     VouchersService,
     // {
     //   provide: APP_GUARD,

@@ -6,10 +6,10 @@ import { HbEnums } from "src/models/dto/hubtel/hb-enums";
 import { CheckOutItem, HBussdReq, HbUssdResObj } from "src/models/dto/hubtel/hb-ussd.dto";
 import axios from "axios";
 import { HbPayments } from "../models/dto/hubtel/callback-ussd.schema";
-import { Ticket } from "src/models/schemas/ticket.schema";
-import { User } from "src/models/schemas/user.shema";
+import { Voucher } from "../models/schemas/voucher.schema";
+import { User } from "../models/schemas/user.shema";
 import { sendVoucherSms } from "../utils/sendSMS";
-import { Transactions } from "src/models/schemas/transaction.schema";
+import { Transactions } from "../models/schemas/transaction.schema";
 
 interface SessionState {
   service?: string;
@@ -25,10 +25,10 @@ export class UssdService {
   private sessionMap = new Map<string, SessionState>();
 
   constructor(
-    @InjectModel(Ticket.name) private readonly ticketModel: Model<Ticket>,
-    @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(HbPayments.name) private readonly hbPaymentsModel: Model<HbPayments>,
-    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>
+    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    @InjectModel(Voucher.name) private readonly voucherModel: Model<Voucher>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
   async handleUssdRequest(req: HBussdReq) {
@@ -280,23 +280,27 @@ export class UssdService {
       Item: new CheckOutItem(state.service, 1, total)
     };
 
-    // Save ticket
-    const newTicket = new this.ticketModel({
-      user: req.SessionId,
-      SessionId: req.SessionId,
-      mobile: req.Mobile,
-      name: state.flow === "self" ? req.Mobile : state.name,
-      packageType: state.service,
-      quantity: state.quantity,
-      flow: state.flow,
-      initialAmount: total,
-      boughtForMobile: state.flow === "self" ? req.Mobile : state.mobile,
-      boughtForName: state.flow === "self" ? req.Mobile : state.name,
-      paymentStatus: "pending",
-      isSuccessful: false
-    });
+    // Save multiple vouchers based on quantity
+    const voucherPromises = [];
+    for (let i = 0; i < state.quantity; i++) {
+      const newVoucher = new this.voucherModel({
+        user: req.SessionId,
+        SessionId: req.SessionId,
+        mobile: req.Mobile,
+        name: state.flow === "self" ? req.Mobile : state.name,
+        packageType: state.service,
+        quantity: 1, // Each voucher represents 1 unit
+        flow: state.flow,
+        initialAmount: total / state.quantity, // Divide total by quantity for individual voucher
+        boughtForMobile: state.flow === "self" ? req.Mobile : state.mobile,
+        boughtForName: state.flow === "self" ? req.Mobile : state.name,
+        paymentStatus: "pending",
+        isSuccessful: false
+      });
+      voucherPromises.push(newVoucher.save());
+    }
 
-    await newTicket.save();
+    await Promise.all(voucherPromises);
 
     return JSON.stringify(response);
   }
@@ -372,7 +376,8 @@ export class UssdService {
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
 
-        await this.ticketModel.findOneAndUpdate(
+        // Update all vouchers for this session
+        await this.voucherModel.updateMany(
           { SessionId: req.SessionId },
           {
             $set: {
@@ -383,23 +388,26 @@ export class UssdService {
           }
         );
 
-        const updatedTicket = await this.ticketModel.findOne({ SessionId: req.SessionId });
-        if (updatedTicket) {
+        // Find all vouchers for this session to get all voucher codes
+        const updatedVouchers = await this.voucherModel.find({ SessionId: req.SessionId });
+        if (updatedVouchers.length > 0) {
+          const voucherCodes = updatedVouchers.map(v => v.voucher_code);
+          
           await sendVoucherSms(
             {
-              mobile: updatedTicket.mobile,
-              name: updatedTicket.name,
-              voucher_codes: [updatedTicket.ticketCode],
-              flow: updatedTicket.flow as "self" | "other",
-              buyer_name: updatedTicket.boughtForName,
-              buyer_mobile: updatedTicket.boughtForMobile
+              mobile: updatedVouchers[0].mobile,
+              name: updatedVouchers[0].name,
+              voucher_codes: voucherCodes,
+              flow: updatedVouchers[0].flow as "self" | "other",
+              buyer_name: updatedVouchers[0].boughtForName,
+              buyer_mobile: updatedVouchers[0].boughtForMobile
             }
           );
           
-          // Mark voucher as used/verified after SMS is sent
-          await this.ticketModel.findOneAndUpdate(
+          // Mark all vouchers as verified after SMS is sent
+          await this.voucherModel.updateMany(
             { SessionId: req.SessionId },
-            { $set: { isVerifiedTicket: true } }
+            { $set: { isVerifiedVoucher: true } }
           );
         }
 
