@@ -290,26 +290,29 @@ export class UssdService {
 
   private async releaseSession(sessionId: string) {
     this.sessionMap.delete(sessionId);
-    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.FIELDTYPE_TEXT);
+    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.DATATYPE_DISPLAY, HbEnums.FIELDTYPE_TEXT);
   }
 
-  // CRITICAL FIX: Return JSON string like the working version
+
+  // FIXED createResponse
   private createResponse(
     sessionId: string,
     label: string,
     message: string,
     dataType: string,
-    fieldType: string = HbEnums.FIELDTYPE_TEXT) {
-
+    fieldType: string = HbEnums.FIELDTYPE_TEXT,
+    type: string = HbEnums.RESPONSE 
+  ) {
     return JSON.stringify({
       SessionId: sessionId,
-      Type: HbEnums.RESPONSE,
+      Type: type,   
       Label: label,
       Message: message,
       DataType: dataType,
       FieldType: fieldType
     });
   }
+
 
   async handleUssdCallback(req: HbPayments) {
     console.error("LOGGING CALLBACK::::::", req);

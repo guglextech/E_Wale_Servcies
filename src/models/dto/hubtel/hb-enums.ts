@@ -6,7 +6,7 @@ export enum HbEnums {
     ADDTOCART = 'AddToCart',
 
     DATATYPE_DISPLAY = 'display',
-    DATATYPE_INPUT = 'input',
+    DATATYPE_INPUT = 'display',
 
     FIELDTYPE_TEXT = 'text',
     FIELDTYPE_PHONE = 'phone',

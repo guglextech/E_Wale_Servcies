@@ -25,4 +25,3 @@ export class UssdController {
         return await this.ussdService.handleUssdCallback(req); 
     }
 }
-
