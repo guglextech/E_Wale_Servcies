@@ -414,6 +414,6 @@ export class UssdService {
 
   private getVoucherPrice(): number {
     // BECE checker voucher price
-    return 0.1; // GHS 5.00 per voucher
+    return 5.00; // GHS 5.00 per voucher
   }
 }
