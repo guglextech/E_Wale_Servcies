@@ -4,7 +4,7 @@ import { Model } from "mongoose";
 import { FinalUssdReq } from "src/models/dto/hubtel/callback-ussd.dto";
 import { HbEnums } from "src/models/dto/hubtel/hb-enums";
 import { CheckOutItem, HBussdReq, HbUssdResObj } from "src/models/dto/hubtel/hb-ussd.dto";
-import axios from 'axios';
+import axios from "axios";
 import { HbPayments } from "../models/dto/hubtel/callback-ussd.schema";
 import { Ticket } from "src/models/schemas/ticket.schema";
 import { User } from "src/models/schemas/user.shema";
@@ -16,7 +16,7 @@ interface SessionState {
   mobile?: string;
   name?: string;
   quantity?: number;
-  flow?: 'self' | 'other';
+  flow?: "self" | "other";
   totalAmount?: number;
 }
 
@@ -28,8 +28,8 @@ export class UssdService {
     @InjectModel(Ticket.name) private readonly ticketModel: Model<Ticket>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(HbPayments.name) private readonly hbPaymentsModel: Model<HbPayments>,
-    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
-  ) { }
+    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>
+  ) {}
 
   async handleUssdRequest(req: HBussdReq) {
     try {
@@ -50,13 +50,14 @@ export class UssdService {
 
   private async handleInitiation(req: HBussdReq) {
     this.sessionMap.set(req.SessionId, {});
-   
+
     return this.createResponse(
       req.SessionId,
       "Welcome to Guglex Technologies",
       `I want buy result check e-voucher\n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_NUMBER
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
     );
   }
 
@@ -67,19 +68,37 @@ export class UssdService {
         req.SessionId,
         "Error",
         "Session expired or invalid. Please restart.",
-        HbEnums.DATATYPE_DISPLAY
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
       );
     }
 
     switch (req.Sequence) {
-      case 2: return this.handleServiceSelection(req, state);
-      case 3: return this.handleBuyerType(req, state);
-      case 4: return state.flow === 'self' ? this.handleQuantityInput(req, state) : this.handleMobileNumber(req, state);
-      case 5: return state.flow === 'self' ? this.handleOrderDetails(req, state) : this.handleNameInput(req, state);
-      case 6: return state.flow === 'other' ? this.handleQuantityInput(req, state) : this.releaseSession(req.SessionId);
-      case 7: return state.flow === 'other' ? this.handleOrderDetails(req, state) : this.releaseSession(req.SessionId);
-      case 8: return this.handlePaymentConfirmation(req, state);
-      default: return this.releaseSession(req.SessionId);
+      case 2:
+        return this.handleServiceSelection(req, state);
+      case 3:
+        return this.handleBuyerType(req, state);
+      case 4:
+        return state.flow === "self"
+          ? this.handleQuantityInput(req, state)
+          : this.handleMobileNumber(req, state);
+      case 5:
+        return state.flow === "self"
+          ? this.handleOrderDetails(req, state)
+          : this.handleNameInput(req, state);
+      case 6:
+        return state.flow === "other"
+          ? this.handleQuantityInput(req, state)
+          : this.releaseSession(req.SessionId);
+      case 7:
+        return state.flow === "other"
+          ? this.handleOrderDetails(req, state)
+          : this.releaseSession(req.SessionId);
+      case 8:
+        return this.handlePaymentConfirmation(req, state);
+      default:
+        return this.releaseSession(req.SessionId);
     }
   }
 
@@ -103,41 +122,43 @@ export class UssdService {
         "Buying For",
         "Buy for:\n1. Buy for me\n2. For other",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
       );
     }
 
-    // For other services that are coming soon
     return this.createResponse(
       req.SessionId,
       "Coming Soon",
       "This service is coming soon. Please select BECE checker voucher for now.",
-      HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.DATATYPE_DISPLAY,
+      HbEnums.FIELDTYPE_TEXT,
       HbEnums.RELEASE
     );
   }
 
   private handleBuyerType(req: HBussdReq, state: SessionState) {
     if (req.Message === "1") {
-      state.flow = 'self';
+      state.flow = "self";
       this.sessionMap.set(req.SessionId, state);
       return this.createResponse(
         req.SessionId,
         "Enter Quantity",
         "Enter quantity:",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
       );
     } else if (req.Message === "2") {
-      state.flow = 'other';
+      state.flow = "other";
       this.sessionMap.set(req.SessionId, state);
       return this.createResponse(
         req.SessionId,
         "Enter Mobile Number",
         "Enter other mobile number:",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_PHONE
+        HbEnums.FIELDTYPE_PHONE,
+        HbEnums.RESPONSE
       );
     } else {
       return this.createResponse(
@@ -145,20 +166,21 @@ export class UssdService {
         "Invalid Selection",
         "Please select 1 or 2",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
       );
     }
   }
 
   private handleMobileNumber(req: HBussdReq, state: SessionState) {
-    // Basic mobile number validation
     if (!req.Message || req.Message.length < 10) {
       return this.createResponse(
         req.SessionId,
         "Invalid Mobile Number",
         "Please enter a valid mobile number:",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_PHONE
+        HbEnums.FIELDTYPE_PHONE,
+        HbEnums.RESPONSE
       );
     }
 
@@ -169,7 +191,8 @@ export class UssdService {
       "Enter Name",
       "Enter recipient's name:",
       HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_TEXT
+      HbEnums.FIELDTYPE_TEXT,
+      HbEnums.RESPONSE
     );
   }
 
@@ -180,7 +203,8 @@ export class UssdService {
         "Invalid Name",
         "Please enter a valid name (minimum 2 characters):",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_TEXT
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RESPONSE
       );
     }
 
@@ -191,7 +215,8 @@ export class UssdService {
       "Enter Quantity",
       "Enter quantity:",
       HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_NUMBER
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
     );
   }
 
@@ -203,7 +228,8 @@ export class UssdService {
         "Invalid Quantity",
         "Please enter a valid quantity (1-100):",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
       );
     }
 
@@ -214,9 +240,12 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Order Details",
-      `Details\nService: ${state.service}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+      `Details\nService: ${state.service}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(
+        2
+      )}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_NUMBER
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
     );
   }
 
@@ -225,9 +254,12 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Confirm Payment",
-        `Confirm prompt for payment\n\nService: ${state.service}\nQuantity: ${state.quantity}\nTotal Amount: GHS ${state.totalAmount.toFixed(2)}\n\n1. Confirm payment prompt\n2. Cancel`,
+        `Confirm prompt for payment\n\nService: ${state.service}\nQuantity: ${state.quantity}\nTotal Amount: GHS ${state.totalAmount.toFixed(
+          2
+        )}\n\n1. Confirm payment prompt\n2. Cancel`,
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
       );
     } else if (req.Message === "2") {
       return this.releaseSession(req.SessionId);
@@ -237,38 +269,30 @@ export class UssdService {
         "Invalid Selection",
         "Please select 1 or 2",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
       );
     }
   }
 
   private async handlePaymentConfirmation(req: HBussdReq, state: SessionState) {
-    console.log(req, "HANDLE PAYMENT CONFIRMATION");
     if (req.Message !== "1") return this.releaseSession(req.SessionId);
 
     const total = state.totalAmount;
-    console.log(total, "TOTAL AMOUNT:::");
 
-    // Use the same structure as your working code
-    const response = new HbUssdResObj();
-    response.SessionId = req.SessionId;
-    response.Type = HbEnums.ADDTOCART;
-    response.Label = "The request has been submitted. Please wait for a payment prompt soon!";
-    response.Message = `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170#- My Account-My approvals`;
-    response.DataType = HbEnums.DATATYPE_DISPLAY;
+    const response: any = {
+      SessionId: req.SessionId,
+      Type: HbEnums.ADDTOCART,
+      Label: "The request has been submitted. Please wait for a payment prompt soon!",
+      Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
+      DataType: HbEnums.DATATYPE_DISPLAY,
+      FieldType: HbEnums.FIELDTYPE_TEXT,
+      Item: new CheckOutItem(state.service, 1, total)
+    };
 
-    // Use CheckOutItem constructor like working code
-    response.Item = new CheckOutItem(
-      state.service,
-      1,  // Use 1 like in working code, not state.quantity
-      total
-    );
-
-    console.log(response.Item, " RESPONSE");
-
-    // Save ticket to database
+    // Save ticket
     const newTicket = new this.ticketModel({
-      user: req.SessionId, 
+      user: req.SessionId,
       SessionId: req.SessionId,
       mobile: req.Mobile,
       name: state.flow === "self" ? req.Mobile : state.name,
@@ -276,52 +300,52 @@ export class UssdService {
       quantity: state.quantity,
       flow: state.flow,
       initialAmount: total,
-      boughtForMobile: state.flow === 'self' ? req.Mobile : state.mobile,
-      boughtForName: state.flow === 'self' ? req.Mobile : state.name,
+      boughtForMobile: state.flow === "self" ? req.Mobile : state.mobile,
+      boughtForName: state.flow === "self" ? req.Mobile : state.name,
       paymentStatus: "pending",
       isSuccessful: false
     });
 
     await newTicket.save();
-   
-    // Return JSON string like working code
+
     return JSON.stringify(response);
   }
 
   private async releaseSession(sessionId: string) {
     this.sessionMap.delete(sessionId);
-    return this.createResponse(sessionId, "Thank you", "Love from Guglex Technologies", HbEnums.DATATYPE_DISPLAY, HbEnums.FIELDTYPE_TEXT, HbEnums.RELEASE);
+    return this.createResponse(
+      sessionId,
+      "Thank you",
+      "Love from Guglex Technologies",
+      HbEnums.DATATYPE_DISPLAY,
+      HbEnums.FIELDTYPE_TEXT,
+      HbEnums.RELEASE
+    );
   }
 
-
-     // FIX: allow caller to set Type
-    private createResponse(
-      sessionId: string,
-      label: string,
-      message: string,
-      dataType: string,
-      fieldType: string = HbEnums.FIELDTYPE_TEXT,
-      type: string = HbEnums.RESPONSE  
-    ) {
-      return JSON.stringify({
-        SessionId: sessionId,
-        Type: type,                  
-        Label: label,
-        Message: message,
-        DataType: dataType,
-        FieldType: fieldType
-      });
-    }
-
+  private createResponse(
+    sessionId: string,
+    label: string,
+    message: string,
+    dataType: string,
+    fieldType: string = HbEnums.FIELDTYPE_TEXT,
+    type: string = HbEnums.RESPONSE
+  ) {
+    return JSON.stringify({
+      SessionId: sessionId,
+      Type: type,
+      Label: label,
+      Message: message,
+      DataType: dataType,
+      FieldType: fieldType
+    });
+  }
 
   async handleUssdCallback(req: HbPayments) {
     console.error("LOGGING CALLBACK::::::", req);
 
-    if (!req.OrderInfo || !req.OrderInfo.Payment) {
-      console.error("LOGGING::::::", req);
-      return;
-    }
- 
+    if (!req.OrderInfo || !req.OrderInfo.Payment) return;
+
     let finalResponse = new FinalUssdReq();
     finalResponse.SessionId = req.SessionId;
     finalResponse.OrderId = req.OrderId;
@@ -351,68 +375,50 @@ export class UssdService {
     });
 
     await transaction.save();
-   
+
     try {
       const isSuccessful = req.OrderInfo.Payment.IsSuccessful;
 
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
 
-        // Update ticket status
-        const ticket = await this.ticketModel.findOneAndUpdate(
-          { "SessionId": req.SessionId },
-          { 
+        await this.ticketModel.findOneAndUpdate(
+          { SessionId: req.SessionId },
+          {
             $set: {
               paymentStatus: req.OrderInfo.Status,
               isSuccessful: isSuccessful,
               name: req.OrderInfo.CustomerName
             }
-          },
+          }
         );
 
-        if (!ticket) {
-          console.log(`Ticket not found for SessionId: ${req.SessionId}`);
-          return;
-        }
-
-        // Get the updated ticket
         const updatedTicket = await this.ticketModel.findOne({ SessionId: req.SessionId });
-        if (!updatedTicket) {
-          console.log(`No tickets found for SessionId: ${req.SessionId}`);
-          return;
+        if (updatedTicket) {
+          await sendTicketSms(updatedTicket);
         }
 
-        // Send SMS with voucher details
-        await sendTicketSms(updatedTicket);
-
-        // Update Hubtel payments record
         await this.hbPaymentsModel.findOneAndUpdate(
-          { "SessionId": req.SessionId },
-          {
-            $set: {
-              SessionId: req.SessionId,
-              OrderId: req.OrderId,
-            },
-          },
+          { SessionId: req.SessionId },
+          { $set: { SessionId: req.SessionId, OrderId: req.OrderId } },
           { upsert: true, new: true }
         );
+      } else {
+        finalResponse.ServiceStatus = "failed";
       }
 
-      // Send response to Hubtel
-      const response = await axios.post(`${process.env.HB_CALLBACK_URL}`, finalResponse, {
+      await axios.post(`${process.env.HB_CALLBACK_URL}`, finalResponse, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${process.env.HUB_ACCESS_TOKEN}`
+          "Content-Type": "application/json",
+          Authorization: `Basic ${process.env.HUB_ACCESS_TOKEN}`
         }
       });
-      console.log("Response from Hubtel:", response.status);
     } catch (error) {
       console.error("Error processing USSD callback:", error);
     }
   }
 
   private getVoucherPrice(): number {
-    // BECE checker voucher price
-    return 19.50; // GHS 5.00 per voucher
+    return 0.5;
   }
 }
