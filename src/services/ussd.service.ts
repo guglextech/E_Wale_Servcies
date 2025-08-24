@@ -54,7 +54,7 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Welcome to Guglex Technologies",
-      `I want buy result check e-voucher\n\nGuglex Technologies\n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n0. Contact us`,
+      `I want buy result check e-voucher\n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER
     );
@@ -88,7 +88,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Contact Us",
-        "Contact Guglex Technologies\nPhone: +233 262195121\nEmail: guglextechnologies@guglex.com",
+        "Phone: +233262195121\nEmail: guglextechnologies@gmail.com",
         HbEnums.DATATYPE_DISPLAY
       );
     }
