@@ -211,7 +211,7 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Order Details",
-      `Details\nService: ${state.service}\nQuantity: ${quantity}\nAmount: GH₵ ${state.totalAmount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+      `Details\nService: ${state.service}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER
     );
