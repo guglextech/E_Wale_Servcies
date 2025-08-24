@@ -384,7 +384,7 @@ export class UssdService {
         }
 
         // Send SMS with voucher details
-        await sendTicketSms(updatedTicket);
+        // await sendTicketSms(updatedTicket);
 
         // Update Hubtel payments record
         await this.hbPaymentsModel.findOneAndUpdate(
@@ -414,6 +414,6 @@ export class UssdService {
 
   private getVoucherPrice(): number {
     // BECE checker voucher price
-    return 5.00; // GHS 5.00 per voucher
+    return 0.1; // GHS 5.00 per voucher
   }
 }
