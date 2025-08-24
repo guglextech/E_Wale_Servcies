@@ -10,6 +10,7 @@ import { Voucher } from "../models/schemas/voucher.schema";
 import { User } from "../models/schemas/user.shema";
 import { sendVoucherSms } from "../utils/sendSMS";
 import { Transactions } from "../models/schemas/transaction.schema";
+import { VouchersService } from "./vouchers.service";
 
 interface SessionState {
   service?: string;
@@ -18,6 +19,7 @@ interface SessionState {
   quantity?: number;
   flow?: "self" | "other";
   totalAmount?: number;
+  assignedVoucherCodes?: string[];
 }
 
 @Injectable()
@@ -29,6 +31,7 @@ export class UssdService {
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     @InjectModel(Voucher.name) private readonly voucherModel: Model<Voucher>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    private readonly vouchersService: VouchersService,
   ) {}
 
   async handleUssdRequest(req: HBussdReq) {
@@ -280,32 +283,40 @@ export class UssdService {
       Item: new CheckOutItem(state.service, 1, total)
     };
 
-    // Save multiple vouchers based on quantity
-    const voucherPromises = [];
-    for (let i = 0; i < state.quantity; i++) {
-      const newVoucher = new this.voucherModel({
-        user: req.SessionId,
-        SessionId: req.SessionId,
-        mobile: req.Mobile,
+    // Assign vouchers through the voucher service
+    try {
+      const purchaseResult = await this.vouchersService.purchaseVouchers({
+        quantity: state.quantity,
+        mobile_number: req.Mobile,
         name: state.flow === "self" ? req.Mobile : state.name,
-        packageType: state.service,
-        quantity: 1, // Each voucher represents 1 unit
         flow: state.flow,
-        initialAmount: total / state.quantity, // Divide total by quantity for individual voucher
-        boughtForMobile: state.flow === "self" ? req.Mobile : state.mobile,
-        boughtForName: state.flow === "self" ? req.Mobile : state.name,
-        paymentStatus: "pending",
-        isSuccessful: false
+        bought_for_mobile: state.flow === "other" ? state.mobile : req.Mobile,
+        bought_for_name: state.flow === "other" ? state.name : req.Mobile
       });
-      voucherPromises.push(newVoucher.save());
+      
+      // Store the assigned voucher codes in session state
+      state.assignedVoucherCodes = purchaseResult.assigned_vouchers.map(v => v.voucher_code);
+      
+      // Store session state for later use
+      this.sessionMap.set(req.SessionId, state);
+      
+    } catch (error) {
+      console.error("Error assigning vouchers:", error);
+      return this.createResponse(
+        req.SessionId,
+        "Error",
+        "Unable to assign vouchers. Please try again.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
     }
-
-    await Promise.all(voucherPromises);
 
     return JSON.stringify(response);
   }
 
   private async releaseSession(sessionId: string) {
+    // Clean up session state
     this.sessionMap.delete(sessionId);
     return this.createResponse(
       sessionId,
@@ -376,38 +387,25 @@ export class UssdService {
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
 
-        // Update all vouchers for this session
-        await this.voucherModel.updateMany(
-          { SessionId: req.SessionId },
-          {
-            $set: {
-              paymentStatus: req.OrderInfo.Status,
-              isSuccessful: isSuccessful,
-              name: req.OrderInfo.CustomerName
-            }
-          }
-        );
-
-        // Find all vouchers for this session to get all voucher codes
-        const updatedVouchers = await this.voucherModel.find({ SessionId: req.SessionId });
-        if (updatedVouchers.length > 0) {
-          const voucherCodes = updatedVouchers.map(v => v.voucher_code);
-          
+        // Get the session state to retrieve assigned voucher codes
+        const sessionState = this.sessionMap.get(req.SessionId);
+        if (sessionState && sessionState.assignedVoucherCodes) {
+          // Send SMS with all assigned voucher codes
           await sendVoucherSms(
             {
-              mobile: updatedVouchers[0].mobile,
-              name: updatedVouchers[0].name,
-              voucher_codes: voucherCodes,
-              flow: updatedVouchers[0].flow as "self" | "other",
-              buyer_name: updatedVouchers[0].boughtForName,
-              buyer_mobile: updatedVouchers[0].boughtForMobile
+              mobile: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
+              name: req.OrderInfo.CustomerName,
+              voucher_codes: sessionState.assignedVoucherCodes,
+              flow: sessionState.flow,
+              buyer_name: sessionState.flow === "other" ? req.OrderInfo.CustomerName : undefined,
+              buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
             }
           );
           
-          // Mark all vouchers as verified after SMS is sent
+          // Update the assigned vouchers to mark them as used
           await this.voucherModel.updateMany(
-            { SessionId: req.SessionId },
-            { $set: { isVerifiedVoucher: true } }
+            { voucher_code: { $in: sessionState.assignedVoucherCodes } },
+            { $set: { used: true } }
           );
         }
 
