@@ -320,51 +320,79 @@ export class UssdService {
     }
   }
 
+  // private async handlePaymentConfirmation(req: HBussdReq, state: SessionState) {
+  //   if (req.Message !== "1") return this.releaseSession(req.SessionId);
+
+  //   const total = state.totalAmount;
+
+  //   const response: any = {
+  //     SessionId: req.SessionId,
+  //     Type: HbEnums.ADDTOCART,
+  //     Label: "The request has been submitted. Please wait for a payment prompt soon!",
+  //     Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
+  //     DataType: HbEnums.DATATYPE_DISPLAY,
+  //     FieldType: HbEnums.FIELDTYPE_TEXT,
+  //     Item: new CheckOutItem(state.service, 1, total)
+  //   };
+
+  //   // Handle different service types
+  //   try {
+  //     if (state.serviceType === "result_checker") {
+  //       // Handle result checker services (existing voucher logic)
+  //       await this.handleResultCheckerPurchase(req, state);
+  //     } else {
+  //       // Handle other service types (future implementation)
+  //       await this.handleOtherServicePurchase(req, state);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error processing purchase:", error);
+  //     return this.createResponse(
+  //       req.SessionId,
+  //       "Error",
+  //       "Unable to process request. Please try again.",
+  //       HbEnums.DATATYPE_DISPLAY,
+  //       HbEnums.FIELDTYPE_TEXT,
+  //       HbEnums.RELEASE
+  //     );
+  //   }
+
+  //   return JSON.stringify(response);
+  // }
+
+
   private async handlePaymentConfirmation(req: HBussdReq, state: SessionState) {
     if (req.Message !== "1") return this.releaseSession(req.SessionId);
-
+    
     const total = state.totalAmount;
-
-    const response: any = {
-      SessionId: req.SessionId,
-      Type: HbEnums.ADDTOCART,
-      Label: "The request has been submitted. Please wait for a payment prompt soon!",
-      Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
-      DataType: HbEnums.DATATYPE_DISPLAY,
-      FieldType: HbEnums.FIELDTYPE_TEXT,
-      Item: new CheckOutItem(state.service, 1, total)
-    };
-
-    // Handle different service types
+    
+    // Process the purchase first
     try {
       if (state.serviceType === "result_checker") {
-        // Handle result checker services (existing voucher logic)
         await this.handleResultCheckerPurchase(req, state);
       } else {
-        // Handle other service types (future implementation)
         await this.handleOtherServicePurchase(req, state);
       }
     } catch (error) {
       console.error("Error processing purchase:", error);
-      return this.createResponse(
-        req.SessionId,
-        "Error",
-        "Unable to process request. Please try again.",
-        HbEnums.DATATYPE_DISPLAY,
-        HbEnums.FIELDTYPE_TEXT,
-        HbEnums.RELEASE
-      );
+      return this.releaseSession(req.SessionId);
     }
-
-    // Send payment prompt and then release session
-    const paymentResponse = JSON.stringify(response);
-    
-    // Release the session after sending payment prompt
-    setTimeout(() => {
-      this.releaseSession(req.SessionId);
-    }, 1000); // Small delay to ensure payment prompt is sent first
-    
-    return paymentResponse;
+  
+    // Store data for callback, then delete session
+    this.sessionMap.set(`callback_${req.SessionId}`, state);
+    this.sessionMap.delete(req.SessionId); 
+  
+    // Use ADDTOCART to trigger payment
+    const response: any = {
+      SessionId: req.SessionId,
+      Type: HbEnums.ADDTOCART, 
+      Label: "Payment request submitted",
+      Message: `Payment request for GHS ${total} submitted. Please wait for payment prompt.`,
+      DataType: HbEnums.DATATYPE_DISPLAY,
+      FieldType: HbEnums.FIELDTYPE_TEXT,
+      Item: new CheckOutItem(state.service, 1, total)
+    };
+  
+    return JSON.stringify(response);
   }
 
   private async handleResultCheckerPurchase(req: HBussdReq, state: SessionState) {
