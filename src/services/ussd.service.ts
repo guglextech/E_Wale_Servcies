@@ -291,10 +291,13 @@ export class UssdService {
     state.totalAmount = this.getServicePrice(state.service) * quantity;
     this.sessionMap.set(req.SessionId, state);
 
+    // Determine which mobile number to display based on flow
+    const displayMobile = state.flow === "self" ? req.Mobile : state.mobile;
+    
     return this.createResponse(
       req.SessionId,
       "Order Details",
-      `Details\nService: ${state.service}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(
+      `Service: ${state.service}\nBought For: ${displayMobile}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(
         2
       )}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
@@ -352,6 +355,7 @@ export class UssdService {
     }
 
     // Send payment prompt with AddToCart type to trigger payment flow
+    // AddToCart automatically triggers payment without showing reply prompts
     const response: any = {
       SessionId: req.SessionId,
       Type: HbEnums.ADDTOCART,
@@ -361,8 +365,7 @@ export class UssdService {
       FieldType: HbEnums.FIELDTYPE_TEXT,
       Item: new CheckOutItem(state.service, state.quantity, total)
     };
-
-    // Keep session active for payment callback processing
+    // AddToCart type automatically prevents user input and triggers payment flow
     return JSON.stringify(response);
   }
 
