@@ -320,78 +320,46 @@ export class UssdService {
     }
   }
 
-  // private async handlePaymentConfirmation(req: HBussdReq, state: SessionState) {
-  //   if (req.Message !== "1") return this.releaseSession(req.SessionId);
-
-  //   const total = state.totalAmount;
-
-  //   const response: any = {
-  //     SessionId: req.SessionId,
-  //     Type: HbEnums.ADDTOCART,
-  //     Label: "The request has been submitted. Please wait for a payment prompt soon!",
-  //     Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
-  //     DataType: HbEnums.DATATYPE_DISPLAY,
-  //     FieldType: HbEnums.FIELDTYPE_TEXT,
-  //     Item: new CheckOutItem(state.service, 1, total)
-  //   };
-
-  //   // Handle different service types
-  //   try {
-  //     if (state.serviceType === "result_checker") {
-  //       // Handle result checker services (existing voucher logic)
-  //       await this.handleResultCheckerPurchase(req, state);
-  //     } else {
-  //       // Handle other service types (future implementation)
-  //       await this.handleOtherServicePurchase(req, state);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error processing purchase:", error);
-  //     return this.createResponse(
-  //       req.SessionId,
-  //       "Error",
-  //       "Unable to process request. Please try again.",
-  //       HbEnums.DATATYPE_DISPLAY,
-  //       HbEnums.FIELDTYPE_TEXT,
-  //       HbEnums.RELEASE
-  //     );
-  //   }
-
-  //   return JSON.stringify(response);
-  // }
-
-
   private async handlePaymentConfirmation(req: HBussdReq, state: SessionState) {
     if (req.Message !== "1") return this.releaseSession(req.SessionId);
-    
+
     const total = state.totalAmount;
-    
-    // Process the purchase first
+
+    // Handle different service types first
     try {
       if (state.serviceType === "result_checker") {
+        // Handle result checker services (existing voucher logic)
         await this.handleResultCheckerPurchase(req, state);
       } else {
+        // Handle other service types (future implementation)
         await this.handleOtherServicePurchase(req, state);
       }
     } catch (error) {
       console.error("Error processing purchase:", error);
-      return this.releaseSession(req.SessionId);
+      return this.createResponse(
+        req.SessionId,
+        "Error",
+        "Unable to process request. Please try again.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
     }
-  
-    // Store data for callback, then delete session
-    this.sessionMap.set(`callback_${req.SessionId}`, state);
-    this.sessionMap.delete(req.SessionId); 
-  
-    // Use ADDTOCART to trigger payment
+
+    // Send payment prompt and release session to prevent further replies
     const response: any = {
       SessionId: req.SessionId,
-      Type: HbEnums.ADDTOCART, 
-      Label: "Payment request submitted",
-      Message: `Payment request for GHS ${total} submitted. Please wait for payment prompt.`,
+      Type: HbEnums.ADDTOCART,
+      Label: "Payment Prompt Sent",
+      Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
       DataType: HbEnums.DATATYPE_DISPLAY,
       FieldType: HbEnums.FIELDTYPE_TEXT,
       Item: new CheckOutItem(state.service, 1, total)
     };
-  
+
+    // Release the session after sending payment prompt
+    this.sessionMap.delete(req.SessionId);
+
     return JSON.stringify(response);
   }
 
