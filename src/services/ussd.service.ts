@@ -3,7 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { FinalUssdReq } from "src/models/dto/hubtel/callback-ussd.dto";
 import { HbEnums } from "src/models/dto/hubtel/hb-enums";
-import { CheckOutItem, HBussdReq, HbUssdResObj } from "src/models/dto/hubtel/hb-ussd.dto";
+import { HBussdReq } from "src/models/dto/hubtel/hb-ussd.dto";
 import axios from "axios";
 import { HbPayments } from "../models/dto/hubtel/callback-ussd.schema";
 import { Voucher } from "../models/schemas/voucher.schema";
@@ -325,17 +325,22 @@ export class UssdService {
 
     const total = state.totalAmount;
 
-    // Handle different service types first
+    // Store order details in session for later processing after payment
+    // Don't assign vouchers yet - wait for successful payment
     try {
+      // Just store the order details, don't process vouchers yet
       if (state.serviceType === "result_checker") {
-        // Handle result checker services (existing voucher logic)
-        await this.handleResultCheckerPurchase(req, state);
+        // Store order details for later voucher assignment
+        state.totalAmount = total;
+        this.sessionMap.set(req.SessionId, state);
       } else {
         // Handle other service types (future implementation)
-        await this.handleOtherServicePurchase(req, state);
+        // For now, just store the order details
+        state.totalAmount = total;
+        this.sessionMap.set(req.SessionId, state);
       }
     } catch (error) {
-      console.error("Error processing purchase:", error);
+      console.error("Error storing order details:", error);
       return this.createResponse(
         req.SessionId,
         "Error",
@@ -346,51 +351,22 @@ export class UssdService {
       );
     }
 
-    // Send payment prompt and release session to prevent further replies
+    // Send payment prompt with RELEASE type to prevent any reply
     const response: any = {
       SessionId: req.SessionId,
-      Type: HbEnums.ADDTOCART,
-      Label: "Payment Prompt Sent",
+      Type: HbEnums.RELEASE,
+      Label: "Payment Request Submitted",
       Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
       DataType: HbEnums.DATATYPE_DISPLAY,
-      FieldType: HbEnums.FIELDTYPE_TEXT,
-      Item: new CheckOutItem(state.service, 1, total)
+      FieldType: HbEnums.FIELDTYPE_TEXT
     };
 
     // Release the session after sending payment prompt
     this.sessionMap.delete(req.SessionId);
-
     return JSON.stringify(response);
   }
 
-  private async handleResultCheckerPurchase(req: HBussdReq, state: SessionState) {
-    // Existing voucher assignment logic
-    const purchaseResult = await this.vouchersService.purchaseVouchers({
-      quantity: state.quantity,
-      mobile_number: req.Mobile,
-      name: state.flow === "self" ? req.Mobile : state.name,
-      flow: state.flow,
-      bought_for_mobile: state.flow === "other" ? state.mobile : req.Mobile,
-      bought_for_name: state.flow === "other" ? state.name : req.Mobile
-    });
-    
-    // Store the assigned voucher codes in session state
-    state.assignedVoucherCodes = purchaseResult.assigned_vouchers.map(v => v.voucher_code);
-    
-    // Store session state for later use
-    this.sessionMap.set(req.SessionId, state);
 
-    // this.sessionMap
-  }
-
-  private async handleOtherServicePurchase(req: HBussdReq, state: SessionState) {
-    // Placeholder for future service implementations
-    // This method will handle data bundles, bill payments, ECG prepaid, etc.
-    console.log(`Processing ${state.serviceType} purchase for ${state.quantity} units`);
-    
-    // Store session state for later use
-    this.sessionMap.set(req.SessionId, state);
-  }
 
   private async releaseSession(sessionId: string) {
     // Clean up session state
@@ -464,32 +440,47 @@ export class UssdService {
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
 
-        // Get the session state to retrieve assigned voucher codes
+        // Get the session state to process voucher assignment after successful payment
         const sessionState = this.sessionMap.get(req.SessionId);
-        if (sessionState && sessionState.assignedVoucherCodes) {
-          // Send SMS with all assigned voucher codes
-          await sendVoucherSms(
-            {
-              mobile: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
-              name: req.OrderInfo.CustomerName,
-              voucher_codes: sessionState.assignedVoucherCodes,
+        if (sessionState && sessionState.serviceType === "result_checker") {
+          try {
+            // Now assign vouchers after successful payment
+            const purchaseResult = await this.vouchersService.purchaseVouchers({
+              quantity: sessionState.quantity,
+              mobile_number: req.OrderInfo.CustomerMobileNumber,
+              name: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.name,
               flow: sessionState.flow,
-              buyer_name: sessionState.flow === "other" ? req.OrderInfo.CustomerName : undefined,
-              buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
-            }
-          );
-          
-          // Update the assigned vouchers to mark them as used and successful
-          await this.voucherModel.updateMany(
-            { voucher_code: { $in: sessionState.assignedVoucherCodes } },
-            { 
-              $set: { 
-                used: true,
-                isSuccessful: true,
-                paymentStatus: req.OrderInfo.Status
-              } 
-            }
-          );
+              bought_for_mobile: sessionState.flow === "other" ? sessionState.mobile : req.OrderInfo.CustomerMobileNumber,
+              bought_for_name: sessionState.flow === "other" ? sessionState.name : req.OrderInfo.CustomerMobileNumber
+            });
+            
+            // Send SMS with all assigned voucher codes
+            await sendVoucherSms(
+              {
+                mobile: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
+                name: req.OrderInfo.CustomerName,
+                voucher_codes: purchaseResult.assigned_vouchers.map(v => v.voucher_code),
+                flow: sessionState.flow,
+                buyer_name: sessionState.flow === "other" ? req.OrderInfo.CustomerName : undefined,
+                buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
+              }
+            );
+            
+            // Update the assigned vouchers to mark them as used and successful
+            await this.voucherModel.updateMany(
+              { voucher_code: { $in: purchaseResult.assigned_vouchers.map(v => v.voucher_code) } },
+              { 
+                $set: { 
+                  used: true,
+                  isSuccessful: true,
+                  paymentStatus: req.OrderInfo.Status
+                } 
+              }
+            );
+          } catch (error) {
+            console.error("Error assigning vouchers after payment:", error);
+            // Continue with the process even if voucher assignment fails
+          }
         }
 
         await this.hbPaymentsModel.findOneAndUpdate(
