@@ -354,13 +354,12 @@ export class UssdService {
       );
     }
 
-    // Send payment prompt with AddToCart type to trigger payment flow
     // AddToCart automatically triggers payment without showing reply prompts
     const response: any = {
       SessionId: req.SessionId,
       Type: HbEnums.ADDTOCART,
       Label: "Payment Request Submitted",
-      Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
+      Message: `Payment request for GHS ${total} has been submitted. Kindly approve the MOMO prompt. If no prompt, Dial *170# select 6) My Wallet 3) My Approvals, enter your PIN and approve the payment.`,
       DataType: HbEnums.DATATYPE_DISPLAY,
       FieldType: HbEnums.FIELDTYPE_TEXT,
       Item: new CheckOutItem(state.service, state.quantity, total)
