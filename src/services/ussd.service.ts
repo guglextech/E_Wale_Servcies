@@ -14,6 +14,7 @@ import { VouchersService } from "./vouchers.service";
 
 interface SessionState {
   service?: string;
+  serviceType?: string; // 'result_checker', 'data_bundle', 'pay_bills', 'ecg_prepaid'
   mobile?: string;
   name?: string;
   quantity?: number;
@@ -56,8 +57,8 @@ export class UssdService {
 
     return this.createResponse(
       req.SessionId,
-      "Welcome to Guglex Technologies",
-      `Welcome to E-Wale \n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
+      "Welcome to E-Wale",
+      `Welcome to E-Wale\n1. Results Voucher\n2. Data/Voice Bundles - soon\n3. Pay Bills - soon\n4. ECG Prepaid - soon\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -79,22 +80,24 @@ export class UssdService {
   
     switch (req.Sequence) {
       case 2:
-        return this.handleServiceSelection(req, state);
+        return this.handleMainMenuSelection(req, state);
       case 3:
-        return this.handleBuyerType(req, state);
+        return this.handleServiceTypeSelection(req, state);
       case 4:
+        return this.handleBuyerType(req, state);
+      case 5:
         return state.flow === "self"
           ? this.handleQuantityInput(req, state)
           : this.handleMobileNumber(req, state);
-      case 5:
+      case 6:
         return state.flow === "self"
           ? this.handleOrderDetails(req, state)
           : this.handleNameInput(req, state);
-      case 6:
+      case 7:
         return state.flow === "other"
           ? this.handleQuantityInput(req, state)
           : this.releaseSession(req.SessionId);
-      case 7:
+      case 8:
         return state.flow === "other"
           ? this.handleOrderDetails(req, state)
           : this.releaseSession(req.SessionId);
@@ -102,9 +105,8 @@ export class UssdService {
         return this.releaseSession(req.SessionId);
     }
   }
-  
 
-  private handleServiceSelection(req: HBussdReq, state: SessionState) {
+  private handleMainMenuSelection(req: HBussdReq, state: SessionState) {
     if (req.Message === "0") {
       return this.createResponse(
         req.SessionId,
@@ -117,25 +119,75 @@ export class UssdService {
     }
 
     if (req.Message === "1") {
-      state.service = "BECE checker voucher";
+      state.serviceType = "result_checker";
       this.sessionMap.set(req.SessionId, state);
       return this.createResponse(
         req.SessionId,
-        "Buying For",
-        "Buy for:\n1. Buy for me\n2. For other",
+        "Result E-Checkers",
+        "Select Result Checker:\n1. BECE Checker Voucher\n2. NovDec Checker\n3. School Placement Checker",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
       );
     }
 
+    // Handle other menu options (coming soon)
+    if (["2", "3", "4"].includes(req.Message)) {
+      const serviceNames = {
+        "2": "Data/Voice Bundles",
+        "3": "Pay Bills", 
+        "4": "ECG Prepaid"
+      };
+      
+      return this.createResponse(
+        req.SessionId,
+        "Coming Soon",
+        `${serviceNames[req.Message]} service is coming soon. Please select Result E-Checkers for now.`,
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+
     return this.createResponse(
       req.SessionId,
-      "Coming Soon",
-      "This service is coming soon. Please select BECE checker voucher for now.",
-      HbEnums.DATATYPE_DISPLAY,
-      HbEnums.FIELDTYPE_TEXT,
-      HbEnums.RELEASE
+      "Invalid Selection",
+      "Please select a valid option (1-4 or 0)",
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private handleServiceTypeSelection(req: HBussdReq, state: SessionState) {
+    if (!["1", "2", "3"].includes(req.Message)) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Selection",
+        "Please select 1, 2, or 3",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    // Map service selection to service name
+    const serviceMap = {
+      "1": "BECE Checker Voucher",
+      "2": "NovDec Checker", 
+      "3": "School Placement Checker"
+    };
+
+    state.service = serviceMap[req.Message];
+    this.sessionMap.set(req.SessionId, state);
+
+    return this.createResponse(
+      req.SessionId,
+      "Buying For",
+      "Buy for:\n1. Buy for me\n2. For other",
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
     );
   }
 
@@ -236,7 +288,7 @@ export class UssdService {
     }
 
     state.quantity = quantity;
-    state.totalAmount = this.getVoucherPrice() * quantity;
+    state.totalAmount = this.getServicePrice(state.service) * quantity;
     this.sessionMap.set(req.SessionId, state);
 
     return this.createResponse(
@@ -283,29 +335,21 @@ export class UssdService {
       Item: new CheckOutItem(state.service, 1, total)
     };
 
-    // Assign vouchers through the voucher service
+    // Handle different service types
     try {
-      const purchaseResult = await this.vouchersService.purchaseVouchers({
-        quantity: state.quantity,
-        mobile_number: req.Mobile,
-        name: state.flow === "self" ? req.Mobile : state.name,
-        flow: state.flow,
-        bought_for_mobile: state.flow === "other" ? state.mobile : req.Mobile,
-        bought_for_name: state.flow === "other" ? state.name : req.Mobile
-      });
-      
-      // Store the assigned voucher codes in session state
-      state.assignedVoucherCodes = purchaseResult.assigned_vouchers.map(v => v.voucher_code);
-      
-      // Store session state for later use
-      this.sessionMap.set(req.SessionId, state);
-      
+      if (state.serviceType === "result_checker") {
+        // Handle result checker services (existing voucher logic)
+        await this.handleResultCheckerPurchase(req, state);
+      } else {
+        // Handle other service types (future implementation)
+        await this.handleOtherServicePurchase(req, state);
+      }
     } catch (error) {
-      console.error("Error assigning vouchers:", error);
+      console.error("Error processing purchase:", error);
       return this.createResponse(
         req.SessionId,
         "Error",
-        "Unable to assign vouchers. Please try again.",
+        "Unable to process request. Please try again.",
         HbEnums.DATATYPE_DISPLAY,
         HbEnums.FIELDTYPE_TEXT,
         HbEnums.RELEASE
@@ -313,6 +357,33 @@ export class UssdService {
     }
 
     return JSON.stringify(response);
+  }
+
+  private async handleResultCheckerPurchase(req: HBussdReq, state: SessionState) {
+    // Existing voucher assignment logic
+    const purchaseResult = await this.vouchersService.purchaseVouchers({
+      quantity: state.quantity,
+      mobile_number: req.Mobile,
+      name: state.flow === "self" ? req.Mobile : state.name,
+      flow: state.flow,
+      bought_for_mobile: state.flow === "other" ? state.mobile : req.Mobile,
+      bought_for_name: state.flow === "other" ? state.name : req.Mobile
+    });
+    
+    // Store the assigned voucher codes in session state
+    state.assignedVoucherCodes = purchaseResult.assigned_vouchers.map(v => v.voucher_code);
+    
+    // Store session state for later use
+    this.sessionMap.set(req.SessionId, state);
+  }
+
+  private async handleOtherServicePurchase(req: HBussdReq, state: SessionState) {
+    // Placeholder for future service implementations
+    // This method will handle data bundles, bill payments, ECG prepaid, etc.
+    console.log(`Processing ${state.serviceType} purchase for ${state.quantity} units`);
+    
+    // Store session state for later use
+    this.sessionMap.set(req.SessionId, state);
   }
 
   private async releaseSession(sessionId: string) {
@@ -435,7 +506,18 @@ export class UssdService {
     }
   }
 
-  private getVoucherPrice(): number {
-    return 0.1;
+  private getServicePrice(service: string): number {
+    // Price mapping for different services
+    const priceMap = {
+      "BECE Checker Voucher": 0.1,
+      "NovDec Checker": 0.15,
+      "School Placement Checker": 0.2,
+      // Future services can be added here
+      "Data Bundle": 5.0,
+      "Voice Bundle": 3.0,
+      "ECG Prepaid": 1.0
+    };
+
+    return priceMap[service] || 0.1; // Default price if service not found
   }
 }
