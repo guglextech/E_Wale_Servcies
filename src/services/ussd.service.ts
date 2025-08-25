@@ -3,7 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { FinalUssdReq } from "src/models/dto/hubtel/callback-ussd.dto";
 import { HbEnums } from "src/models/dto/hubtel/hb-enums";
-import { HBussdReq } from "src/models/dto/hubtel/hb-ussd.dto";
+import { HBussdReq, CheckOutItem } from "src/models/dto/hubtel/hb-ussd.dto";
 import axios from "axios";
 import { HbPayments } from "../models/dto/hubtel/callback-ussd.schema";
 import { Voucher } from "../models/schemas/voucher.schema";
@@ -351,18 +351,18 @@ export class UssdService {
       );
     }
 
-    // Send payment prompt with RELEASE type to prevent any reply
+    // Send payment prompt with AddToCart type to trigger payment flow
     const response: any = {
       SessionId: req.SessionId,
-      Type: HbEnums.RELEASE,
+      Type: HbEnums.ADDTOCART,
       Label: "Payment Request Submitted",
       Message: `Payment request for GHS ${total} has been submitted. Please wait for a payment prompt soon. If no prompt, Dial *170# → My Account → My approvals`,
       DataType: HbEnums.DATATYPE_DISPLAY,
-      FieldType: HbEnums.FIELDTYPE_TEXT
+      FieldType: HbEnums.FIELDTYPE_TEXT,
+      Item: new CheckOutItem(state.service, state.quantity, total)
     };
 
-    // Release the session after sending payment prompt
-    this.sessionMap.delete(req.SessionId);
+    // Keep session active for payment callback processing
     return JSON.stringify(response);
   }
 
