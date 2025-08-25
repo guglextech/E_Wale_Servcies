@@ -1,0 +1,350 @@
+{
+  "info": {
+    "name": "E-Services API",
+    "description": "Complete API collection for E-Services voucher management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4300",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "User Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "User Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+233123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vouchers",
+      "item": [
+        {
+          "name": "Create Single Voucher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"voucher_code\": \"VOUCHER001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers"]
+            }
+          }
+        },
+        {
+          "name": "Create Bulk Vouchers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"voucher_codes\": [\"VOUCHER001\", \"VOUCHER002\", \"VOUCHER003\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "bulk"]
+            }
+          }
+        },
+        {
+          "name": "Assign Voucher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"voucher_code\": \"VOUCHER001\",\n  \"mobile_number\": \"+233123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/assign",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Purchase Vouchers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3,\n  \"mobile_number\": \"+233123456789\",\n  \"name\": \"John Doe\",\n  \"flow\": \"self\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/purchase",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "purchase"]
+            }
+          }
+        },
+        {
+          "name": "Get Available Vouchers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/available",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "available"]
+            }
+          }
+        },
+        {
+          "name": "Get Assigned Vouchers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/assigned?mobile=+233123456789",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "assigned"],
+              "query": [
+                {
+                  "key": "mobile",
+                  "value": "+233123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Use Voucher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"voucher_code\": \"VOUCHER001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/use",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "use"]
+            }
+          }
+        },
+        {
+          "name": "Get Voucher Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Paid Vouchers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/paid",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "paid"]
+            }
+          }
+        },
+        {
+          "name": "Search Vouchers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/vouchers/search?q=VOUCHER001",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "vouchers", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "VOUCHER001"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/64f1a2b3c4d5e6f7g8h9i0j1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "64f1a2b3c4d5e6f7g8h9i0j1"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Updated\",\n  \"email\": \"john.updated@example.com\",\n  \"mobile\": \"+233123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/64f1a2b3c4d5e6f7g8h9i0j1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "64f1a2b3c4d5e6f7g8h9i0j1"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/64f1a2b3c4d5e6f7g8h9i0j1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "64f1a2b3c4d5e6f7g8h9i0j1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "USSD",
+      "item": [
+        {
+          "name": "USSD Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"SessionId\": \"session123\",\n  \"ServiceCode\": \"123\",\n  \"PhoneNumber\": \"+233123456789\",\n  \"Text\": \"1\",\n  \"Type\": \"initiation\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/ussd",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ussd"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "App Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

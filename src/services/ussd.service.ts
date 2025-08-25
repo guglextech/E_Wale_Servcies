@@ -57,7 +57,7 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Welcome to Guglex Technologies",
-      `I want buy result check e-voucher\n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
+      `Welcome to E-Wale \n1. BECE checker voucher\n2. WASSCE/ NovDec Checker - soon\n3. School Placement Checker - soon\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
