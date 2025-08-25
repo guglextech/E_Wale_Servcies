@@ -508,7 +508,7 @@ export class UssdService {
   private getServicePrice(service: string): number {
     // Price mapping for different services
     const priceMap = {
-      "BECE Checker Voucher": 0.1,
+      "BECE Checker Voucher": 21,
       "NovDec Checker": 0.15,
       "School Placement Checker": 0.2,
       // Future services can be added here
