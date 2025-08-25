@@ -266,7 +266,7 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
     return this.createResponse(
       req.SessionId,
-      "Enter Quantity",
+      "How many vouchers do you want to buy?",
       "Enter quantity:",
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
