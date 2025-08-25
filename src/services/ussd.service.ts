@@ -198,7 +198,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Enter Quantity",
-        "Enter quantity:",
+        "How many vouchers do you want to buy?",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
