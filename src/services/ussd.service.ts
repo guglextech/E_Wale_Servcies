@@ -356,7 +356,15 @@ export class UssdService {
       );
     }
 
-    return JSON.stringify(response);
+    // Send payment prompt and then release session
+    const paymentResponse = JSON.stringify(response);
+    
+    // Release the session after sending payment prompt
+    setTimeout(() => {
+      this.releaseSession(req.SessionId);
+    }, 1000); // Small delay to ensure payment prompt is sent first
+    
+    return paymentResponse;
   }
 
   private async handleResultCheckerPurchase(req: HBussdReq, state: SessionState) {
@@ -375,6 +383,8 @@ export class UssdService {
     
     // Store session state for later use
     this.sessionMap.set(req.SessionId, state);
+
+    // this.sessionMap
   }
 
   private async handleOtherServicePurchase(req: HBussdReq, state: SessionState) {
