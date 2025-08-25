@@ -266,8 +266,8 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
     return this.createResponse(
       req.SessionId,
+      "Enter Quantity",
       "How many vouchers do you want to buy?",
-      "Enter quantity:",
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -358,11 +358,11 @@ export class UssdService {
     const response: any = {
       SessionId: req.SessionId,
       Type: HbEnums.ADDTOCART,
-      Label: "Payment Request Submitted",
       Message: `Payment request for GHS ${total} has been submitted. Kindly approve the MOMO prompt. If no prompt, Dial *170# select 6) My Wallet 3) My Approvals, enter your PIN and approve the payment.`,
+      Item: new CheckOutItem(state.service, state.quantity, total),
+      Label: "Payment Request Submitted",
       DataType: HbEnums.DATATYPE_DISPLAY,
-      FieldType: HbEnums.FIELDTYPE_TEXT,
-      Item: new CheckOutItem(state.service, state.quantity, total)
+      FieldType: HbEnums.FIELDTYPE_TEXT
     };
     // AddToCart type automatically prevents user input and triggers payment flow
     return JSON.stringify(response);
