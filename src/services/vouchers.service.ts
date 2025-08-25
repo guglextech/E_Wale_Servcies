@@ -11,35 +11,40 @@ export class VouchersService {
     @InjectModel(Voucher.name) private voucherModel: Model<Voucher>,
   ) {}
 
-  async createVoucher(voucherCode: string): Promise<Voucher> {
-    // Normalize voucher code (trim whitespace, convert to uppercase)
-    const normalizedCode = voucherCode.trim().toUpperCase();
+  async createVoucher(serialNumber: string, pin: string): Promise<Voucher> {
+    // Normalize serial number (trim whitespace, convert to uppercase)
+    const normalizedSerialNumber = serialNumber.trim().toUpperCase();
     
-    if (!normalizedCode || normalizedCode.length < 3) {
-      throw new BadRequestException('Voucher code must be at least 3 characters long');
+    if (!normalizedSerialNumber) {
+      throw new BadRequestException('Serial number is required');
+    }
+
+    if (!pin) {
+      throw new BadRequestException('PIN is required');
     }
 
     // Check for existing voucher with case-insensitive comparison
     const existingVoucher = await this.voucherModel.findOne({ 
-      voucher_code: { $regex: new RegExp(`^${normalizedCode}$`, 'i') }
+      serial_number: { $regex: new RegExp(`^${normalizedSerialNumber}$`, 'i') }
     });
     
     if (existingVoucher) {
-      throw new BadRequestException(`Voucher ${normalizedCode} already exists`);
+      throw new BadRequestException(`Voucher with serial number ${normalizedSerialNumber} already exists`);
     }
 
     try {
       const voucher = new this.voucherModel({
-        voucher_code: normalizedCode,
+        serial_number: normalizedSerialNumber,
+        pin: pin.trim(),
         date: new Date(),
-        used: false,
+        sold: false,
       });
       
       return await voucher.save();
     } catch (error) {
       // Handle MongoDB duplicate key error
       if (error.code === 11000) {
-        throw new BadRequestException(`Voucher ${normalizedCode} already exists`);
+        throw new BadRequestException(`Voucher with serial number ${normalizedSerialNumber} already exists`);
       }
       throw error;
     }
@@ -47,12 +52,19 @@ export class VouchersService {
 
   async assignVoucher(assignDto: AssignVoucherDto): Promise<VoucherResponseDto> {
     const voucher = await this.voucherModel.findOne({ 
-      voucher_code: assignDto.voucher_code,
-      used: false 
+      serial_number: { $regex: new RegExp(`^${assignDto.serial_number}$`, 'i') }
     });
 
     if (!voucher) {
-      throw new NotFoundException('Voucher not found or already used');
+      throw new NotFoundException('Voucher not found');
+    }
+
+    if (voucher.sold) {
+      throw new BadRequestException('Voucher already sold');
+    }
+
+    if (voucher.mobile_number_assigned) {
+      throw new BadRequestException('Voucher already assigned to another mobile number');
     }
 
     voucher.mobile_number_assigned = assignDto.mobile_number;
@@ -60,10 +72,11 @@ export class VouchersService {
     await voucher.save();
 
     return {
-      voucher_code: voucher.voucher_code,
+      serial_number: voucher.serial_number,
+      pin: voucher.pin,
       mobile_number_assigned: voucher.mobile_number_assigned,
       assigned_date: voucher.assigned_date,
-      used: voucher.used,
+      sold: voucher.sold,
     };
   }
 
@@ -74,7 +87,7 @@ export class VouchersService {
   }> {
     // Check if we have enough available vouchers
     const availableVouchers = await this.voucherModel.find({ 
-      used: false,
+      sold: false,
       mobile_number_assigned: { $exists: false }
     }).limit(purchaseDto.quantity);
 
@@ -93,10 +106,11 @@ export class VouchersService {
       await voucher.save();
 
       assignedVouchers.push({
-        voucher_code: voucher.voucher_code,
+        serial_number: voucher.serial_number,
+        pin: voucher.pin,
         mobile_number_assigned: voucher.mobile_number_assigned,
         assigned_date: voucher.assigned_date,
-        used: voucher.used,
+        sold: voucher.sold,
       });
     }
 
@@ -114,17 +128,18 @@ export class VouchersService {
 
   async getAvailableVouchers(): Promise<{ count: number; vouchers: VoucherResponseDto[] }> {
     const vouchers = await this.voucherModel.find({ 
-      used: false,
+      sold: false,
       mobile_number_assigned: { $exists: false }
     });
 
     return {
       count: vouchers.length,
       vouchers: vouchers.map(v => ({
-        voucher_code: v.voucher_code,
+        serial_number: v.serial_number,
+        pin: v.pin,
         mobile_number_assigned: v.mobile_number_assigned,
         assigned_date: v.assigned_date,
-        used: v.used,
+        sold: v.sold,
       })),
     };
   }
@@ -135,34 +150,35 @@ export class VouchersService {
     });
 
     return vouchers.map(v => ({
-      voucher_code: v.voucher_code,
+      serial_number: v.serial_number,
+      pin: v.pin,
       mobile_number_assigned: v.mobile_number_assigned,
       assigned_date: v.assigned_date,
-      used: v.used,
+      sold: v.sold,
     }));
   }
 
-  async useVoucher(voucherCode: string): Promise<{ success: boolean; message: string }> {
-    const voucher = await this.voucherModel.findOne({ voucher_code: voucherCode });
+  async useVoucher(serialNumber: string): Promise<{ success: boolean; message: string }> {
+    const voucher = await this.voucherModel.findOne({ serial_number: serialNumber });
     
     if (!voucher) {
       throw new NotFoundException('Voucher not found');
     }
 
-    if (voucher.used) {
-      throw new BadRequestException('Voucher already used');
+    if (voucher.sold) {
+      throw new BadRequestException('Voucher already sold');
     }
 
     if (!voucher.mobile_number_assigned) {
       throw new BadRequestException('Voucher not assigned to any mobile number');
     }
 
-    voucher.used = true;
+    voucher.sold = true;
     await voucher.save();
 
     return {
       success: true,
-      message: `Voucher ${voucherCode} has been used successfully`,
+      message: `Voucher ${serialNumber} has been used successfully`,
     };
   }
 
@@ -170,33 +186,33 @@ export class VouchersService {
     total: number;
     available: number;
     assigned: number;
-    used: number;
+    sold: number;
   }> {
-    const [total, available, assigned, used] = await Promise.all([
+    const [total, available, assigned, sold] = await Promise.all([
       this.voucherModel.countDocuments(),
       this.voucherModel.countDocuments({ 
-        used: false, 
+        sold: false, 
         mobile_number_assigned: { $exists: false } 
       }),
       this.voucherModel.countDocuments({ 
         mobile_number_assigned: { $exists: true },
-        used: false 
+        sold: false 
       }),
-      this.voucherModel.countDocuments({ used: true }),
+      this.voucherModel.countDocuments({ sold: true }),
     ]);
 
-    return { total, available, assigned, used };
+    return { total, available, assigned, sold };
   }
 
-  async checkVoucherExists(voucherCode: string): Promise<boolean> {
-    const normalizedCode = voucherCode.trim().toUpperCase();
+  async checkVoucherExists(serialNumber: string): Promise<boolean> {
+    const normalizedSerialNumber = serialNumber.trim().toUpperCase();
     const existingVoucher = await this.voucherModel.findOne({ 
-      voucher_code: { $regex: new RegExp(`^${normalizedCode}$`, 'i') }
+      serial_number: { $regex: new RegExp(`^${normalizedSerialNumber}$`, 'i') }
     });
     return !!existingVoucher;
   }
 
-  async createVouchersBulk(voucherCodes: string[]): Promise<{
+  async createVouchersBulk(serialNumbers: string[], pins: string[]): Promise<{
     success: number;
     failed: number;
     duplicates: string[];
@@ -209,29 +225,56 @@ export class VouchersService {
       errors: [] as string[]
     };
 
-    for (const code of voucherCodes) {
+    // Determine the maximum length to process
+    const maxLength = Math.max(serialNumbers.length, pins.length);
+
+    for (let i = 0; i < maxLength; i++) {
+      const serialNumber = serialNumbers[i];
+      const pin = pins[i];
+      
+      // Handle missing serial number or PIN
+      if (!serialNumber) {
+        results.errors.push(`Serial number is missing for voucher ${i + 1}`);
+        results.failed++;
+        continue;
+      }
+
+      if (!pin) {
+        results.errors.push(`PIN is missing for voucher ${i + 1}`);
+        results.failed++;
+        continue;
+      }
+      
+      const normalizedSerialNumber = serialNumber.trim().toUpperCase();
+      const normalizedPin = pin.trim();
+      
       try {
-        const normalizedCode = code.trim().toUpperCase();
-        
-        if (!normalizedCode || normalizedCode.length < 3) {
-          results.errors.push(`Invalid voucher code: ${code}`);
+        if (!normalizedSerialNumber) {
+          results.errors.push(`Serial number is required for voucher ${i + 1}`);
+          results.failed++;
+          continue;
+        }
+
+        if (!normalizedPin) {
+          results.errors.push(`PIN is required for voucher ${i + 1}`);
           results.failed++;
           continue;
         }
 
         // Check if voucher already exists
-        const exists = await this.checkVoucherExists(normalizedCode);
+        const exists = await this.checkVoucherExists(normalizedSerialNumber);
         if (exists) {
-          results.duplicates.push(normalizedCode);
+          results.duplicates.push(normalizedSerialNumber);
           results.failed++;
           continue;
         }
 
         // Create voucher
         const voucher = new this.voucherModel({
-          voucher_code: normalizedCode,
+          serial_number: normalizedSerialNumber,
+          pin: normalizedPin,
           date: new Date(),
-          used: false,
+          sold: false,
         });
         
         await voucher.save();
@@ -240,9 +283,9 @@ export class VouchersService {
       } catch (error) {
         if (error.code === 11000) {
           // MongoDB duplicate key error
-          results.duplicates.push(code);
+          results.duplicates.push(normalizedSerialNumber);
         } else {
-          results.errors.push(`Failed to create voucher ${code}: ${error.message}`);
+          results.errors.push(`Failed to create voucher ${normalizedSerialNumber}: ${error.message}`);
         }
         results.failed++;
       }
@@ -251,114 +294,57 @@ export class VouchersService {
     return results;
   }
 
-  async sendVoucherSmsAfterPayment(mobileNumber: string, purchaseData: {
-    name: string;
-    flow: 'self' | 'other';
-    bought_for_name?: string;
-    bought_for_mobile?: string;
-  }): Promise<boolean> {
-    const vouchers = await this.voucherModel.find({ 
-      mobile_number_assigned: mobileNumber,
-      used: false
-    });
-
-    if (vouchers.length === 0) {
-      throw new NotFoundException('No vouchers found for this mobile number');
+  async markVoucherAsSold(serialNumber: string): Promise<{ success: boolean; message: string }> {
+    const voucher = await this.voucherModel.findOne({ serial_number: serialNumber });
+    
+    if (!voucher) {
+      throw new NotFoundException('Voucher not found');
     }
 
-    const voucherCodes = vouchers.map(v => v.voucher_code);
-
-    if (purchaseData.flow === 'other') {
-      // Send to the person the voucher was bought for
-      return await sendVoucherSms({
-        mobile: purchaseData.bought_for_mobile,
-        name: purchaseData.bought_for_name,
-        voucher_codes: voucherCodes,
-        flow: 'other',
-        buyer_name: purchaseData.name,
-        buyer_mobile: mobileNumber,
-      });
-    } else {
-      // Send to the buyer
-      return await sendVoucherSms({
-        mobile: mobileNumber,
-        name: purchaseData.name,
-        voucher_codes: voucherCodes,
-        flow: 'self',
-      });
+    if (voucher.sold) {
+      throw new BadRequestException('Voucher already sold');
     }
-  }
 
-  async getAllPaidVouchers(): Promise<{ count: number; vouchers: Voucher[] }> {
-    const vouchers = await this.voucherModel.find({
-      paymentStatus: 'Paid',
-      isSuccessful: true,
-    }).exec();
-  
+    voucher.sold = true;
+    await voucher.save();
+
     return {
-      count: vouchers.length,
-      vouchers,
+      success: true,
+      message: `Voucher ${serialNumber} has been marked as sold`,
     };
   }
 
-  async searchVoucher(query: string): Promise<Voucher[]> {
-    return await this.voucherModel.find({
-      paymentStatus: 'Paid',
-      isSuccessful: true,
-      $or: [
-        { mobile: query },
-        { voucher_code: query }
-      ]
-    }).exec();
-  }
-
-  async createVoucherFromPurchase(purchaseData: {
-    user: Types.ObjectId;
-    SessionId: string;
-    mobile: string;
-    name: string;
-    packageType: string;
-    quantity: number;
-    flow: string;
-    initialAmount: number;
-    boughtForMobile: string;
-    boughtForName: string;
-    paymentStatus: string;
-    isSuccessful: boolean;
-  }): Promise<Voucher> {
-    const voucher = new this.voucherModel({
-      ...purchaseData,
-      date: new Date(),
-      used: false,
-      isVerifiedVoucher: false,
+  async getVoucherBySerialNumber(serialNumber: string): Promise<VoucherResponseDto | null> {
+    const voucher = await this.voucherModel.findOne({ 
+      serial_number: { $regex: new RegExp(`^${serialNumber}$`, 'i') }
     });
-    
-    return await voucher.save();
+
+    if (!voucher) {
+      return null;
+    }
+
+    return {
+      serial_number: voucher.serial_number,
+      pin: voucher.pin,
+      mobile_number_assigned: voucher.mobile_number_assigned,
+      assigned_date: voucher.assigned_date,
+      sold: voucher.sold,
+    };
   }
 
-  async updateVoucherPaymentStatus(SessionId: string, paymentData: {
-    paymentStatus: string;
-    isSuccessful: boolean;
-    name: string;
-  }): Promise<Voucher> {
-    return await this.voucherModel.findOneAndUpdate(
-      { SessionId },
-      {
-        $set: {
-          paymentStatus: paymentData.paymentStatus,
-          isSuccessful: paymentData.isSuccessful,
-          name: paymentData.name
-        }
-      },
-      { new: true }
-    );
-  }
+  async getVoucherByPin(pin: string): Promise<VoucherResponseDto | null> {
+    const voucher = await this.voucherModel.findOne({ pin: pin });
 
-  async markVoucherAsVerified(SessionId: string): Promise<Voucher> {
-    return await this.voucherModel.findOneAndUpdate(
-      { SessionId },
-      { $set: { isVerifiedVoucher: true } },
-      { new: true }
-    );
+    if (!voucher) {
+      return null;
+    }
+
+    return {
+      serial_number: voucher.serial_number,
+      pin: voucher.pin,
+      mobile_number_assigned: voucher.mobile_number_assigned,
+      assigned_date: voucher.assigned_date,
+      sold: voucher.sold,
+    };
   }
 }

@@ -5,7 +5,8 @@ import {
   Body, 
   Param, 
   BadRequestException,
-  Query
+  Query,
+  NotFoundException
 } from '@nestjs/common';
 import { VouchersService } from '../services/vouchers.service';
 import { 
@@ -18,8 +19,8 @@ export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
   @Post('create')
-  async createVoucher(@Body() body: { voucher_code: string }) {
-    const voucher = await this.vouchersService.createVoucher(body.voucher_code);
+  async createVoucher(@Body() body: { serial_number: string; pin: string }) {
+    const voucher = await this.vouchersService.createVoucher(body.serial_number, body.pin);
     return {
       message: 'Voucher created successfully',
       voucher,
@@ -27,12 +28,19 @@ export class VouchersController {
   }
 
   @Post('create-bulk')
-  async createVouchersBulk(@Body() body: { voucher_codes: string[] }) {
-    if (!body.voucher_codes || !Array.isArray(body.voucher_codes)) {
-      throw new BadRequestException('voucher_codes must be an array');
+  async createVouchersBulk(@Body() body: { 
+    serial_numbers: string[]; 
+    pins: string[] 
+  }) {
+    if (!body.serial_numbers || !Array.isArray(body.serial_numbers)) {
+      throw new BadRequestException('serial_numbers must be an array');
     }
 
-    const result = await this.vouchersService.createVouchersBulk(body.voucher_codes);
+    if (!body.pins || !Array.isArray(body.pins)) {
+      throw new BadRequestException('pins must be an array');
+    }
+
+    const result = await this.vouchersService.createVouchersBulk(body.serial_numbers, body.pins);
     return {
       message: 'Bulk voucher creation completed',
       ...result,
@@ -69,70 +77,54 @@ export class VouchersController {
     };
   }
 
-  @Post('use/:voucherCode')
-  async useVoucher(@Param('voucherCode') voucherCode: string) {
-    const result = await this.vouchersService.useVoucher(voucherCode);
+  @Post('use/:serialNumber')
+  async useVoucher(@Param('serialNumber') serialNumber: string) {
+    const result = await this.vouchersService.useVoucher(serialNumber);
     return result;
   }
 
-  @Post('send-sms-after-payment')
-  async sendSmsAfterPayment(@Body() body: {
-    mobile_number: string;
-    name: string;
-    flow: 'self' | 'other';
-    bought_for_name?: string;
-    bought_for_mobile?: string;
-  }) {
-    const result = await this.vouchersService.sendVoucherSmsAfterPayment(
-      body.mobile_number,
-      {
-        name: body.name,
-        flow: body.flow,
-        bought_for_name: body.bought_for_name,
-        bought_for_mobile: body.bought_for_mobile,
-      }
-    );
-    
+  @Get('check/:serialNumber')
+  async checkVoucherExists(@Param('serialNumber') serialNumber: string) {
+    const exists = await this.vouchersService.checkVoucherExists(serialNumber);
     return {
-      message: 'SMS sent successfully after payment confirmation',
-      success: result,
+      serial_number: serialNumber,
+      exists,
+      message: exists ? 'Voucher already exists' : 'Voucher serial number is available'
     };
   }
 
-  @Get('check/:voucherCode')
-  async checkVoucherExists(@Param('voucherCode') voucherCode: string) {
-    const exists = await this.vouchersService.checkVoucherExists(voucherCode);
+  @Get('search/serial/:serialNumber')
+  async getVoucherBySerialNumber(@Param('serialNumber') serialNumber: string) {
+    const voucher = await this.vouchersService.getVoucherBySerialNumber(serialNumber);
+    if (!voucher) {
+      throw new NotFoundException('Voucher not found with this serial number');
+    }
     return {
-      voucher_code: voucherCode,
-      exists,
-      message: exists ? 'Voucher already exists' : 'Voucher code is available'
+      message: 'Voucher found',
+      voucher,
     };
+  }
+
+  @Get('search/pin/:pin')
+  async getVoucherByPin(@Param('pin') pin: string) {
+    const voucher = await this.vouchersService.getVoucherByPin(pin);
+    if (!voucher) {
+      throw new NotFoundException('Voucher not found with this PIN');
+    }
+    return {
+      message: 'Voucher found',
+      voucher,
+    };
+  }
+
+  @Post('mark-sold/:serialNumber')
+  async markVoucherAsSold(@Param('serialNumber') serialNumber: string) {
+    const result = await this.vouchersService.markVoucherAsSold(serialNumber);
+    return result;
   }
 
   @Get('stats')
   async getVoucherStats() {
     return await this.vouchersService.getVoucherStats();
-  }
-
-  /**
-   * Get all paid vouchers
-   * @returns 
-   */
-  @Get("paid")
-  async getPaidVouchers() {
-    return await this.vouchersService.getAllPaidVouchers();
-  }
-
-  /**
-   * Search vouchers
-   * @param query 
-   * @returns 
-   */
-  @Get("search")
-  async searchVouchers(@Query("q") query: string) {
-    if (!query) {
-      throw new BadRequestException("Search query is required");
-    }
-    return await this.vouchersService.searchVoucher(query);
   }
 }

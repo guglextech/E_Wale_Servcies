@@ -2,7 +2,7 @@ import { IsString, IsNumber, IsOptional } from 'class-validator';
 
 export class AssignVoucherDto {
   @IsString()
-  voucher_code: string;
+  serial_number: string;
 
   @IsString()
   mobile_number: string;
@@ -31,8 +31,9 @@ export class PurchaseVoucherDto {
 }
 
 export class VoucherResponseDto {
-  voucher_code: string;
+  serial_number: string;
+  pin: string;
   mobile_number_assigned: string;
   assigned_date: Date;
-  used: boolean;
+  sold: boolean;
 }

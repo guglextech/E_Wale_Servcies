@@ -456,24 +456,24 @@ export class UssdService {
               bought_for_name: sessionState.flow === "other" ? sessionState.name : req.OrderInfo.CustomerMobileNumber
             });
             
-            // Send SMS with all assigned voucher codes
+            // Send SMS with all assigned voucher details (serial number and PIN)
             await sendVoucherSms(
               {
                 mobile: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
                 name: req.OrderInfo.CustomerName,
-                voucher_codes: purchaseResult.assigned_vouchers.map(v => v.voucher_code),
+                vouchers: purchaseResult.assigned_vouchers,
                 flow: sessionState.flow,
                 buyer_name: sessionState.flow === "other" ? req.OrderInfo.CustomerName : undefined,
                 buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
               }
             );
             
-            // Update the assigned vouchers to mark them as used and successful
+            // Update the assigned vouchers to mark them as sold and successful
             await this.voucherModel.updateMany(
-              { voucher_code: { $in: purchaseResult.assigned_vouchers.map(v => v.voucher_code) } },
+              { serial_number: { $in: purchaseResult.assigned_vouchers.map(v => v.serial_number) } },
               { 
                 $set: { 
-                  used: true,
+                  sold: true,
                   isSuccessful: true,
                   paymentStatus: req.OrderInfo.Status
                 } 

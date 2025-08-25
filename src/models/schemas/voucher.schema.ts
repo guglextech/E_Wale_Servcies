@@ -4,13 +4,16 @@ import { Document, Types } from "mongoose";
 @Schema({ timestamps: true })
 export class Voucher extends Document {
   @Prop({ required: true, unique: true, index: true })
-  voucher_code: string;
+  serial_number: string;
+
+  @Prop({ required: true })
+  pin: string;
 
   @Prop({ required: true, default: Date.now })
   date: Date;
 
   @Prop({ required: true, default: false })
-  used: boolean;
+  sold: boolean;
 
   @Prop({ required: false })
   mobile_number_assigned: string;
