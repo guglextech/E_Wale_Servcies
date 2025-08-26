@@ -124,7 +124,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Result E-Checkers",
-        "Select Result Checker:\n1. BECE Checker Voucher\n2. NovDec Checker\n3. School Placement Checker",
+        "Select Result Checker:\n1. BECE Checker Voucher\n2. NovDec Checker - soon\n3. School Placement Checker - soon",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
@@ -174,8 +174,8 @@ export class UssdService {
     // Map service selection to service name
     const serviceMap = {
       "1": "BECE Checker Voucher",
-      // "2": "NovDec Checker - soon", 
-      // "3": "School Placement Checker - soon"
+      "2": "NovDec Checker", 
+      "3": "School Placement Checker"
     };
 
     state.service = serviceMap[req.Message];
