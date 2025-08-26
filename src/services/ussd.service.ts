@@ -174,8 +174,8 @@ export class UssdService {
     // Map service selection to service name
     const serviceMap = {
       "1": "BECE Checker Voucher",
-      "2": "NovDec Checker", 
-      "3": "School Placement Checker"
+      "2": "NovDec Checker - soon", 
+      "3": "School Placement Checker - soon"
     };
 
     state.service = serviceMap[req.Message];

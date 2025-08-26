@@ -18,11 +18,11 @@ export async function sendVoucherSms(voucherData: {
 
    if (voucherData.flow === 'other') {
        message = `Good news! ${voucherData.buyer_name} (${voucherData.buyer_mobile}) has purchased results checker voucher(s) for you!\n\n` +
-                 `Your e-voucher(s):\n${voucherCodesText}\n\n` +
+                 `Your e-voucher(s):\n${voucherCodesText}\n\n` +   `Serial number - PIN` +
                  `Best of luck!`;
    } else {
        message = `Thank you for your purchase, ${voucherData.name}!\n\n` +
-                 `Your e-voucher(s):\n${voucherCodesText}\n\n` +
+                 `Your e-voucher(s):\n${voucherCodesText}\n\n` +  `Serial number - PIN` +
                  `Best of luck!`;
    }
 
