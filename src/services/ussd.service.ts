@@ -55,10 +55,19 @@ export class UssdService {
   private async handleInitiation(req: HBussdReq) {
     this.sessionMap.set(req.SessionId, {});
 
+    // return this.createResponse(
+    //   req.SessionId,
+    //   "Welcome to E-Wale",
+    //   `Welcome to E-Wale\n1. Results Voucher\n2. Data/Voice Bundles - soon\n3. Pay Bills - soon\n4. ECG Prepaid - soon\n0. Contact us`,
+    //   HbEnums.DATATYPE_INPUT,
+    //   HbEnums.FIELDTYPE_NUMBER,
+    //   HbEnums.RESPONSE
+    // );
+
     return this.createResponse(
       req.SessionId,
       "Welcome to E-Wale",
-      `Welcome to E-Wale\n1. Results Voucher\n2. Data/Voice Bundles - soon\n3. Pay Bills - soon\n4. ECG Prepaid - soon\n0. Contact us`,
+      `Welcome to E-Wale\n1. Results Voucher\n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -121,10 +130,19 @@ export class UssdService {
     if (req.Message === "1") {
       state.serviceType = "result_checker";
       this.sessionMap.set(req.SessionId, state);
+      // return this.createResponse(
+      //   req.SessionId,
+      //   "Result E-Checkers",
+      //   "Select Result Checker:\n1. BECE Checker Voucher\n2. NovDec Checker - soon\n3. School Placement Checker - soon",
+      //   HbEnums.DATATYPE_INPUT,
+      //   HbEnums.FIELDTYPE_NUMBER,
+      //   HbEnums.RESPONSE
+      // );
+
       return this.createResponse(
         req.SessionId,
         "Result E-Checkers",
-        "Select Result Checker:\n1. BECE Checker Voucher\n2. NovDec Checker - soon\n3. School Placement Checker - soon",
+        "Select Result Checker:\n1. BECE Checker Voucher",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
