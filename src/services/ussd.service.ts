@@ -526,15 +526,15 @@ export class UssdService {
   private getServicePrice(service: string): number {
     // Price mapping for different services
     const priceMap = {
-      "BECE Checker Voucher": 21,
-      "NovDec Checker": 0.15,
-      "School Placement Checker": 0.2,
+      "BECE Checker Voucher": 20,
+      "NovDec Checker": 21,
+      "School Placement Checker": 21,
       // Future services can be added here
-      "Data Bundle": 5.0,
-      "Voice Bundle": 3.0,
-      "ECG Prepaid": 1.0
+      "Data Bundle": 21,
+      "Voice Bundle": 21,
+      "ECG Prepaid": 21
     };
 
-    return priceMap[service] || 0.1; // Default price if service not found
+    return priceMap[service] || 21; // Default price if service not found
   }
 }
