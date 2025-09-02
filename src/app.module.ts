@@ -8,7 +8,6 @@ import { JwtModule } from "@nestjs/jwt";
 import { jwtConstants } from "./utils/validators";
 import { PassportModule } from "@nestjs/passport";
 import { Generics, GenericSchema } from "./models/schemas/generic.schema";
-import { AwsService } from "./utils/aws.service";
 import { APP_GUARD } from "@nestjs/core";
 import { AuthGuards } from "./configs/guards/jwt-auth.guard";
 import { AuthService } from "./services/auth.service";
@@ -84,7 +83,6 @@ import { TransactionStatusService } from "./services/transaction-status.service"
   providers: [
     AppService,
     UssdService,
-    AwsService,
     MailService,
     VouchersService,
     AirtimeService,

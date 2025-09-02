@@ -12,25 +12,23 @@ import {
   UseGuards,
   UseInterceptors
 } from "@nestjs/common";
-import {UsersService} from "../services/users.service";
-import {RoleAuthGuard} from "../configs/guards/role-auth.guard";
-import {Public, Roles} from "../utils/validators";
-import {Role} from "../models/schemas/enums/role.enum";
-import {ApiTags} from "@nestjs/swagger";
-import {PermissionDto} from "../models/dto/user-perm.dto";
-import {UserRoleDto} from "../models/dto/user-role.dto";
-import {UpdateUserDto, UpdateUserPasswordDto} from "../models/dto/update-user.dto";
-import {FileInterceptor} from "@nestjs/platform-express";
-import {AwsService} from "../utils/aws.service";
-import {AuthService} from "../services/auth.service";
-import {customResponse} from "../utils/responses";
+import { UsersService } from "../services/users.service";
+import { RoleAuthGuard } from "../configs/guards/role-auth.guard";
+import { Public, Roles } from "../utils/validators";
+import { Role } from "../models/schemas/enums/role.enum";
+import { ApiTags } from "@nestjs/swagger";
+import { PermissionDto } from "../models/dto/user-perm.dto";
+import { UserRoleDto } from "../models/dto/user-role.dto";
+import { UpdateUserDto, UpdateUserPasswordDto } from "../models/dto/update-user.dto";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { AuthService } from "../services/auth.service";
+import { customResponse } from "../utils/responses";
 
 @Controller('api/v1/users')
 @ApiTags("User")
 export class UsersController {
   constructor(private readonly usersService: UsersService,
-              private readonly authService: AuthService,
-              private readonly awsService: AwsService) {}
+    private readonly authService: AuthService) { }
 
   @Roles(Role.Admin, Role.User)
   @UseGuards(RoleAuthGuard)
@@ -50,7 +48,7 @@ export class UsersController {
   @UseGuards(RoleAuthGuard)
   @Get("all")
   find(@Query('page') page: number = 1,
-       @Query('limit') limit: number = 1) {
+    @Query('limit') limit: number = 1) {
     return this.usersService.findAll(page, limit);
   }
 
@@ -77,20 +75,20 @@ export class UsersController {
 
   @Public()
   @Get("forgot-password")
-  async forgotPassword(@Request() hReq,@Query('username') username: string) {
+  async forgotPassword(@Request() hReq, @Query('username') username: string) {
     return await this.usersService.sendResetEmail(username);
   }
 
   @Roles(Role.Admin, Role.User)
   @UseGuards(RoleAuthGuard)
   @Patch("change-password")
-  async changeUserPassword(@Request() hReq,@Body() req: UpdateUserPasswordDto) {
+  async changeUserPassword(@Request() hReq, @Body() req: UpdateUserPasswordDto) {
     const userId = hReq.user.jti;
     const resp = await this.authService.validateUserByUserId(userId, req.oldPassword);
     if (resp != null) {
       const hashedPassword = await this.authService.encryptString(req.newPassword);
       return await this.usersService.updateUserPass(userId, hashedPassword);
-    }else {
+    } else {
       return {
         "response": new HttpException(customResponse.failed, 400)
       };
@@ -106,7 +104,7 @@ export class UsersController {
 
   @Public()
   @Get('send')
-  sendEmailAPi () {
+  sendEmailAPi() {
     return this.usersService.sendEmail("stevenfianu99@gmail.com", "Testing", "Worked !!!!");
   }
 
