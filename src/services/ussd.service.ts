@@ -623,7 +623,8 @@ export class UssdService {
     }
 
     // Validate amount format (2 decimal places)
-    if (amount % 0.01 !== 0) {
+    const decimalPlaces = (amount.toString().split('.')[1] || '').length;
+    if (decimalPlaces > 2) {
       return this.createResponse(
         req.SessionId,
         "Invalid Amount",
@@ -883,7 +884,8 @@ export class UssdService {
     }
 
     // Validate amount format (2 decimal places)
-    if (amount % 0.01 !== 0) {
+    const decimalPlaces = (amount.toString().split('.')[1] || '').length;
+    if (decimalPlaces > 2) {
       return this.createResponse(
         req.SessionId,
         "Invalid Amount",
@@ -1341,7 +1343,8 @@ export class UssdService {
     }
 
     // Validate amount format (2 decimal places)
-    if (amount % 0.01 !== 0) {
+    const decimalPlaces = (amount.toString().split('.')[1] || '').length;
+    if (decimalPlaces > 2) {
       return this.createResponse(
         req.SessionId,
         "Invalid Amount",
