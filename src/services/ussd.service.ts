@@ -1099,7 +1099,7 @@ export class UssdService {
                 destination: sessionState.mobile,
                 bundleValue: sessionState.bundleValue,
                 amount: sessionState.totalAmount,
-                callbackUrl: `${process.env.BASE_URL}/bundle/callback`,
+                callbackUrl: `${process.env.HB_CALLBACK_URL}`,
                 clientReference: `BUNDLE_${req.SessionId}_${Date.now()}`
               });
             } catch (error) {
@@ -1112,7 +1112,7 @@ export class UssdService {
                 destination: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
                 amount: sessionState.amount,
                 network: sessionState.network,
-                callbackUrl: `${process.env.BASE_URL}/airtime/callback`,
+                callbackUrl: `${process.env.HB_CALLBACK_URL}`,
                 clientReference: `AIRTIME_${req.SessionId}_${Date.now()}`
               });
             } catch (error) {
@@ -1125,7 +1125,7 @@ export class UssdService {
                 provider: sessionState.tvProvider,
                 accountNumber: sessionState.accountNumber,
                 amount: sessionState.totalAmount,
-                callbackUrl: `${process.env.BASE_URL}/tv-bills/callback`,
+                callbackUrl: `${process.env.HB_CALLBACK_URL}`,
                 clientReference: `TVBILL_${req.SessionId}_${Date.now()}`
               });
             } catch (error) {
@@ -1394,7 +1394,7 @@ export class UssdService {
       "ECG Prepaid": 21
     };
 
-    return priceMap[service] || 21; // Default price if service not found
+    return priceMap[service] || 21;
   }
 
   /**
