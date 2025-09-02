@@ -11,16 +11,43 @@ import { User } from "../models/schemas/user.shema";
 import { sendVoucherSms } from "../utils/sendSMS";
 import { Transactions } from "../models/schemas/transaction.schema";
 import { VouchersService } from "./vouchers.service";
+import { AirtimeService } from "./airtime.service";
+import { BundleService } from "./bundle.service";
+import { TVBillsService } from "./tv-bills.service";
+import { UtilityService } from "./utility.service";
+import { NetworkProvider, BundleType } from "../models/dto/airtime.dto";
+import { BundleOption } from "../models/dto/bundle.dto";
+import { TVProvider, TVAccountInfo } from "../models/dto/tv-bills.dto";
+import { UtilityProvider, UtilityMeterInfo } from "../models/dto/utility.dto";
+import { TransactionStatusService } from "./transaction-status.service";
 
 interface SessionState {
   service?: string;
-  serviceType?: string; // 'result_checker', 'data_bundle', 'pay_bills', 'ecg_prepaid'
+  serviceType?: string; // 'result_checker', 'data_bundle', 'voice_bundle', 'airtime_topup', 'pay_bills', 'utility_service'
   mobile?: string;
   name?: string;
   quantity?: number;
   flow?: "self" | "other";
   totalAmount?: number;
   assignedVoucherCodes?: string[];
+  network?: NetworkProvider;
+  bundleType?: BundleType;
+  amount?: number;
+  // Bundle specific fields
+  bundles?: BundleOption[];
+  currentBundlePage?: number;
+  selectedBundle?: BundleOption;
+  bundleValue?: string;
+  // TV Bills specific fields
+  tvProvider?: TVProvider;
+  accountNumber?: string;
+  accountInfo?: TVAccountInfo[];
+  // Utility specific fields
+  utilityProvider?: UtilityProvider;
+  meterNumber?: string;
+  meterInfo?: UtilityMeterInfo[];
+  email?: string;
+  sessionId?: string;
 }
 
 @Injectable()
@@ -33,6 +60,11 @@ export class UssdService {
     @InjectModel(Voucher.name) private readonly voucherModel: Model<Voucher>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly vouchersService: VouchersService,
+    private readonly airtimeService: AirtimeService,
+    private readonly bundleService: BundleService,
+    private readonly tvBillsService: TVBillsService,
+    private readonly utilityService: UtilityService,
+    private readonly transactionStatusService: TransactionStatusService,
   ) {}
 
   async handleUssdRequest(req: HBussdReq) {
@@ -55,19 +87,10 @@ export class UssdService {
   private async handleInitiation(req: HBussdReq) {
     this.sessionMap.set(req.SessionId, {});
 
-    // return this.createResponse(
-    //   req.SessionId,
-    //   "Welcome to E-Wale",
-    //   `Welcome to E-Wale\n1. Results Voucher\n2. Data/Voice Bundles - soon\n3. Pay Bills - soon\n4. ECG Prepaid - soon\n0. Contact us`,
-    //   HbEnums.DATATYPE_INPUT,
-    //   HbEnums.FIELDTYPE_NUMBER,
-    //   HbEnums.RESPONSE
-    // );
-
     return this.createResponse(
       req.SessionId,
       "Welcome to E-Wale",
-      `Welcome to E-Wale\n1. Results Voucher\n0. Contact us`,
+      `Welcome to E-Wale\n1. Results Voucher\n2. Data Bundle\n3. Airtime Top-Up\n4. Pay Bills\n5. Utility Service \n0. Contact us`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -93,23 +116,19 @@ export class UssdService {
       case 3:
         return this.handleServiceTypeSelection(req, state);
       case 4:
-        return this.handleBuyerType(req, state);
+        return this.handleStep4(req, state);
       case 5:
-        return state.flow === "self"
-          ? this.handleQuantityInput(req, state)
-          : this.handleMobileNumber(req, state);
+        return this.handleStep5(req, state);
       case 6:
-        return state.flow === "self"
-          ? this.handleOrderDetails(req, state)
-          : this.handleNameInput(req, state);
+        return this.handleStep6(req, state);
       case 7:
-        return state.flow === "other"
-          ? this.handleQuantityInput(req, state)
-          : this.releaseSession(req.SessionId);
+        return this.handleStep7(req, state);
       case 8:
-        return state.flow === "other"
-          ? this.handleOrderDetails(req, state)
-          : this.releaseSession(req.SessionId);
+        return this.handleStep8(req, state);
+      case 9:
+        return this.handleStep9(req, state);
+      case 10:
+        return this.handlePaymentConfirmation(req, state);
       default:
         return this.releaseSession(req.SessionId);
     }
@@ -130,19 +149,62 @@ export class UssdService {
     if (req.Message === "1") {
       state.serviceType = "result_checker";
       this.sessionMap.set(req.SessionId, state);
-      // return this.createResponse(
-      //   req.SessionId,
-      //   "Result E-Checkers",
-      //   "Select Result Checker:\n1. BECE Checker Voucher\n2. NovDec Checker - soon\n3. School Placement Checker - soon",
-      //   HbEnums.DATATYPE_INPUT,
-      //   HbEnums.FIELDTYPE_NUMBER,
-      //   HbEnums.RESPONSE
-      // );
-
       return this.createResponse(
         req.SessionId,
         "Result E-Checkers",
-        "Select Result Checker:\n1. BECE Checker Voucher",
+        "Select Result Checker:\n1. BECE \n2. WASSCE/NovDec \n3. School Placement Checker",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (req.Message === "2") {
+      state.serviceType = "data_bundle";
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Network",
+        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (req.Message === "3") {
+      state.serviceType = "airtime_topup";
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Network",
+        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (req.Message === "4") {
+      state.serviceType = "pay_bills";
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select TV Provider",
+        "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (req.Message === "5") {
+      state.serviceType = "utility_service";
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Utility Service",
+        "Select Utility Service:\n1. ECG Prepaid\n2. Ghana Water",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
@@ -150,17 +212,15 @@ export class UssdService {
     }
 
     // Handle other menu options (coming soon)
-    if (["2", "3", "4"].includes(req.Message)) {
+    if (["6"].includes(req.Message)) {
       const serviceNames = {
-        "2": "Data/Voice Bundles",
-        "3": "Pay Bills", 
-        "4": "ECG Prepaid"
+        "6": "Other Services"
       };
       
       return this.createResponse(
         req.SessionId,
         "Coming Soon",
-        `${serviceNames[req.Message]} service is coming soon. Please select Result E-Checkers for now.`,
+        `${serviceNames[req.Message]} are coming soon. Please select an available service.`,
         HbEnums.DATATYPE_DISPLAY,
         HbEnums.FIELDTYPE_TEXT,
         HbEnums.RELEASE
@@ -170,7 +230,7 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Invalid Selection",
-      "Please select a valid option (1-4 or 0)",
+      "Please select a valid option (1-5 or 0)",
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -178,35 +238,280 @@ export class UssdService {
   }
 
   private handleServiceTypeSelection(req: HBussdReq, state: SessionState) {
-    if (!["1", "2", "3"].includes(req.Message)) {
+    if (state.serviceType === "result_checker") {
+      if (!["1", "2", "3"].includes(req.Message)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Selection",
+          "Please select 1, 2, or 3",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      }
+
+      // Map service selection to service name
+      const serviceMap = {
+        "1": "BECE Checker Voucher",
+        "2": "NovDec Checker", 
+        "3": "School Placement Checker"
+      };
+
+      state.service = serviceMap[req.Message];
+      this.sessionMap.set(req.SessionId, state);
+
       return this.createResponse(
         req.SessionId,
-        "Invalid Selection",
-        "Please select 1, 2, or 3",
+        "Buying For",
+        "Buy for:\n1. Buy for me\n2. For other",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
       );
     }
 
-    // Map service selection to service name
-    const serviceMap = {
-      "1": "BECE Checker Voucher",
-      "2": "NovDec Checker", 
-      "3": "School Placement Checker"
-    };
+    if (state.serviceType === "data_bundle") {
+      if (!["1", "2", "3"].includes(req.Message)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Selection",
+          "Please select 1, 2, or 3",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      }
 
-    state.service = serviceMap[req.Message];
-    this.sessionMap.set(req.SessionId, state);
+      const networkMap = {
+        "1": NetworkProvider.MTN,
+        "2": NetworkProvider.TELECEL,
+        "3": NetworkProvider.AT
+      };
+
+      state.network = networkMap[req.Message];
+      this.sessionMap.set(req.SessionId, state);
+
+      return this.createResponse(
+        req.SessionId,
+        "Enter Mobile Number",
+        "Enter mobile number to check available bundles:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_PHONE,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (state.serviceType === "airtime_topup") {
+      if (!["1", "2", "3"].includes(req.Message)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Selection",
+          "Please select 1, 2, or 3",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      }
+
+      const networkMap = {
+        "1": NetworkProvider.MTN,
+        "2": NetworkProvider.TELECEL,
+        "3": NetworkProvider.AT
+      };
+
+      state.network = networkMap[req.Message];
+      this.sessionMap.set(req.SessionId, state);
+
+      return this.createResponse(
+        req.SessionId,
+        "Enter Amount",
+        "Enter airtime amount (max GHS 100):",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (state.serviceType === "utility_service") {
+      if (!["1", "2"].includes(req.Message)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Selection",
+          "Please select 1 or 2",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      }
+
+      const utilityProviderMap = {
+        "1": UtilityProvider.ECG,
+        "2": UtilityProvider.GHANA_WATER
+      };
+
+      state.utilityProvider = utilityProviderMap[req.Message];
+      this.sessionMap.set(req.SessionId, state);
+
+      if (state.utilityProvider === UtilityProvider.ECG) {
+        return this.createResponse(
+          req.SessionId,
+          "Enter Mobile Number",
+          "Enter mobile number linked to ECG meter:",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_PHONE,
+          HbEnums.RESPONSE
+        );
+      } else {
+        return this.createResponse(
+          req.SessionId,
+          "Enter Meter Number",
+          "Enter Ghana Water meter number:",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RESPONSE
+        );
+      }
+    }
+
+    if (state.serviceType === "pay_bills") {
+      if (!["1", "2", "3"].includes(req.Message)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Selection",
+          "Please select 1, 2, or 3",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      }
+
+      const tvProviderMap = {
+        "1": TVProvider.DSTV,
+        "2": TVProvider.GOTV,
+        "3": TVProvider.STARTIMES
+      };
+
+      state.tvProvider = tvProviderMap[req.Message];
+      this.sessionMap.set(req.SessionId, state);
+
+      return this.createResponse(
+        req.SessionId,
+        "Enter Account Number",
+        "Enter TV account number:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RESPONSE
+      );
+    }
 
     return this.createResponse(
       req.SessionId,
-      "Buying For",
-      "Buy for:\n1. Buy for me\n2. For other",
-      HbEnums.DATATYPE_INPUT,
-      HbEnums.FIELDTYPE_NUMBER,
-      HbEnums.RESPONSE
+      "Invalid Service",
+      "Invalid service type selected",
+      HbEnums.DATATYPE_DISPLAY,
+      HbEnums.FIELDTYPE_TEXT,
+      HbEnums.RELEASE
     );
+  }
+
+  private async handleStep4(req: HBussdReq, state: SessionState) {
+    if (state.serviceType === "result_checker") {
+      return this.handleBuyerType(req, state);
+    } else if (state.serviceType === "data_bundle") {
+      return this.handleBundleQuery(req, state);
+    } else if (state.serviceType === "airtime_topup") {
+      return this.handleAmountInput(req, state);
+    } else if (state.serviceType === "pay_bills") {
+      return this.handleTVAccountQuery(req, state);
+    } else if (state.serviceType === "utility_service") {
+      return this.handleUtilityQuery(req, state);
+    }
+  }
+
+  private handleStep5(req: HBussdReq, state: SessionState) {
+    if (state.serviceType === "result_checker") {
+      if (state.flow === "self") {
+        return this.handleQuantityInput(req, state);
+      } else {
+        return this.handleMobileNumber(req, state);
+      }
+    } else if (state.serviceType === "data_bundle") {
+      return this.handleBundleSelection(req, state);
+    } else if (state.serviceType === "airtime_topup") {
+      return this.handleOrderDetails(req, state);
+    } else if (state.serviceType === "pay_bills") {
+      return this.handleTVAmountInput(req, state);
+    } else if (state.serviceType === "utility_service") {
+      return this.handleUtilityStep5(req, state);
+    }
+  }
+
+  private handleStep6(req: HBussdReq, state: SessionState) {
+    if (state.serviceType === "result_checker") {
+      if (state.flow === "self") {
+        return this.handleOrderDetails(req, state);
+      } else {
+        return this.handleNameInput(req, state);
+      }
+    } else if (state.serviceType === "data_bundle") {
+      return this.handleOrderDetails(req, state);
+    } else if (state.serviceType === "airtime_topup") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "pay_bills") {
+      return this.handleOrderDetails(req, state);
+    } else if (state.serviceType === "utility_service") {
+      return this.handleUtilityAmountInput(req, state);
+    }
+  }
+
+  private handleStep7(req: HBussdReq, state: SessionState) {
+    if (state.serviceType === "result_checker") {
+      if (state.flow === "other") {
+        return this.handleQuantityInput(req, state);
+      } else {
+        return this.releaseSession(req.SessionId);
+      }
+    } else if (state.serviceType === "data_bundle") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "airtime_topup") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "pay_bills") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "utility_service") {
+      return this.handleOrderDetails(req, state);
+    }
+  }
+
+  private handleStep8(req: HBussdReq, state: SessionState) {
+    if (state.serviceType === "result_checker") {
+      if (state.flow === "other") {
+        return this.handleOrderDetails(req, state);
+      } else {
+        return this.releaseSession(req.SessionId);
+      }
+    } else if (state.serviceType === "data_bundle") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "airtime_topup") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "pay_bills") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "utility_service") {
+      return this.releaseSession(req.SessionId);
+    }
+  }
+
+  private handleStep9(req: HBussdReq, state: SessionState) {
+    if (state.serviceType === "result_checker") {
+      return this.handlePaymentConfirmation(req, state);
+    } else if (state.serviceType === "data_bundle") {
+      return this.handlePaymentConfirmation(req, state);
+    } else if (state.serviceType === "airtime_topup") {
+      return this.releaseSession(req.SessionId);
+    } else if (state.serviceType === "pay_bills") {
+      return this.handlePaymentConfirmation(req, state);
+    } else if (state.serviceType === "utility_service") {
+      return this.handlePaymentConfirmation(req, state);
+    }
   }
 
   private handleBuyerType(req: HBussdReq, state: SessionState) {
@@ -242,6 +547,248 @@ export class UssdService {
         HbEnums.RESPONSE
       );
     }
+  }
+
+  private async handleTVAccountQuery(req: HBussdReq, state: SessionState) {
+    try {
+      // Validate account number format
+      if (!this.tvBillsService.validateAccountNumber(req.Message, state.tvProvider)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Account Number",
+          "Please enter a valid account number:",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RESPONSE
+        );
+      }
+
+      // Query account from Hubtel
+      const accountResponse = await this.tvBillsService.queryAccount({
+        accountNumber: req.Message,
+        provider: state.tvProvider
+      });
+
+      if (accountResponse.ResponseCode !== '0000') {
+        return this.createResponse(
+          req.SessionId,
+          "Error",
+          `Failed to fetch account: ${accountResponse.Message}`,
+          HbEnums.DATATYPE_DISPLAY,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RELEASE
+        );
+      }
+
+      // Store account info and number in session
+      state.accountInfo = accountResponse.Data;
+      state.accountNumber = req.Message;
+      this.sessionMap.set(req.SessionId, state);
+
+      // Display account information
+      const accountDisplay = this.tvBillsService.formatAccountInfo(accountResponse.Data);
+      
+      return this.createResponse(
+        req.SessionId,
+        "Account Information",
+        `${accountDisplay}\n\nEnter payment amount:`,
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    } catch (error) {
+      console.error('Error querying TV account:', error);
+      return this.createResponse(
+        req.SessionId,
+        "Error",
+        "Failed to fetch account information. Please try again.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+  }
+
+  private handleTVAmountInput(req: HBussdReq, state: SessionState) {
+    const amount = parseFloat(req.Message);
+    if (isNaN(amount) || amount <= 0) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Amount",
+        "Please enter a valid amount:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    // Validate amount format (2 decimal places)
+    if (amount % 0.01 !== 0) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Amount",
+        "Amount must have maximum 2 decimal places:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    state.amount = amount;
+    state.totalAmount = amount;
+    this.sessionMap.set(req.SessionId, state);
+
+    const accountDisplay = this.tvBillsService.formatAccountInfo(state.accountInfo);
+    
+    return this.createResponse(
+      req.SessionId,
+      "Confirm Payment",
+      `${accountDisplay}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private async handleBundleQuery(req: HBussdReq, state: SessionState) {
+    try {
+      // Query bundles from Hubtel
+      const bundleResponse = await this.bundleService.queryBundles({
+        destination: req.Message,
+        network: state.network
+      });
+
+      if (bundleResponse.ResponseCode !== '0000') {
+        return this.createResponse(
+          req.SessionId,
+          "Error",
+          `Failed to fetch bundles: ${bundleResponse.Message}`,
+          HbEnums.DATATYPE_DISPLAY,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RELEASE
+        );
+      }
+
+      // Store bundles and mobile number in session
+      state.bundles = bundleResponse.Data;
+      state.mobile = req.Message;
+      state.currentBundlePage = 1;
+      this.sessionMap.set(req.SessionId, state);
+
+      // Display first page of bundles
+      return this.displayBundlePage(req.SessionId, state);
+    } catch (error) {
+      console.error('Error querying bundles:', error);
+      return this.createResponse(
+        req.SessionId,
+        "Error",
+        "Failed to fetch available bundles. Please try again.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+  }
+
+  private displayBundlePage(sessionId: string, state: SessionState) {
+    if (!state.bundles || state.bundles.length === 0) {
+      return this.createResponse(
+        sessionId,
+        "No Bundles",
+        "No bundles available for this number. Please try another number.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 5);
+    const bundleOptions = pagination.items.map((bundle, index) => 
+      this.bundleService.formatBundleDisplay(bundle, (state.currentBundlePage - 1) * 5 + index)
+    ).join('\n');
+
+    let navigationOptions = '';
+    if (pagination.hasNext) {
+      navigationOptions += '\n6. Next Page';
+    }
+    if (pagination.hasPrevious) {
+      navigationOptions += '\n7. Previous Page';
+    }
+    navigationOptions += '\n0. Back';
+
+    const message = `Available Bundles (Page ${pagination.currentPage}/${pagination.totalPages}):\n${bundleOptions}${navigationOptions}`;
+
+    return this.createResponse(
+      sessionId,
+      "Select Bundle",
+      message,
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private handleBundleSelection(req: HBussdReq, state: SessionState) {
+    const selection = req.Message;
+
+    // Handle navigation
+    if (selection === "6" && state.currentBundlePage < Math.ceil((state.bundles?.length || 0) / 5)) {
+      state.currentBundlePage++;
+      this.sessionMap.set(req.SessionId, state);
+      return this.displayBundlePage(req.SessionId, state);
+    }
+
+    if (selection === "7" && state.currentBundlePage > 1) {
+      state.currentBundlePage--;
+      this.sessionMap.set(req.SessionId, state);
+      return this.displayBundlePage(req.SessionId, state);
+    }
+
+    if (selection === "0") {
+      // Go back to network selection
+      state.serviceType = "data_bundle";
+      state.bundles = undefined;
+      state.currentBundlePage = undefined;
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Network",
+        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    // Handle bundle selection
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 5);
+    const selectedIndex = parseInt(selection) - 1;
+    
+    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= pagination.items.length) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Selection",
+        "Please select a valid bundle option:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    const selectedBundle = pagination.items[selectedIndex];
+    state.selectedBundle = selectedBundle;
+    state.bundleValue = selectedBundle.Value;
+    state.totalAmount = selectedBundle.Amount;
+    this.sessionMap.set(req.SessionId, state);
+
+    return this.createResponse(
+      req.SessionId,
+      "Confirm Purchase",
+      `Bundle: ${selectedBundle.Display}\nAmount: GHS ${selectedBundle.Amount.toFixed(2)}\nRecipient: ${state.mobile}\n\n1. Confirm\n2. Cancel`,
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
   }
 
   private handleMobileNumber(req: HBussdReq, state: SessionState) {
@@ -315,9 +862,49 @@ export class UssdService {
     return this.createResponse(
       req.SessionId,
       "Order Details",
-      `Service: ${state.service}\nBought For: ${displayMobile}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(
-        2
-      )}\n\n1. Confirm\n2. Cancel`,
+      `Service: ${state.service}\nBought For: ${displayMobile}\nQuantity: ${quantity}\nAmount: GHS ${state.totalAmount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private handleAmountInput(req: HBussdReq, state: SessionState) {
+    const amount = parseFloat(req.Message);
+    if (isNaN(amount) || amount <= 0 || amount > 100) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Amount",
+        "Please enter a valid amount (0.01-100):",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    // Validate amount format (2 decimal places)
+    if (amount % 0.01 !== 0) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Amount",
+        "Amount must have maximum 2 decimal places:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    state.amount = amount;
+    state.totalAmount = amount;
+    this.sessionMap.set(req.SessionId, state);
+
+    // Determine which mobile number to display based on flow
+    const displayMobile = state.flow === "self" ? req.Mobile : state.mobile;
+    
+    return this.createResponse(
+      req.SessionId,
+      "Order Details",
+      `Service: Airtime Top-Up\nNetwork: ${state.network}\nBought For: ${displayMobile}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -346,17 +933,21 @@ export class UssdService {
 
     const total = state.totalAmount;
 
-    // Store order details in session for later processing after payment
-    // Don't assign vouchers yet - wait for successful payment
     try {
-      // Just store the order details, don't process vouchers yet
       if (state.serviceType === "result_checker") {
         // Store order details for later voucher assignment
         state.totalAmount = total;
         this.sessionMap.set(req.SessionId, state);
-      } else {
-        // Handle other service types (future implementation)
-        // For now, just store the order details
+      } else if (state.serviceType === "data_bundle") {
+        // Store order details for bundle processing
+        state.totalAmount = total;
+        this.sessionMap.set(req.SessionId, state);
+      } else if (state.serviceType === "airtime_topup") {
+        // Store order details for airtime processing
+        state.totalAmount = total;
+        this.sessionMap.set(req.SessionId, state);
+      } else if (state.serviceType === "pay_bills") {
+        // Store order details for TV bill processing
         state.totalAmount = total;
         this.sessionMap.set(req.SessionId, state);
       }
@@ -377,7 +968,7 @@ export class UssdService {
       SessionId: req.SessionId,
       Type: HbEnums.ADDTOCART,
       Message: `Payment request for GHS ${total} has been submitted. Kindly approve the MOMO prompt. If no prompt, Dial *170# select 6) My Wallet 3) My Approvals`,
-      Item: new CheckOutItem(state.service, 1, total),
+      Item: new CheckOutItem(state.service || state.selectedBundle?.Display || state.tvProvider || "Airtime Top-Up", 1, total),
       Label: "Payment Request Submitted",
       DataType: HbEnums.DATATYPE_DISPLAY,
       FieldType: HbEnums.FIELDTYPE_TEXT
@@ -385,8 +976,6 @@ export class UssdService {
     // AddToCart type automatically prevents user input and triggers payment flow
     return JSON.stringify(response);
   }
-
-
 
   private async releaseSession(sessionId: string) {
     // Clean up session state
@@ -460,46 +1049,88 @@ export class UssdService {
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
 
-        // Get the session state to process voucher assignment after successful payment
+        // Get the session state to process after successful payment
         const sessionState = this.sessionMap.get(req.SessionId);
-        if (sessionState && sessionState.serviceType === "result_checker") {
-          try {
-            // Now assign vouchers after successful payment
-            const purchaseResult = await this.vouchersService.purchaseVouchers({
-              quantity: sessionState.quantity,
-              mobile_number: req.OrderInfo.CustomerMobileNumber,
-              name: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.name,
-              flow: sessionState.flow,
-              bought_for_mobile: sessionState.flow === "other" ? sessionState.mobile : req.OrderInfo.CustomerMobileNumber,
-              bought_for_name: sessionState.flow === "other" ? sessionState.name : req.OrderInfo.CustomerMobileNumber
-            });
-            
-            // Send SMS with all assigned voucher details (serial number and PIN)
-            await sendVoucherSms(
-              {
-                mobile: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
-                name: req.OrderInfo.CustomerName,
-                vouchers: purchaseResult.assigned_vouchers,
+        if (sessionState) {
+          if (sessionState.serviceType === "result_checker") {
+            try {
+              // Process voucher assignment after successful payment
+              const purchaseResult = await this.vouchersService.purchaseVouchers({
+                quantity: sessionState.quantity,
+                mobile_number: req.OrderInfo.CustomerMobileNumber,
+                name: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.name,
                 flow: sessionState.flow,
-                buyer_name: sessionState.flow === "other" ? req.OrderInfo.CustomerName : undefined,
-                buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
-              }
-            );
-            
-            // Update the assigned vouchers to mark them as sold and successful
-            await this.voucherModel.updateMany(
-              { serial_number: { $in: purchaseResult.assigned_vouchers.map(v => v.serial_number) } },
-              { 
-                $set: { 
-                  sold: true,
-                  isSuccessful: true,
-                  paymentStatus: req.OrderInfo.Status
-                } 
-              }
-            );
-          } catch (error) {
-            console.error("Error assigning vouchers after payment:", error);
-            // Continue with the process even if voucher assignment fails
+                bought_for_mobile: sessionState.flow === "other" ? sessionState.mobile : req.OrderInfo.CustomerMobileNumber,
+                bought_for_name: sessionState.flow === "other" ? sessionState.name : req.OrderInfo.CustomerMobileNumber
+              });
+              
+              // Send SMS with all assigned voucher details
+              await sendVoucherSms(
+                {
+                  mobile: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
+                  name: req.OrderInfo.CustomerName,
+                  vouchers: purchaseResult.assigned_vouchers,
+                  flow: sessionState.flow,
+                  buyer_name: sessionState.flow === "other" ? req.OrderInfo.CustomerName : undefined,
+                  buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
+                }
+              );
+              
+              // Update the assigned vouchers to mark them as sold and successful
+              await this.voucherModel.updateMany(
+                { serial_number: { $in: purchaseResult.assigned_vouchers.map(v => v.serial_number) } },
+                { 
+                  $set: { 
+                    sold: true,
+                    isSuccessful: true,
+                    paymentStatus: req.OrderInfo.Status
+                  } 
+                }
+              );
+            } catch (error) {
+              console.error("Error assigning vouchers after payment:", error);
+            }
+          } else if (sessionState.serviceType === "data_bundle") {
+            try {
+              // Process bundle purchase after successful payment
+              await this.bundleService.purchaseBundle({
+                bundleType: BundleType.DATA,
+                network: sessionState.network,
+                destination: sessionState.mobile,
+                bundleValue: sessionState.bundleValue,
+                amount: sessionState.totalAmount,
+                callbackUrl: `${process.env.BASE_URL}/bundle/callback`,
+                clientReference: `BUNDLE_${req.SessionId}_${Date.now()}`
+              });
+            } catch (error) {
+              console.error("Error processing bundle after payment:", error);
+            }
+          } else if (sessionState.serviceType === "airtime_topup") {
+            try {
+              // Process airtime purchase after successful payment
+              await this.airtimeService.purchaseAirtime({
+                destination: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
+                amount: sessionState.amount,
+                network: sessionState.network,
+                callbackUrl: `${process.env.BASE_URL}/airtime/callback`,
+                clientReference: `AIRTIME_${req.SessionId}_${Date.now()}`
+              });
+            } catch (error) {
+              console.error("Error processing airtime after payment:", error);
+            }
+          } else if (sessionState.serviceType === "pay_bills") {
+            try {
+              // Process TV bill payment after successful payment
+              await this.tvBillsService.payBill({
+                provider: sessionState.tvProvider,
+                accountNumber: sessionState.accountNumber,
+                amount: sessionState.totalAmount,
+                callbackUrl: `${process.env.BASE_URL}/tv-bills/callback`,
+                clientReference: `TVBILL_${req.SessionId}_${Date.now()}`
+              });
+            } catch (error) {
+              console.error("Error processing TV bill after payment:", error);
+            }
           }
         }
 
@@ -523,6 +1154,234 @@ export class UssdService {
     }
   }
 
+  private async handleUtilityQuery(req: HBussdReq, state: SessionState) {
+    try {
+      if (state.utilityProvider === UtilityProvider.ECG) {
+        // Validate mobile number format
+        if (!this.utilityService.validateMobileNumber(req.Message)) {
+          return this.createResponse(
+            req.SessionId,
+            "Invalid Mobile Number",
+            "Please enter a valid mobile number (233xxxxxxxxx):",
+            HbEnums.DATATYPE_INPUT,
+            HbEnums.FIELDTYPE_PHONE,
+            HbEnums.RESPONSE
+          );
+        }
+
+        // Query ECG meters from Hubtel
+        const meterResponse = await this.utilityService.queryECGMeters({
+          mobileNumber: req.Message
+        });
+
+        if (meterResponse.ResponseCode !== '0000') {
+          return this.createResponse(
+            req.SessionId,
+            "Error",
+            `Failed to fetch meters: ${meterResponse.Message}`,
+            HbEnums.DATATYPE_DISPLAY,
+            HbEnums.FIELDTYPE_TEXT,
+            HbEnums.RELEASE
+          );
+        }
+
+        // Store meter info and mobile number in session
+        state.meterInfo = meterResponse.Data;
+        state.mobile = req.Message;
+        this.sessionMap.set(req.SessionId, state);
+
+        // Display meter information
+        const meterDisplay = this.utilityService.formatECGMeterInfo(meterResponse.Data);
+        
+        return this.createResponse(
+          req.SessionId,
+          "Select Meter",
+          `${meterDisplay}\n\nSelect meter number:`,
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RESPONSE
+        );
+      } else {
+        // Ghana Water - validate meter number format
+        if (!this.utilityService.validateGhanaWaterMeterNumber(req.Message)) {
+          return this.createResponse(
+            req.SessionId,
+            "Invalid Meter Number",
+            "Please enter a valid 12-digit meter number:",
+            HbEnums.DATATYPE_INPUT,
+            HbEnums.FIELDTYPE_TEXT,
+            HbEnums.RESPONSE
+          );
+        }
+
+        state.meterNumber = req.Message;
+        this.sessionMap.set(req.SessionId, state);
+
+        return this.createResponse(
+          req.SessionId,
+          "Enter Mobile Number",
+          "Enter mobile number for Ghana Water:",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_PHONE,
+          HbEnums.RESPONSE
+        );
+      }
+    } catch (error) {
+      console.error('Error querying utility:', error);
+      return this.createResponse(
+        req.SessionId,
+        "Error",
+        "Failed to fetch information. Please try again.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+  }
+
+  private async handleUtilityStep5(req: HBussdReq, state: SessionState) {
+    if (state.utilityProvider === UtilityProvider.ECG) {
+      // Handle ECG meter selection
+      const selectedIndex = parseInt(req.Message) - 1;
+      
+      if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= (state.meterInfo?.length || 0)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Selection",
+          "Please select a valid meter option:",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      }
+
+      const selectedMeter = state.meterInfo[selectedIndex];
+      state.meterNumber = selectedMeter.Value.trim();
+      this.sessionMap.set(req.SessionId, state);
+
+      return this.createResponse(
+        req.SessionId,
+        "Enter Amount",
+        "Enter top-up amount:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    } else {
+      // Ghana Water - validate mobile number and query account
+      if (!this.utilityService.validateMobileNumber(req.Message)) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Mobile Number",
+          "Please enter a valid mobile number (233xxxxxxxxx):",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_PHONE,
+          HbEnums.RESPONSE
+        );
+      }
+
+      try {
+        const accountResponse = await this.utilityService.queryGhanaWaterAccount({
+          meterNumber: state.meterNumber,
+          mobileNumber: req.Message
+        });
+
+        if (accountResponse.ResponseCode !== '0000') {
+          return this.createResponse(
+            req.SessionId,
+            "Error",
+            `Failed to fetch account: ${accountResponse.Message}`,
+            HbEnums.DATATYPE_DISPLAY,
+            HbEnums.FIELDTYPE_TEXT,
+            HbEnums.RELEASE
+          );
+        }
+
+        // Store account info and mobile number in session
+        state.meterInfo = accountResponse.Data;
+        state.mobile = req.Message;
+        this.sessionMap.set(req.SessionId, state);
+
+        // Display account information
+        const accountDisplay = this.utilityService.formatGhanaWaterInfo(accountResponse.Data);
+        
+        return this.createResponse(
+          req.SessionId,
+          "Account Information",
+          `${accountDisplay}\n\nEnter payment amount:`,
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_DECIMAL,
+          HbEnums.RESPONSE
+        );
+      } catch (error) {
+        console.error('Error querying Ghana Water account:', error);
+        return this.createResponse(
+          req.SessionId,
+          "Error",
+          "Failed to fetch account information. Please try again.",
+          HbEnums.DATATYPE_DISPLAY,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RELEASE
+        );
+      }
+    }
+  }
+
+  private handleUtilityAmountInput(req: HBussdReq, state: SessionState) {
+    const amount = parseFloat(req.Message);
+    if (isNaN(amount) || amount <= 0) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Amount",
+        "Please enter a valid amount:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    // Validate amount format (2 decimal places)
+    if (amount % 0.01 !== 0) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Amount",
+        "Amount must have maximum 2 decimal places:",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.RESPONSE
+      );
+    }
+
+    state.amount = amount;
+    state.totalAmount = amount;
+    this.sessionMap.set(req.SessionId, state);
+
+    if (state.utilityProvider === UtilityProvider.ECG) {
+      const meterDisplay = this.utilityService.formatECGMeterInfo(state.meterInfo);
+      const selectedMeter = state.meterInfo.find(m => m.Value.trim() === state.meterNumber);
+      
+      return this.createResponse(
+        req.SessionId,
+        "Confirm ECG Top-Up",
+        `Meter: ${selectedMeter?.Display.trim()}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    } else {
+      const accountDisplay = this.utilityService.formatGhanaWaterInfo(state.meterInfo);
+      
+      return this.createResponse(
+        req.SessionId,
+        "Confirm Ghana Water Payment",
+        `${accountDisplay}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+  }
+
   private getServicePrice(service: string): number {
     // Price mapping for different services
     const priceMap = {
@@ -536,5 +1395,43 @@ export class UssdService {
     };
 
     return priceMap[service] || 21; // Default price if service not found
+  }
+
+  /**
+   * Check transaction status for USSD transactions
+   */
+  async checkUssdTransactionStatus(clientReference: string): Promise<any> {
+    try {
+      const statusResponse = await this.transactionStatusService.checkStatusByClientReference(clientReference);
+      const summary = this.transactionStatusService.getTransactionStatusSummary(statusResponse);
+      
+      return {
+        success: true,
+        data: statusResponse,
+        summary: summary,
+        isSuccessful: this.transactionStatusService.isTransactionSuccessful(statusResponse),
+        shouldRetry: this.transactionStatusService.shouldRetryTransaction(statusResponse),
+        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(statusResponse)
+      };
+    } catch (error) {
+      console.error('Error checking USSD transaction status:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to check transaction status',
+        shouldRetry: true
+      };
+    }
+  }
+
+  /**
+   * Handle transaction status check for pending transactions
+   */
+  async handlePendingTransactionStatusCheck(): Promise<void> {
+    try {
+      await this.transactionStatusService.checkPendingTransactions();
+      console.log('Pending transaction status check completed');
+    } catch (error) {
+      console.error('Error in pending transaction status check:', error);
+    }
   }
 }

@@ -29,6 +29,16 @@ import { Transactions, TransactionsSchema } from "./models/schemas/transaction.s
 import { Voucher, VoucherSchema } from "./models/schemas/voucher.schema";
 import { VouchersController } from "./controllers/vouchers.controller";
 import { VouchersService } from "./services/vouchers.service";
+import { AirtimeController } from "./controllers/airtime.controller";
+import { AirtimeService } from "./services/airtime.service";
+import { BundleController } from "./controllers/bundle.controller";
+import { BundleService } from "./services/bundle.service";
+import { TVBillsController } from "./controllers/tv-bills.controller";
+import { TVBillsService } from "./services/tv-bills.service";
+import { UtilityController } from "./controllers/utility.controller";
+import { UtilityService } from "./services/utility.service";
+import { TransactionStatusController } from "./controllers/transaction-status.controller";
+import { TransactionStatusService } from "./services/transaction-status.service";
 
 @Module({
   imports: [
@@ -65,6 +75,11 @@ import { VouchersService } from "./services/vouchers.service";
     UssdController,
     AppController,
     VouchersController,
+    AirtimeController,
+    BundleController,
+    TVBillsController,
+    UtilityController,
+    TransactionStatusController,
   ],
   providers: [
     AppService,
@@ -72,6 +87,11 @@ import { VouchersService } from "./services/vouchers.service";
     AwsService,
     MailService,
     VouchersService,
+    AirtimeService,
+    BundleService,
+    TVBillsService,
+    UtilityService,
+    TransactionStatusService,
     // {
     //   provide: APP_GUARD,
     //   useClass: AuthGuards,
