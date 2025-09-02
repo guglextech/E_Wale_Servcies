@@ -38,6 +38,8 @@ import { UtilityController } from "./controllers/utility.controller";
 import { UtilityService } from "./services/utility.service";
 import { TransactionStatusController } from "./controllers/transaction-status.controller";
 import { TransactionStatusService } from "./services/transaction-status.service";
+import { UssdLog, UssdLogSchema } from "./models/schemas/ussd-log.schema";
+import { UssdLogsController } from "./controllers/ussd-logs.controller";
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { TransactionStatusService } from "./services/transaction-status.service"
       { name: HbPayments.name, schema: HbPaymentsSchema },
       { name: Transactions.name, schema: TransactionsSchema },
       { name: Voucher.name, schema: VoucherSchema },
+      { name: UssdLog.name, schema: UssdLogSchema },
     ]),
     JwtModule.register({
       secret: jwtConstants.secret,
@@ -79,6 +82,7 @@ import { TransactionStatusService } from "./services/transaction-status.service"
     TVBillsController,
     UtilityController,
     TransactionStatusController,
+    UssdLogsController,
   ],
   providers: [
     AppService,
