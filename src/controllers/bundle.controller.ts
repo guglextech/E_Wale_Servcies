@@ -26,6 +26,34 @@ export class BundleController {
     }
   }
 
+  @Get('available')
+  async getAvailableBundles(
+    @Query('network') network: string,
+    @Query('destination') destination: string,
+    @Query('bundleType') bundleType: string = 'data'
+  ) {
+    try {
+      const bundles = await this.bundleService.getAvailableBundles(
+        network as any,
+        destination,
+        bundleType
+      );
+      return {
+        success: true,
+        data: bundles,
+        message: 'Available bundles retrieved successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to get available bundles',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
   @Post('purchase')
   async purchaseBundle(@Body() bundleDto: BundlePurchaseDto) {
     try {

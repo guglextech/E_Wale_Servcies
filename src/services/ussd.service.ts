@@ -712,10 +712,16 @@ export class UssdService {
 
   private async showNetworkBundles(sessionId: string, state: SessionState) {
     try {
-      // Get sample bundles for the selected network
-      const sampleBundles = await this.bundleService.getSampleBundles(state.network);
+      // Get available bundles for the selected network using a sample number
+      // In a real implementation, you would get the user's number from the session
+      const sampleNumber = this.getSampleNumberForNetwork(state.network);
+      const availableBundles = await this.bundleService.getAvailableBundles(
+        state.network, 
+        sampleNumber, 
+        'data'
+      );
       
-      if (!sampleBundles || sampleBundles.length === 0) {
+      if (!availableBundles || availableBundles.length === 0) {
         return this.createResponse(
           sessionId,
           "No Bundles Available",
@@ -727,14 +733,14 @@ export class UssdService {
       }
 
       // Store bundles and set initial page
-      state.bundles = sampleBundles;
+      state.bundles = availableBundles;
       state.currentBundlePage = 1;
       this.sessionMap.set(sessionId, state);
 
       // Display first page of bundles
       return this.displayBundlePage(sessionId, state);
     } catch (error) {
-      console.error('Error fetching sample bundles:', error);
+      console.error('Error fetching available bundles:', error);
       return this.createResponse(
         sessionId,
         "Error",
@@ -744,6 +750,16 @@ export class UssdService {
         HbEnums.RELEASE
       );
     }
+  }
+
+  private getSampleNumberForNetwork(network: string): string {
+    // Sample numbers for each network - these should be replaced with actual user numbers
+    const sampleNumbers = {
+      'MTN': '233246912184',
+      'Telecel Ghana': '233206439599',
+      'AT': '233574126849'
+    };
+    return sampleNumbers[network] || '233246912184';
   }
 
   private displayBundlePage(sessionId: string, state: SessionState) {
