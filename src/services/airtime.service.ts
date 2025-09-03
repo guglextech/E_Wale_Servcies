@@ -67,17 +67,40 @@ export class AirtimeService {
       }
 
       const endpoint = this.hubtelEndpoints[airtimeDto.network].airtime;
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
+      
+      if (!hubtelPrepaidDepositID) {
+        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
+      }
+
+      // Debug logging
+      this.logger.log(`Airtime purchase request - Network: ${airtimeDto.network}, Endpoint: ${endpoint}, DepositID: ${hubtelPrepaidDepositID}`);
+      this.logger.log(`Auth token exists: ${!!process.env.HUBTEL_AUTH_TOKEN}`);
+
+      // Validate and convert mobile number format if needed
+      let destination = airtimeDto.destination;
+      if (!destination.startsWith('233')) {
+        // Convert to international format if not already
+        if (destination.startsWith('0')) {
+          destination = '233' + destination.substring(1);
+        } else if (destination.length === 9) {
+          destination = '233' + destination;
+        }
+      }
 
       const requestPayload = {
-        Destination: airtimeDto.destination,
+        Destination: destination,
         Amount: airtimeDto.amount,
         CallbackUrl: airtimeDto.callbackUrl,
         ClientReference: airtimeDto.clientReference
       };
 
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
+      this.logger.log(`Making request to: ${url}`);
+      this.logger.log(`Request payload: ${JSON.stringify(requestPayload)}`);
+
       const response = await axios.post(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`,
+        url,
         requestPayload,
         {
           headers: {
@@ -87,6 +110,8 @@ export class AirtimeService {
           }
         }
       );
+
+      this.logger.log(`Hubtel response: ${JSON.stringify(response.data)}`);
 
       // Log the transaction
       await this.logTransaction({
@@ -101,6 +126,10 @@ export class AirtimeService {
       return response.data;
     } catch (error) {
       this.logger.error(`Error purchasing airtime: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`Hubtel response status: ${error.response.status}`);
+        this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
+      }
       throw error;
     }
   }
