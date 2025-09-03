@@ -52,18 +52,13 @@ export class UtilityService {
 
       // Create payment request payload
       const paymentPayload = {
-        amount: ecgTopUpDto.amount,
-        callbackUrl: ecgTopUpDto.callbackUrl,
-        clientReference: ecgTopUpDto.clientReference,
+        totalAmount: ecgTopUpDto.amount,
         description: `ECG top-up for meter ${ecgTopUpDto.meterNumber}`,
+        clientReference: ecgTopUpDto.clientReference,
+        merchantAccountNumber: process.env.HUBTEL_POS_SALES_ID,
+        callbackUrl: ecgTopUpDto.callbackUrl,
         returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
-        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          serviceType: 'ecg_topup',
-          mobileNumber: mobileNumber,
-          meterNumber: ecgTopUpDto.meterNumber,
-          amount: ecgTopUpDto.amount
-        }
+        cancellationUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
       };
 
       // Get Hubtel POS ID for payments
@@ -76,13 +71,12 @@ export class UtilityService {
 
       // Create payment request via Hubtel Payment API
       const response = await axios.post(
-        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        "https://payproxyapi.hubtel.com/items/initiate",
         paymentPayload,
         {
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -103,7 +97,7 @@ export class UtilityService {
       return {
         success: true,
         data: {
-          paymentUrl: response.data.data?.checkoutUrl,
+          paymentUrl: response.data.data?.checkoutDirectUrl,
           checkoutId: response.data.data?.checkoutId,
           clientReference: ecgTopUpDto.clientReference,
           amount: ecgTopUpDto.amount,
@@ -137,19 +131,13 @@ export class UtilityService {
 
       // Create payment request payload
       const paymentPayload = {
-        amount: ghanaWaterTopUpDto.amount,
-        callbackUrl: ghanaWaterTopUpDto.callbackUrl,
-        clientReference: ghanaWaterTopUpDto.clientReference,
+        totalAmount: ghanaWaterTopUpDto.amount,
         description: `Ghana Water top-up for meter ${ghanaWaterTopUpDto.meterNumber}`,
+        clientReference: ghanaWaterTopUpDto.clientReference,
+        merchantAccountNumber: process.env.HUBTEL_POS_SALES_ID,
+        callbackUrl: ghanaWaterTopUpDto.callbackUrl,
         returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
-        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          serviceType: 'ghana_water_topup',
-          meterNumber: ghanaWaterTopUpDto.meterNumber,
-          email: ghanaWaterTopUpDto.email,
-          sessionId: ghanaWaterTopUpDto.sessionId,
-          amount: ghanaWaterTopUpDto.amount
-        }
+        cancellationUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
       };
 
       // Get Hubtel POS ID for payments
@@ -162,13 +150,12 @@ export class UtilityService {
 
       // Create payment request via Hubtel Payment API
       const response = await axios.post(
-        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        "https://payproxyapi.hubtel.com/items/initiate",
         paymentPayload,
         {
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -190,7 +177,7 @@ export class UtilityService {
       return {
         success: true,
         data: {
-          paymentUrl: response.data.data?.checkoutUrl,
+          paymentUrl: response.data.data?.checkoutDirectUrl,
           checkoutId: response.data.data?.checkoutId,
           clientReference: ghanaWaterTopUpDto.clientReference,
           amount: ghanaWaterTopUpDto.amount,

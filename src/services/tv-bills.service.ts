@@ -40,18 +40,13 @@ export class TVBillsService {
 
       // Create payment request payload
       const paymentPayload = {
-        amount: tvBillDto.amount,
-        callbackUrl: tvBillDto.callbackUrl,
-        clientReference: tvBillDto.clientReference,
+        totalAmount: tvBillDto.amount,
         description: `${tvBillDto.provider} bill payment for ${tvBillDto.accountNumber}`,
+        clientReference: tvBillDto.clientReference,
+        merchantAccountNumber: process.env.HUBTEL_POS_SALES_ID,
+        callbackUrl: tvBillDto.callbackUrl,
         returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
-        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          serviceType: 'tv_bill_payment',
-          provider: tvBillDto.provider,
-          accountNumber: tvBillDto.accountNumber,
-          amount: tvBillDto.amount
-        }
+        cancellationUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
       };
 
       // Get Hubtel POS ID for payments
@@ -64,13 +59,12 @@ export class TVBillsService {
 
       // Create payment request via Hubtel Payment API
       const response = await axios.post(
-        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        "https://payproxyapi.hubtel.com/items/initiate",
         paymentPayload,
         {
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -91,7 +85,7 @@ export class TVBillsService {
       return {
         success: true,
         data: {
-          paymentUrl: response.data.data?.checkoutUrl,
+          paymentUrl: response.data.data?.checkoutDirectUrl,
           checkoutId: response.data.data?.checkoutId,
           clientReference: tvBillDto.clientReference,
           amount: tvBillDto.amount,

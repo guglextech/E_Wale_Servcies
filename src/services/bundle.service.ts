@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios from 'axios';
-import { 
-  BundleQueryDto, 
-  BundlePurchaseDto, 
+import {
+  BundleQueryDto,
+  BundlePurchaseDto,
   BundlePurchaseRequestDto,
-  NetworkProvider, 
+  NetworkProvider,
   BundleType,
   BundleQueryResponse,
   BundleOption
@@ -21,7 +21,7 @@ export class BundleService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly transactionStatusService: TransactionStatusService,
-  ) {}
+  ) { }
 
   // Hubtel API endpoints for different networks and services
   private readonly hubtelEndpoints: Record<NetworkProvider, Record<string, string>> = {
@@ -45,10 +45,10 @@ export class BundleService {
   async createBundlePaymentRequest(bundleDto: BundlePurchaseDto): Promise<any> {
     try {
       const { network, bundleType = 'data' } = bundleDto;
-      
+
       // Determine the correct endpoint based on network and bundle type
       const endpoint = this.getEndpointForBundleType(network, bundleType);
-      
+
       if (!endpoint) {
         throw new Error(`Bundle type '${bundleType}' not supported for network '${network}'`);
       }
@@ -66,20 +66,13 @@ export class BundleService {
 
       // Create payment request payload
       const paymentPayload = {
-        amount: bundleDto.amount,
-        callbackUrl: bundleDto.callbackUrl,
-        clientReference: bundleDto.clientReference,
+        totalAmount: bundleDto.amount,
         description: `Data bundle for ${destination} (${network})`,
+        clientReference: bundleDto.clientReference,
+        merchantAccountNumber: process.env.HUBTEL_POS_SALES_ID,
+        callbackUrl: bundleDto.callbackUrl,
         returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
-        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          serviceType: 'bundle_purchase',
-          network: network,
-          destination: destination,
-          bundleType: bundleType,
-          bundleValue: bundleDto.bundleValue,
-          amount: bundleDto.amount
-        }
+        cancellationUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
       };
 
       // Get Hubtel POS ID for payments
@@ -89,16 +82,16 @@ export class BundleService {
       }
 
       this.logger.log(`Creating payment request for bundle - Amount: ${bundleDto.amount}, Network: ${network}, Destination: ${destination}`);
+      this.logger.log(`Using Hubtel POS ID: ${hubtelPosId}`);
 
       // Create payment request via Hubtel Payment API
       const response = await axios.post(
-        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        "https://payproxyapi.hubtel.com/items/initiate",
         paymentPayload,
         {
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -121,7 +114,7 @@ export class BundleService {
       return {
         success: true,
         data: {
-          paymentUrl: response.data.data?.checkoutUrl,
+          paymentUrl: response.data.data?.checkoutDirectUrl,
           checkoutId: response.data.data?.checkoutId,
           clientReference: bundleDto.clientReference,
           amount: bundleDto.amount,
@@ -155,7 +148,7 @@ export class BundleService {
 
       const endpoint = this.getEndpointForBundleType(network, bundleType);
       const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
-      
+
       if (!hubtelPrepaidDepositID) {
         throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
       }
@@ -221,7 +214,7 @@ export class BundleService {
       if (status === 'success' && metadata?.serviceType === 'bundle_purchase') {
         // Payment successful, deliver bundle
         await this.processBundleAfterPayment(callbackData);
-        
+
         this.logger.log(`Bundle delivered successfully for payment: ${clientReference}`);
       } else {
         this.logger.log(`Payment failed or not for bundle: ${clientReference}, Status: ${status}`);
@@ -273,22 +266,22 @@ export class BundleService {
   async queryBundles(bundleQueryDto: BundleQueryDto): Promise<BundleQueryResponse> {
     try {
       const { network, destination, bundleType = 'data' } = bundleQueryDto;
-      
+
       // Determine the correct endpoint based on network and bundle type
       const endpoint = this.getEndpointForBundleType(network, bundleType);
-      
+
       if (!endpoint) {
         throw new Error(`Bundle type '${bundleType}' not supported for network '${network}'`);
       }
 
       const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
-      
+
       if (!hubtelPrepaidDepositID) {
         throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
       }
 
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${destination}`;
-      
+
       this.logger.log(`Querying bundles from: ${url}`);
 
       const response = await axios.get(url, {
@@ -350,7 +343,7 @@ export class BundleService {
    */
   private getEndpointForBundleType(network: NetworkProvider, bundleType: string): string | null {
     const networkEndpoints = this.hubtelEndpoints[network];
-    
+
     if (!networkEndpoints) {
       return null;
     }
@@ -447,7 +440,7 @@ export class BundleService {
     try {
       const statusResponse = await this.transactionStatusService.checkStatusByClientReference(clientReference);
       const summary = this.transactionStatusService.getTransactionStatusSummary(statusResponse);
-      
+
       return {
         success: true,
         data: statusResponse,

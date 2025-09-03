@@ -83,18 +83,13 @@ export class AirtimeService {
 
       // Create payment request payload
       const paymentPayload = {
-        amount: airtimeDto.amount,
-        callbackUrl: airtimeDto.callbackUrl,
-        clientReference: airtimeDto.clientReference,
+        totalAmount: airtimeDto.amount,
         description: `Airtime top-up for ${destination} (${airtimeDto.network})`,
+        clientReference: airtimeDto.clientReference,
+        merchantAccountNumber: process.env.HUBTEL_POS_SALES_ID,
+        callbackUrl: airtimeDto.callbackUrl,
         returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
-        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          serviceType: 'airtime_topup',
-          network: airtimeDto.network,
-          destination: destination,
-          amount: airtimeDto.amount
-        }
+        cancellationUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
       };
 
       // Get Hubtel POS ID for payments
@@ -107,13 +102,12 @@ export class AirtimeService {
 
       // Create payment request via Hubtel Payment API
       const response = await axios.post(
-        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        "https://payproxyapi.hubtel.com/items/initiate",
         paymentPayload,
         {
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -134,7 +128,7 @@ export class AirtimeService {
       return {
         success: true,
         data: {
-          paymentUrl: response.data.data?.checkoutUrl,
+          paymentUrl: response.data.data?.checkoutDirectUrl,
           checkoutId: response.data.data?.checkoutId,
           clientReference: airtimeDto.clientReference,
           amount: airtimeDto.amount,
