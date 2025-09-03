@@ -1,20 +1,61 @@
 {
   "info": {
-    "name": "E-Services API",
-    "description": "Complete API collection for E-Services voucher management system",
+    "name": "E-Services API Collection",
+    "description": "Complete API collection for E-Services backend with all endpoints for testing",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
-      "key": "base_url",
-      "value": "http://localhost:4300",
+      "key": "base_url_local",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "base_url_prod",
+      "value": "https://e-services-0qrv.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
       "type": "string"
     }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
   "item": [
     {
       "name": "Authentication",
       "item": [
+        {
+          "name": "Admin Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin@example.com\",\n  \"password\": \"Admin@123\",\n  \"role\": \"Admin\",\n  \"firstname\": \"Admin\",\n  \"lastname\": \"User\",\n  \"photo\": \"\",\n  \"phone\": \"+233246912184\",\n  \"userDescription\": \"System Administrator\",\n  \"authType\": \"local\",\n  \"permissions\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/auth/admin/signup",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "auth", "admin", "signup"]
+            }
+          }
+        },
         {
           "name": "User Login",
           "request": {
@@ -27,43 +68,263 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"username\": \"user@example.com\",\n  \"password\": \"User@123\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/auth/login",
-              "host": ["{{base_url}}"],
+              "raw": "{{base_url_local}}/api/v1/auth/login",
+              "host": ["{{base_url_local}}"],
               "path": ["api", "v1", "auth", "login"]
-            }
-          }
-        },
-        {
-          "name": "User Register",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+233123456789\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "auth", "register"]
             }
           }
         }
       ]
     },
     {
-      "name": "Vouchers",
+      "name": "Users Management",
       "item": [
         {
-          "name": "Create Single Voucher",
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/profile",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User by Username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users?username=user@example.com",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {
+                  "key": "username",
+                  "value": "user@example.com"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/all?page=1&limit=10",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user@example.com\",\n  \"role\": \"User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/update-role",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "update-role"]
+            }
+          }
+        },
+        {
+          "name": "Update User Permissions",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user@example.com\",\n  \"userDescription\": \"Updated user description\",\n  \"permissions\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/permissions",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "permissions"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user@example.com\",\n  \"firstname\": \"Updated\",\n  \"lastname\": \"Name\",\n  \"phone\": \"+233246912184\",\n  \"photo\": \"\",\n  \"role\": \"User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/update-user",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "update-user"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/forgot-password?username=user@example.com",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "forgot-password"],
+              "query": [
+                {
+                  "key": "username",
+                  "value": "user@example.com"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"OldPass@123\",\n  \"newPassword\": \"NewPass@123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/change-password",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users?username=user@example.com",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {
+                  "key": "username",
+                  "value": "user@example.com"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Test Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/users/send",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "users", "send"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bundle Services",
+      "item": [
+        {
+          "name": "Query Bundles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/bundle/query?destination=233246912184&network=MTN&bundleType=data",
+              "host": ["{{base_url_local}}"],
+              "path": ["bundle", "query"],
+              "query": [
+                {
+                  "key": "destination",
+                  "value": "233246912184"
+                },
+                {
+                  "key": "network",
+                  "value": "MTN"
+                },
+                {
+                  "key": "bundleType",
+                  "value": "data"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Available Bundles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/bundle/available?network=MTN&destination=233246912184&bundleType=data",
+              "host": ["{{base_url_local}}"],
+              "path": ["bundle", "available"],
+              "query": [
+                {
+                  "key": "network",
+                  "value": "MTN"
+                },
+                {
+                  "key": "destination",
+                  "value": "233246912184"
+                },
+                {
+                  "key": "bundleType",
+                  "value": "data"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Purchase Bundle",
           "request": {
             "method": "POST",
             "header": [
@@ -74,12 +335,304 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"voucher_code\": \"VOUCHER001\"\n}"
+              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"bundleValue\": \"data_bundle_1\",\n  \"amount\": 0.5,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"bundle_123456789\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "vouchers"]
+              "raw": "{{base_url_local}}/bundle/purchase",
+              "host": ["{{base_url_local}}"],
+              "path": ["bundle", "purchase"]
+            }
+          }
+        },
+        {
+          "name": "Bundle Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResponseCode\": \"0000\",\n  \"Message\": \"Successful\",\n  \"ClientReference\": \"bundle_123456789\",\n  \"TransactionId\": \"HT123456789\",\n  \"Amount\": 0.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/bundle/callback",
+              "host": ["{{base_url_local}}"],
+              "path": ["bundle", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Airtime Services",
+      "item": [
+        {
+          "name": "Purchase Airtime",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination\": \"233246912184\",\n  \"amount\": 1.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"airtime_123456789\",\n  \"network\": \"MTN\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/airtime/topup",
+              "host": ["{{base_url_local}}"],
+              "path": ["airtime", "topup"]
+            }
+          }
+        },
+        {
+          "name": "Purchase Bundle via Airtime",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"quantity\": 1,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"airtime_bundle_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/airtime/bundle",
+              "host": ["{{base_url_local}}"],
+              "path": ["airtime", "bundle"]
+            }
+          }
+        },
+        {
+          "name": "Airtime Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResponseCode\": \"0000\",\n  \"Message\": \"Successful\",\n  \"ClientReference\": \"airtime_123456789\",\n  \"TransactionId\": \"HT123456789\",\n  \"Amount\": 1.0,\n  \"Commission\": \"0.05\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/airtime/callback",
+              "host": ["{{base_url_local}}"],
+              "path": ["airtime", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "TV Bills Services",
+      "item": [
+        {
+          "name": "Query TV Account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/tv-bills/query?accountNumber=1234567890&provider=DSTV",
+              "host": ["{{base_url_local}}"],
+              "path": ["tv-bills", "query"],
+              "query": [
+                {
+                  "key": "accountNumber",
+                  "value": "1234567890"
+                },
+                {
+                  "key": "provider",
+                  "value": "DSTV"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pay TV Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"DSTV\",\n  \"accountNumber\": \"1234567890\",\n  \"amount\": 50.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"tv_bill_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/tv-bills/pay",
+              "host": ["{{base_url_local}}"],
+              "path": ["tv-bills", "pay"]
+            }
+          }
+        },
+        {
+          "name": "TV Bills Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResponseCode\": \"0000\",\n  \"Message\": \"Successful\",\n  \"ClientReference\": \"tv_bill_123456789\",\n  \"TransactionId\": \"HT123456789\",\n  \"Amount\": 50.0,\n  \"Commission\": \"2.5\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/tv-bills/callback",
+              "host": ["{{base_url_local}}"],
+              "path": ["tv-bills", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Utility Services",
+      "item": [
+        {
+          "name": "Query ECG Meters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/utility/ecg/query?mobileNumber=233246912184",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "ecg", "query"],
+              "query": [
+                {
+                  "key": "mobileNumber",
+                  "value": "233246912184"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Query Ghana Water Account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/utility/ghana-water/query?meterNumber=123456789&mobileNumber=233246912184",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "ghana-water", "query"],
+              "query": [
+                {
+                  "key": "meterNumber",
+                  "value": "123456789"
+                },
+                {
+                  "key": "mobileNumber",
+                  "value": "233246912184"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Top Up ECG",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"233246912184\",\n  \"meterNumber\": \"123456789\",\n  \"amount\": 25.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"ecg_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/utility/ecg/topup",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "ecg", "topup"]
+            }
+          }
+        },
+        {
+          "name": "Top Up Ghana Water",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meterNumber\": \"123456789\",\n  \"email\": \"user@example.com\",\n  \"sessionId\": \"session_123456\",\n  \"amount\": 15.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"ghana_water_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/utility/ghana-water/topup",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "ghana-water", "topup"]
+            }
+          }
+        },
+        {
+          "name": "Utility Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResponseCode\": \"0000\",\n  \"Message\": \"Successful\",\n  \"ClientReference\": \"ecg_123456789\",\n  \"TransactionId\": \"HT123456789\",\n  \"Amount\": 25.0,\n  \"Commission\": \"1.25\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/utility/callback",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "callback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vouchers Management",
+      "item": [
+        {
+          "name": "Create Voucher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serial_number\": \"VOUCHER123456\",\n  \"pin\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/vouchers/create",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "create"]
             }
           }
         },
@@ -95,12 +648,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"voucher_codes\": [\"VOUCHER001\", \"VOUCHER002\", \"VOUCHER003\"]\n}"
+              "raw": "{\n  \"serial_numbers\": [\"VOUCHER123456\", \"VOUCHER123457\", \"VOUCHER123458\"],\n  \"pins\": [\"123456\", \"123457\", \"123458\"]\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/bulk",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "vouchers", "bulk"]
+              "raw": "{{base_url_local}}/api/v1/vouchers/create-bulk",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "create-bulk"]
             }
           }
         },
@@ -116,11 +669,11 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"voucher_code\": \"VOUCHER001\",\n  \"mobile_number\": \"+233123456789\"\n}"
+              "raw": "{\n  \"serial_number\": \"VOUCHER123456\",\n  \"mobile_number\": \"233246912184\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/assign",
-              "host": ["{{base_url}}"],
+              "raw": "{{base_url_local}}/api/v1/vouchers/assign",
+              "host": ["{{base_url_local}}"],
               "path": ["api", "v1", "vouchers", "assign"]
             }
           }
@@ -137,11 +690,11 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"quantity\": 3,\n  \"mobile_number\": \"+233123456789\",\n  \"name\": \"John Doe\",\n  \"flow\": \"self\"\n}"
+              "raw": "{\n  \"mobile_number\": \"233246912184\",\n  \"name\": \"John Doe\",\n  \"quantity\": 2,\n  \"flow\": \"self\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/purchase",
-              "host": ["{{base_url}}"],
+              "raw": "{{base_url_local}}/api/v1/vouchers/purchase",
+              "host": ["{{base_url_local}}"],
               "path": ["api", "v1", "vouchers", "purchase"]
             }
           }
@@ -152,8 +705,8 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/available",
-              "host": ["{{base_url}}"],
+              "raw": "{{base_url_local}}/api/v1/vouchers/available",
+              "host": ["{{base_url_local}}"],
               "path": ["api", "v1", "vouchers", "available"]
             }
           }
@@ -164,15 +717,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/assigned?mobile=+233123456789",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "vouchers", "assigned"],
-              "query": [
-                {
-                  "key": "mobile",
-                  "value": "+233123456789"
-                }
-              ]
+              "raw": "{{base_url_local}}/api/v1/vouchers/assigned/233246912184",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "assigned", "233246912184"]
             }
           }
         },
@@ -180,131 +727,78 @@
           "name": "Use Voucher",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"voucher_code\": \"VOUCHER001\"\n}"
-            },
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/use",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "vouchers", "use"]
+              "raw": "{{base_url_local}}/api/v1/vouchers/use/VOUCHER123456",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "use", "VOUCHER123456"]
             }
           }
         },
         {
-          "name": "Get Voucher Stats",
+          "name": "Check Voucher Exists",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/stats",
-              "host": ["{{base_url}}"],
+              "raw": "{{base_url_local}}/api/v1/vouchers/check/VOUCHER123456",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "check", "VOUCHER123456"]
+            }
+          }
+        },
+        {
+          "name": "Search Voucher by Serial Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/vouchers/search/serial/VOUCHER123456",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "search", "serial", "VOUCHER123456"]
+            }
+          }
+        },
+        {
+          "name": "Search Voucher by PIN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/vouchers/search/pin/123456",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "search", "pin", "123456"]
+            }
+          }
+        },
+        {
+          "name": "Mark Voucher as Sold",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/vouchers/mark-sold/VOUCHER123456",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "vouchers", "mark-sold", "VOUCHER123456"]
+            }
+          }
+        },
+        {
+          "name": "Get Voucher Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/vouchers/stats",
+              "host": ["{{base_url_local}}"],
               "path": ["api", "v1", "vouchers", "stats"]
             }
           }
-        },
-        {
-          "name": "Get Paid Vouchers",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/paid",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "vouchers", "paid"]
-            }
-          }
-        },
-        {
-          "name": "Search Vouchers",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/vouchers/search?q=VOUCHER001",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "vouchers", "search"],
-              "query": [
-                {
-                  "key": "q",
-                  "value": "VOUCHER001"
-                }
-              ]
-            }
-          }
         }
       ]
     },
     {
-      "name": "Users",
-      "item": [
-        {
-          "name": "Get All Users",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users"]
-            }
-          }
-        },
-        {
-          "name": "Get User by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/64f1a2b3c4d5e6f7g8h9i0j1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users", "64f1a2b3c4d5e6f7g8h9i0j1"]
-            }
-          }
-        },
-        {
-          "name": "Update User",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"John Updated\",\n  \"email\": \"john.updated@example.com\",\n  \"mobile\": \"+233123456789\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/64f1a2b3c4d5e6f7g8h9i0j1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users", "64f1a2b3c4d5e6f7g8h9i0j1"]
-            }
-          }
-        },
-        {
-          "name": "Delete User",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/users/64f1a2b3c4d5e6f7g8h9i0j1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "users", "64f1a2b3c4d5e6f7g8h9i0j1"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "USSD",
+      "name": "USSD Services",
       "item": [
         {
           "name": "USSD Request",
@@ -318,29 +812,240 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"SessionId\": \"session123\",\n  \"ServiceCode\": \"123\",\n  \"PhoneNumber\": \"+233123456789\",\n  \"Text\": \"1\",\n  \"Type\": \"initiation\"\n}"
+              "raw": "{\n  \"Type\": \"Initiation\",\n  \"Mobile\": \"233246912184\",\n  \"SessionId\": \"session_123456\",\n  \"ServiceCode\": \"*123#\",\n  \"Message\": \"1\",\n  \"Operator\": \"MTN\",\n  \"Sequence\": 1,\n  \"ClientState\": \"\",\n  \"Platform\": \"USSD\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/ussd",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "ussd"]
+              "raw": "{{base_url_local}}/api/v1/flow/ussd",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "flow", "ussd"]
+            }
+          }
+        },
+        {
+          "name": "USSD Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResponseCode\": \"0000\",\n  \"Message\": \"Successful\",\n  \"ClientReference\": \"ussd_123456789\",\n  \"TransactionId\": \"HT123456789\",\n  \"Amount\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/flow/ussd/callback",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "flow", "ussd", "callback"]
             }
           }
         }
       ]
     },
     {
-      "name": "Health Check",
+      "name": "USSD Logs",
       "item": [
         {
-          "name": "App Health",
+          "name": "Get USSD Logs by Mobile",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/health",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
+              "raw": "{{base_url_local}}/api/v1/ussd-logs/mobile/233246912184?limit=50",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "ussd-logs", "mobile", "233246912184"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get USSD Logs by Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/ussd-logs/session/session_123456",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "ussd-logs", "session", "session_123456"]
+            }
+          }
+        },
+        {
+          "name": "Get USSD Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/ussd-logs/statistics",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "ussd-logs", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Get All USSD Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/api/v1/ussd-logs?page=1&limit=50&status=completed",
+              "host": ["{{base_url_local}}"],
+              "path": ["api", "v1", "ussd-logs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "status",
+                  "value": "completed"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transaction Status",
+      "item": [
+        {
+          "name": "Check Transaction Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/check?clientReference=txn_123456789",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "check"],
+              "query": [
+                {
+                  "key": "clientReference",
+                  "value": "txn_123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Status by Client Reference",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/check/client-reference?clientReference=txn_123456789",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "check", "client-reference"],
+              "query": [
+                {
+                  "key": "clientReference",
+                  "value": "txn_123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Status by Hubtel Transaction ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/check/hubtel-transaction-id?hubtelTransactionId=HT123456789",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "check", "hubtel-transaction-id"],
+              "query": [
+                {
+                  "key": "hubtelTransactionId",
+                  "value": "HT123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Status by Network Transaction ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/check/network-transaction-id?networkTransactionId=NET123456789",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "check", "network-transaction-id"],
+              "query": [
+                {
+                  "key": "networkTransactionId",
+                  "value": "NET123456789"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Batch Check Transaction Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientReferences\": [\"txn_123456789\", \"txn_123456790\", \"txn_123456791\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/batch-check",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "batch-check"]
+            }
+          }
+        },
+        {
+          "name": "Check Pending Transactions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/check-pending?olderThanMinutes=5",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "check-pending"],
+              "query": [
+                {
+                  "key": "olderThanMinutes",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_local}}/transaction-status/summary?clientReference=txn_123456789",
+              "host": ["{{base_url_local}}"],
+              "path": ["transaction-status", "summary"],
+              "query": [
+                {
+                  "key": "clientReference",
+                  "value": "txn_123456789"
+                }
+              ]
             }
           }
         }

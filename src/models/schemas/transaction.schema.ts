@@ -5,10 +5,10 @@ import { Document } from "mongoose";
 export class Transactions extends Document {
   
  
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   SessionId: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   OrderId: string;
 
   @Prop({ type: Object, default: {} }) 

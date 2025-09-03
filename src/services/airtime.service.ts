@@ -61,7 +61,8 @@ export class AirtimeService {
       }
 
       // Validate amount format (2 decimal places)
-      if (airtimeDto.amount % 0.01 !== 0) {
+      const decimalPlaces = (airtimeDto.amount.toString().split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
         throw new Error('Amount must have maximum 2 decimal places');
       }
 
@@ -106,8 +107,25 @@ export class AirtimeService {
 
   async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<HubtelAirtimeResponseDto> {
     try {
-      const endpoint = this.hubtelEndpoints[bundleDto.network][bundleDto.bundleType.toLowerCase()];
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '11691';
+      // Map bundle type to endpoint key
+      let endpointKey: string;
+      switch (bundleDto.bundleType) {
+        case BundleType.DATA:
+          endpointKey = 'data';
+          break;
+        case BundleType.VOICE:
+          endpointKey = 'voice';
+          break;
+        default:
+          endpointKey = 'airtime';
+      }
+      
+      const endpoint = this.hubtelEndpoints[bundleDto.network][endpointKey];
+      if (!endpoint) {
+        throw new Error(`Bundle type '${bundleDto.bundleType}' not supported for network '${bundleDto.network}'`);
+      }
+      
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
 
       // Calculate total amount based on bundle type and quantity
       const unitPrice = this.bundlePrices[bundleDto.bundleType][bundleDto.network];
@@ -183,8 +201,27 @@ export class AirtimeService {
 
   private async logTransaction(transactionData: any): Promise<void> {
     try {
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
       const transaction = new this.transactionModel({
-        ...transactionData,
+        SessionId: transactionData.clientReference || `session_${timestamp}_${randomSuffix}`,
+        OrderId: transactionData.clientReference || `order_${timestamp}_${randomSuffix}`,
+        ExtraData: {
+          type: transactionData.type,
+          network: transactionData.network,
+          bundleType: transactionData.bundleType,
+          quantity: transactionData.quantity,
+          response: transactionData.response
+        },
+        CustomerMobileNumber: transactionData.destination || 'N/A',
+        Status: transactionData.response?.ResponseCode === '0000' ? 'success' : 'pending',
+        OrderDate: new Date(),
+        Currency: 'GHS',
+        Subtotal: transactionData.amount || 0,
+        PaymentType: 'mobile_money',
+        AmountPaid: transactionData.amount || 0,
+        PaymentDate: new Date(),
+        IsSuccessful: transactionData.response?.ResponseCode === '0000' || false,
         createdAt: new Date()
       });
       await transaction.save();
