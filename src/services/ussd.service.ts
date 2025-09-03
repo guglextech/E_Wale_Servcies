@@ -8,6 +8,7 @@ import axios from "axios";
 import { HbPayments } from "../models/dto/hubtel/callback-ussd.schema";
 import { Voucher } from "../models/schemas/voucher.schema";
 import { User } from "../models/schemas/user.shema";
+import { UssdLog } from "../models/schemas/ussd-log.schema";
 import { sendVoucherSms } from "../utils/sendSMS";
 import { Transactions } from "../models/schemas/transaction.schema";
 import { VouchersService } from "./vouchers.service";
@@ -59,6 +60,7 @@ export class UssdService {
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     @InjectModel(Voucher.name) private readonly voucherModel: Model<Voucher>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(UssdLog.name) private readonly ussdLogModel: Model<UssdLog>,
     private readonly vouchersService: VouchersService,
     private readonly airtimeService: AirtimeService,
     private readonly bundleService: BundleService,
@@ -80,12 +82,19 @@ export class UssdService {
       }
     } catch (error) {
       console.error(error);
+      // Log error and mark session as failed
+      await this.updateUssdLog(req.SessionId, 'failed', {
+        errorMessage: error.message || 'Unknown error occurred'
+      });
       return this.releaseSession(req.SessionId);
     }
   }
 
   private async handleInitiation(req: HBussdReq) {
     this.sessionMap.set(req.SessionId, {});
+
+    // Log the initial USSD dial
+    await this.logUssdInteraction(req, {}, 'initiated');
 
     return this.createResponse(
       req.SessionId,
@@ -109,6 +118,9 @@ export class UssdService {
         HbEnums.RELEASE
       );
     }
+
+    // Log each USSD interaction
+    await this.logUssdInteraction(req, state, 'interaction');
   
     switch (req.Sequence) {
       case 2:
@@ -980,6 +992,9 @@ export class UssdService {
   }
 
   private async releaseSession(sessionId: string) {
+    // Log session completion
+    await this.updateUssdLog(sessionId, 'completed');
+    
     // Clean up session state
     this.sessionMap.delete(sessionId);
     return this.createResponse(
@@ -1047,6 +1062,14 @@ export class UssdService {
 
     try {
       const isSuccessful = req.OrderInfo.Payment.IsSuccessful;
+
+      // Log payment completion
+      await this.updateUssdLog(req.SessionId, isSuccessful ? 'completed' : 'failed', {
+        paymentStatus: req.OrderInfo.Status,
+        orderId: req.OrderId,
+        amountPaid: req.OrderInfo.Payment.AmountPaid,
+        isSuccessful: isSuccessful
+      });
 
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
@@ -1435,6 +1458,168 @@ export class UssdService {
       console.log('Pending transaction status check completed');
     } catch (error) {
       console.error('Error in pending transaction status check:', error);
+    }
+  }
+
+  /**
+   * Log USSD interaction
+   */
+  private async logUssdInteraction(req: HBussdReq, state: SessionState, action: string = 'interaction') {
+    try {
+      const logData = {
+        mobileNumber: req.Mobile,
+        sessionId: req.SessionId,
+        sequence: req.Sequence,
+        message: req.Message,
+        serviceType: state.serviceType,
+        service: state.service,
+        flow: state.flow,
+        network: state.network,
+        amount: state.amount,
+        totalAmount: state.totalAmount,
+        quantity: state.quantity,
+        recipientName: state.name,
+        recipientMobile: state.mobile,
+        tvProvider: state.tvProvider,
+        accountNumber: state.accountNumber,
+        utilityProvider: state.utilityProvider,
+        meterNumber: state.meterNumber,
+        bundleValue: state.bundleValue,
+        selectedBundle: state.selectedBundle,
+        accountInfo: state.accountInfo,
+        meterInfo: state.meterInfo,
+        status: action,
+        dialedAt: new Date(),
+        ipAddress: req.Mobile, // Using mobile as identifier since we don't have IP
+        userAgent: 'USSD',
+        deviceInfo: 'Mobile USSD',
+        location: 'Ghana', // Default location
+      };
+
+      await this.ussdLogModel.create(logData);
+    } catch (error) {
+      console.error('Error logging USSD interaction:', error);
+    }
+  }
+
+  /**
+   * Update USSD log with completion status
+   */
+  private async updateUssdLog(sessionId: string, status: string, additionalData: any = {}) {
+    try {
+      const updateData = {
+        status,
+        completedAt: new Date(),
+        ...additionalData
+      };
+
+      if (status === 'completed') {
+        updateData.isSuccessful = true;
+        updateData.duration = Math.floor((new Date().getTime() - new Date(additionalData.dialedAt || Date.now()).getTime()) / 1000);
+      }
+
+      await this.ussdLogModel.findOneAndUpdate(
+        { sessionId },
+        updateData,
+        { new: true }
+      );
+    } catch (error) {
+      console.error('Error updating USSD log:', error);
+    }
+  }
+
+  /**
+   * Get USSD logs by mobile number
+   */
+  async getUssdLogsByMobile(mobileNumber: string, limit: number = 50): Promise<UssdLog[]> {
+    try {
+      return await this.ussdLogModel
+        .find({ mobileNumber })
+        .sort({ dialedAt: -1 })
+        .limit(limit)
+        .exec();
+    } catch (error) {
+      console.error('Error fetching USSD logs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get USSD logs by session ID
+   */
+  async getUssdLogsBySession(sessionId: string): Promise<UssdLog[]> {
+    try {
+      return await this.ussdLogModel
+        .find({ sessionId })
+        .sort({ sequence: 1 })
+        .exec();
+    } catch (error) {
+      console.error('Error fetching USSD logs by session:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get USSD statistics
+   */
+  async getUssdStatistics(): Promise<any> {
+    try {
+      const totalDialers = await this.ussdLogModel.distinct('mobileNumber').countDocuments();
+      const todayDialers = await this.ussdLogModel.countDocuments({
+        dialedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+      });
+      const completedTransactions = await this.ussdLogModel.countDocuments({ status: 'completed' });
+      const failedTransactions = await this.ussdLogModel.countDocuments({ status: 'failed' });
+
+      return {
+        totalDialers,
+        todayDialers,
+        completedTransactions,
+        failedTransactions,
+        successRate: totalDialers > 0 ? (completedTransactions / totalDialers * 100).toFixed(2) : 0
+      };
+    } catch (error) {
+      console.error('Error fetching USSD statistics:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Get all USSD logs with pagination
+   */
+  async getAllUssdLogs(page: number = 1, limit: number = 50, status?: string): Promise<any> {
+    try {
+      const skip = (page - 1) * limit;
+      const filter: any = {};
+      
+      if (status) {
+        filter.status = status;
+      }
+
+      const [logs, total] = await Promise.all([
+        this.ussdLogModel
+          .find(filter)
+          .sort({ dialedAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.ussdLogModel.countDocuments(filter)
+      ]);
+
+      return {
+        logs,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching all USSD logs:', error);
+      return { logs: [], pagination: {} };
     }
   }
 }
