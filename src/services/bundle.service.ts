@@ -23,8 +23,8 @@ export class BundleService {
     private readonly transactionStatusService: TransactionStatusService,
   ) {}
 
-  // Hubtel API endpoints for different networks
-  private readonly hubtelEndpoints = {
+  // Hubtel API endpoints for different networks and services
+  private readonly hubtelEndpoints: Record<NetworkProvider, Record<string, string>> = {
     [NetworkProvider.MTN]: {
       data: 'b230733cd56b4a0fad820e39f66bc27c',
       fibre: '39fbe120e9b542899eb7dad526fb04b9'
@@ -40,25 +40,39 @@ export class BundleService {
 
   async queryBundles(bundleQueryDto: BundleQueryDto): Promise<BundleQueryResponse> {
     try {
-      const endpoint = this.hubtelEndpoints[bundleQueryDto.network].data;
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
+      const { network, destination, bundleType = 'data' } = bundleQueryDto;
+      
+      // Determine the correct endpoint based on network and bundle type
+      const endpoint = this.getEndpointForBundleType(network, bundleType);
+      
+      if (!endpoint) {
+        throw new Error(`Bundle type '${bundleType}' not supported for network '${network}'`);
+      }
 
-      const response = await axios.get(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${bundleQueryDto.destination}`,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
-          }
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
+      
+      if (!hubtelPrepaidDepositID) {
+        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
+      }
+
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${destination}`;
+      
+      this.logger.log(`Querying bundles from: ${url}`);
+
+      const response = await axios.get(url, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
         }
-      );
+      });
 
       // Log the query
       await this.logTransaction({
         type: 'bundle_query',
-        network: bundleQueryDto.network,
-        destination: bundleQueryDto.destination,
+        network: network,
+        destination: destination,
+        bundleType: bundleType,
         response: response.data
       });
 
@@ -71,8 +85,20 @@ export class BundleService {
 
   async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<any> {
     try {
-      const endpoint = this.hubtelEndpoints[bundleDto.network].data;
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
+      const { network, bundleType = 'data' } = bundleDto;
+      
+      // Determine the correct endpoint based on network and bundle type
+      const endpoint = this.getEndpointForBundleType(network, bundleType);
+      
+      if (!endpoint) {
+        throw new Error(`Bundle type '${bundleType}' not supported for network '${network}'`);
+      }
+
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
+      
+      if (!hubtelPrepaidDepositID) {
+        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
+      }
 
       const requestPayload: BundlePurchaseRequestDto = {
         Destination: bundleDto.destination,
@@ -84,17 +110,17 @@ export class BundleService {
         }
       };
 
-      const response = await axios.post(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`,
-        requestPayload,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
-          }
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
+      
+      this.logger.log(`Purchasing bundle from: ${url}`);
+
+      const response = await axios.post(url, requestPayload, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
         }
-      );
+      });
 
       // Log the transaction
       await this.logTransaction({
@@ -140,40 +166,50 @@ export class BundleService {
   }
 
   /**
-   * Get sample bundles for a network (without requiring mobile number)
+   * Get available bundles for a specific network and destination
+   * This method requires a valid mobile number to get actual bundle data from the API
    */
-  async getSampleBundles(network: NetworkProvider): Promise<BundleOption[]> {
+  async getAvailableBundles(network: NetworkProvider, destination: string, bundleType: string = 'data'): Promise<BundleOption[]> {
     try {
-      // Use a sample mobile number to get available bundles
-      const sampleMobileNumber = this.getSampleMobileNumber(network);
-      
       const bundleResponse = await this.queryBundles({
-        destination: sampleMobileNumber,
-        network: network
+        destination: destination,
+        network: network,
+        bundleType: bundleType
       });
 
       if (bundleResponse.ResponseCode !== '0000') {
-        this.logger.error(`Failed to fetch sample bundles for ${network}: ${bundleResponse.Message}`);
+        this.logger.error(`Failed to fetch bundles for ${network}: ${bundleResponse.Message}`);
         return [];
       }
 
       return bundleResponse.Data || [];
     } catch (error) {
-      this.logger.error(`Error fetching sample bundles for ${network}: ${error.message}`);
+      this.logger.error(`Error fetching bundles for ${network}: ${error.message}`);
       return [];
     }
   }
 
   /**
-   * Get a sample mobile number for each network
+   * Get the appropriate endpoint for a given network and bundle type
    */
-  private getSampleMobileNumber(network: NetworkProvider): string {
-    const sampleNumbers = {
-      [NetworkProvider.MTN]: '233246912184',
-      [NetworkProvider.TELECEL]: '233246912184',
-      [NetworkProvider.AT]: '233246912184'
-    };
-    return sampleNumbers[network] || '233246912184';
+  private getEndpointForBundleType(network: NetworkProvider, bundleType: string): string | null {
+    const networkEndpoints = this.hubtelEndpoints[network];
+    
+    if (!networkEndpoints) {
+      return null;
+    }
+
+    switch (bundleType.toLowerCase()) {
+      case 'data':
+        return networkEndpoints.data;
+      case 'fibre':
+      case 'fibre_broadband':
+        return networkEndpoints.fibre || null;
+      case 'broadband':
+        return networkEndpoints.broadband || null;
+      default:
+        return networkEndpoints.data; // Default to data bundles
+    }
   }
 
   // Helper method to paginate bundle options for USSD

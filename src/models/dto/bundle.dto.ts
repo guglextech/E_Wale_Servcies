@@ -9,7 +9,9 @@ export enum NetworkProvider {
 export enum BundleType {
   DATA = 'Data Bundle',
   VOICE = 'Voice Bundle',
-  AIRTIME = 'Airtime Top-Up'
+  AIRTIME = 'Airtime Top-Up',
+  FIBRE = 'Fibre Broadband',
+  BROADBAND = 'Broadband'
 }
 
 export interface BundleOption {
@@ -31,6 +33,10 @@ export class BundleQueryDto {
 
   @IsEnum(NetworkProvider)
   network: NetworkProvider;
+
+  @IsOptional()
+  @IsString()
+  bundleType?: string;
 }
 
 export class BundlePurchaseDto {
