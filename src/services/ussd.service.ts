@@ -466,6 +466,17 @@ export class UssdService {
         return this.handleNameInput(req, state);
       }
     } else if (state.serviceType === "data_bundle") {
+      // Check if a bundle has been selected before proceeding to order details
+      if (!state.selectedBundle) {
+        return this.createResponse(
+          req.SessionId,
+          "No Bundle Selected",
+          "Please select a bundle first before proceeding.",
+          HbEnums.DATATYPE_DISPLAY,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RELEASE
+        );
+      }
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "airtime_topup") {
       return this.releaseSession(req.SessionId);
@@ -794,7 +805,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Invalid Selection",
-        "Please select a valid bundle option:",
+        `Please select a valid bundle option (1-${pagination.items.length}) or use navigation options (6=Next, 7=Previous, 0=Back):`,
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
@@ -941,6 +952,18 @@ export class UssdService {
   }
 
   private handleOrderDetails(req: HBussdReq, state: SessionState) {
+    // For data bundles, ensure a bundle is selected
+    if (state.serviceType === "data_bundle" && !state.selectedBundle) {
+      return this.createResponse(
+        req.SessionId,
+        "No Bundle Selected",
+        "Please select a bundle first before proceeding.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+
     if (req.Message === "1") {
       return this.handlePaymentConfirmation(req, state);
     } else if (req.Message === "2") {
