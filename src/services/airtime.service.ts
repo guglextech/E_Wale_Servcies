@@ -24,18 +24,18 @@ export class AirtimeService {
   private readonly hubtelEndpoints = {
     [NetworkProvider.MTN]: {
       airtime: 'fdd76c884e614b1c8f669a3207b09a98',
-      data: 'fdd76c884e614b1c8f669a3207b09a98', // Same endpoint for now
-      voice: 'fdd76c884e614b1c8f669a3207b09a98' // Same endpoint for now
+      data: 'fdd76c884e614b1c8f669a3207b09a98', 
+      voice: 'fdd76c884e614b1c8f669a3207b09a98' 
     },
     [NetworkProvider.TELECEL]: {
       airtime: 'f4be83ad74c742e185224fdae1304800',
-      data: 'f4be83ad74c742e185224fdae1304800', // Same endpoint for now
-      voice: 'f4be83ad74c742e185224fdae1304800' // Same endpoint for now
+      data: 'f4be83ad74c742e185224fdae1304800', 
+      voice: 'f4be83ad74c742e185224fdae1304800' 
     },
     [NetworkProvider.AT]: {
       airtime: 'dae2142eb5a14c298eace60240c09e4b',
-      data: 'dae2142eb5a14c298eace60240c09e4b', // Same endpoint for now
-      voice: 'dae2142eb5a14c298eace60240c09e4b' // Same endpoint for now
+      data: 'dae2142eb5a14c298eace60240c09e4b', 
+      voice: 'dae2142eb5a14c298eace60240c09e4b' 
     }
   };
 
@@ -67,7 +67,7 @@ export class AirtimeService {
       }
 
       const endpoint = this.hubtelEndpoints[airtimeDto.network].airtime;
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '	2023298';
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
 
       const requestPayload = {
         Destination: airtimeDto.destination,
