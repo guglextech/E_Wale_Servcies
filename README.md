@@ -46,12 +46,12 @@ Welcome to E-Wale
 
 ### Data Bundle Flow
 1. **Select Network** (MTN/Telecel/AT)
-2. **Enter Mobile Number** (to query available bundles)
-3. **Browse Bundles** with pagination:
-   - View 5 bundles per page
+2. **Browse Bundles** with pagination:
+   - View 4 bundles per page
    - Navigate with "#. Next" / "0. Back"
    - Go back with "0. Back"
-4. **Select Bundle** from available options
+3. **Select Bundle** from available options
+4. **Enter Mobile Number** (to purchase the selected bundle)
 5. **Confirm Purchase** with bundle details
 6. **Complete Payment** via Mobile Money
 
@@ -142,7 +142,7 @@ Enter payment amount:
 ## Data Bundle Features
 
 ### Pagination System
-- **5 bundles per page** for optimal USSD display
+- **4 bundles per page** for optimal USSD display
 - **Next/Back navigation** with option #/0
 - **Back option** (0) to return to network selection
 - **Page indicators** showing current page and total pages

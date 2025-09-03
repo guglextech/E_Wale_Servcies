@@ -139,6 +139,43 @@ export class BundleService {
     }
   }
 
+  /**
+   * Get sample bundles for a network (without requiring mobile number)
+   */
+  async getSampleBundles(network: NetworkProvider): Promise<BundleOption[]> {
+    try {
+      // Use a sample mobile number to get available bundles
+      const sampleMobileNumber = this.getSampleMobileNumber(network);
+      
+      const bundleResponse = await this.queryBundles({
+        destination: sampleMobileNumber,
+        network: network
+      });
+
+      if (bundleResponse.ResponseCode !== '0000') {
+        this.logger.error(`Failed to fetch sample bundles for ${network}: ${bundleResponse.Message}`);
+        return [];
+      }
+
+      return bundleResponse.Data || [];
+    } catch (error) {
+      this.logger.error(`Error fetching sample bundles for ${network}: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Get a sample mobile number for each network
+   */
+  private getSampleMobileNumber(network: NetworkProvider): string {
+    const sampleNumbers = {
+      [NetworkProvider.MTN]: '233246912184',
+      [NetworkProvider.TELECEL]: '233246912184',
+      [NetworkProvider.AT]: '233246912184'
+    };
+    return sampleNumbers[network] || '233246912184';
+  }
+
   // Helper method to paginate bundle options for USSD
   paginateBundles(bundles: BundleOption[], page: number = 1, itemsPerPage: number = 5): {
     items: BundleOption[];

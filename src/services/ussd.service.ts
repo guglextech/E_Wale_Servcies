@@ -303,14 +303,8 @@ export class UssdService {
       state.network = networkMap[req.Message];
       this.sessionMap.set(req.SessionId, state);
 
-      return this.createResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number to check available bundles (e.g., 0550982043):",
-        HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_PHONE,
-        HbEnums.RESPONSE
-      );
+      // Show available bundles for the selected network
+      return this.showNetworkBundles(req.SessionId, state);
     }
 
     if (state.serviceType === "airtime_topup") {
@@ -430,7 +424,7 @@ export class UssdService {
     if (state.serviceType === "result_checker") {
       return this.handleBuyerType(req, state);
     } else if (state.serviceType === "data_bundle") {
-      return this.handleBundleQuery(req, state);
+      return this.handleBundleSelection(req, state);
     } else if (state.serviceType === "airtime_topup") {
       return this.handleAmountInput(req, state);
     } else if (state.serviceType === "pay_bills") {
@@ -448,7 +442,7 @@ export class UssdService {
         return this.handleMobileNumber(req, state);
       }
     } else if (state.serviceType === "data_bundle") {
-      return this.handleBundleSelection(req, state);
+      return this.handleBundleMobileNumber(req, state);
     } else if (state.serviceType === "airtime_topup") {
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "pay_bills") {
@@ -466,11 +460,6 @@ export class UssdService {
         return this.handleNameInput(req, state);
       }
     } else if (state.serviceType === "data_bundle") {
-      // Check if a bundle has been selected before proceeding to order details
-      if (!state.selectedBundle) {
-        // If no bundle selected, go back to bundle selection
-        return this.displayBundlePage(req.SessionId, state);
-      }
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "airtime_topup") {
       return this.releaseSession(req.SessionId);
@@ -721,6 +710,42 @@ export class UssdService {
     }
   }
 
+  private async showNetworkBundles(sessionId: string, state: SessionState) {
+    try {
+      // Get sample bundles for the selected network
+      const sampleBundles = await this.bundleService.getSampleBundles(state.network);
+      
+      if (!sampleBundles || sampleBundles.length === 0) {
+        return this.createResponse(
+          sessionId,
+          "No Bundles Available",
+          "No bundles available for this network at the moment. Please try another network.",
+          HbEnums.DATATYPE_DISPLAY,
+          HbEnums.FIELDTYPE_TEXT,
+          HbEnums.RELEASE
+        );
+      }
+
+      // Store bundles and set initial page
+      state.bundles = sampleBundles;
+      state.currentBundlePage = 1;
+      this.sessionMap.set(sessionId, state);
+
+      // Display first page of bundles
+      return this.displayBundlePage(sessionId, state);
+    } catch (error) {
+      console.error('Error fetching sample bundles:', error);
+      return this.createResponse(
+        sessionId,
+        "Error",
+        "Failed to fetch available bundles. Please try again.",
+        HbEnums.DATATYPE_DISPLAY,
+        HbEnums.FIELDTYPE_TEXT,
+        HbEnums.RELEASE
+      );
+    }
+  }
+
   private displayBundlePage(sessionId: string, state: SessionState) {
     if (!state.bundles || state.bundles.length === 0) {
       return this.createResponse(
@@ -735,7 +760,7 @@ export class UssdService {
 
     const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
     const bundleOptions = pagination.items.map((bundle, index) => 
-      this.bundleService.formatBundleDisplay(bundle, (state.currentBundlePage - 1) * 4 + index)
+      this.bundleService.formatBundleDisplay(bundle, index)
     ).join('\n');
 
     let navigationOptions = '';
@@ -744,7 +769,7 @@ export class UssdService {
     }
     navigationOptions += '\n0. Back';
 
-    const message = `Available Bundles (Page ${pagination.currentPage}/${pagination.totalPages}):\n${bundleOptions}${navigationOptions}`;
+    const message = `Available Bundles:\n${bundleOptions}${navigationOptions}`;
 
     return this.createResponse(
       sessionId,
@@ -759,8 +784,11 @@ export class UssdService {
   private handleBundleSelection(req: HBussdReq, state: SessionState) {
     const selection = req.Message;
 
+    // Get pagination info for navigation and selection
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
+
     // Handle navigation
-    if (selection === "#" && state.currentBundlePage < Math.ceil((state.bundles?.length || 0) / 4)) {
+    if (selection === "#" && pagination.hasNext) {
       state.currentBundlePage++;
       this.sessionMap.set(req.SessionId, state);
       return this.displayBundlePage(req.SessionId, state);
@@ -790,7 +818,6 @@ export class UssdService {
     }
 
     // Handle bundle selection
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
     const selectedIndex = parseInt(selection) - 1;
     
     if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= pagination.items.length) {
@@ -812,8 +839,35 @@ export class UssdService {
 
     return this.createResponse(
       req.SessionId,
+      "Enter Mobile Number",
+      "Enter mobile number to purchase bundle (e.g., 0550982043):",
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_PHONE,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private handleBundleMobileNumber(req: HBussdReq, state: SessionState) {
+    // Validate and convert mobile number format
+    const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+    if (!mobileValidation.isValid) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Mobile Number",
+        `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_PHONE,
+        HbEnums.RESPONSE
+      );
+    }
+
+    state.mobile = mobileValidation.convertedNumber;
+    this.sessionMap.set(req.SessionId, state);
+
+    return this.createResponse(
+      req.SessionId,
       "Confirm Purchase",
-      `Bundle: ${selectedBundle.Display}\nAmount: GHS ${selectedBundle.Amount.toFixed(2)}\nRecipient: ${state.mobile}\n\n1. Confirm\n2. Cancel`,
+      `Bundle: ${state.selectedBundle.Display}\nAmount: GHS ${state.selectedBundle.Amount.toFixed(2)}\nRecipient: ${state.mobile}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
