@@ -468,14 +468,8 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       // Check if a bundle has been selected before proceeding to order details
       if (!state.selectedBundle) {
-        return this.createResponse(
-          req.SessionId,
-          "No Bundle Selected",
-          "Please select a bundle first before proceeding.",
-          HbEnums.DATATYPE_DISPLAY,
-          HbEnums.FIELDTYPE_TEXT,
-          HbEnums.RELEASE
-        );
+        // If no bundle selected, go back to bundle selection
+        return this.displayBundlePage(req.SessionId, state);
       }
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "airtime_topup") {
