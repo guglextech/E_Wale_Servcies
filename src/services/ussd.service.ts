@@ -671,7 +671,7 @@ export class UssdService {
         return this.createResponse(
           req.SessionId,
           "Invalid Mobile Number",
-          `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
+          `Please enter a valid mobile number (e.g. 0550982043): ${mobileValidation.error}`,
           HbEnums.DATATYPE_INPUT,
           HbEnums.FIELDTYPE_PHONE,
           HbEnums.RESPONSE
@@ -728,9 +728,9 @@ export class UssdService {
       );
     }
 
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 5);
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
     const bundleOptions = pagination.items.map((bundle, index) => 
-      this.bundleService.formatBundleDisplay(bundle, (state.currentBundlePage - 1) * 5 + index)
+      this.bundleService.formatBundleDisplay(bundle, (state.currentBundlePage - 1) * 4 + index)
     ).join('\n');
 
     let navigationOptions = '';
@@ -758,7 +758,7 @@ export class UssdService {
     const selection = req.Message;
 
     // Handle navigation
-    if (selection === "6" && state.currentBundlePage < Math.ceil((state.bundles?.length || 0) / 5)) {
+    if (selection === "6" && state.currentBundlePage < Math.ceil((state.bundles?.length || 0) / 4)) {
       state.currentBundlePage++;
       this.sessionMap.set(req.SessionId, state);
       return this.displayBundlePage(req.SessionId, state);
@@ -787,7 +787,7 @@ export class UssdService {
     }
 
     // Handle bundle selection
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 5);
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
     const selectedIndex = parseInt(selection) - 1;
     
     if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= pagination.items.length) {
