@@ -13,7 +13,7 @@ A comprehensive USSD application for various digital services including result v
 - **MTN Data Bundles** - Complete bundle query and purchase flow
 - **Telecel Data Bundles** - Complete bundle query and purchase flow
 - **AT Data Bundles** - Complete bundle query and purchase flow
-- **Pagination Support** - Navigate through available bundles with Next/Previous options
+- **Pagination Support** - Navigate through available bundles with Next/Back options
 - **Real-time Bundle Query** - Fetch available bundles from Hubtel API
 - **Bundle Selection** - Choose from available bundles with pricing
 
@@ -49,7 +49,7 @@ Welcome to E-Wale
 2. **Enter Mobile Number** (to query available bundles)
 3. **Browse Bundles** with pagination:
    - View 5 bundles per page
-   - Navigate with "6. Next Page" / "7. Previous Page"
+   - Navigate with "#. Next" / "0. Back"
    - Go back with "0. Back"
 4. **Select Bundle** from available options
 5. **Confirm Purchase** with bundle details
@@ -143,7 +143,7 @@ Enter payment amount:
 
 ### Pagination System
 - **5 bundles per page** for optimal USSD display
-- **Next/Previous navigation** with option 6/7
+- **Next/Back navigation** with option #/0
 - **Back option** (0) to return to network selection
 - **Page indicators** showing current page and total pages
 
@@ -156,7 +156,7 @@ Available Bundles (Page 1/3):
 4. 349.24MB - GHS 3.00
 5. 718.91MB - GHS 10.00
 
-6. Next Page
+#. Next
 0. Back
 ```
 

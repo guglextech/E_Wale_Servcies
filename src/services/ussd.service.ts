@@ -740,10 +740,7 @@ export class UssdService {
 
     let navigationOptions = '';
     if (pagination.hasNext) {
-      navigationOptions += '\n6. Next Page';
-    }
-    if (pagination.hasPrevious) {
-      navigationOptions += '\n7. Previous Page';
+      navigationOptions += '\n#. Next';
     }
     navigationOptions += '\n0. Back';
 
@@ -763,32 +760,33 @@ export class UssdService {
     const selection = req.Message;
 
     // Handle navigation
-    if (selection === "6" && state.currentBundlePage < Math.ceil((state.bundles?.length || 0) / 4)) {
+    if (selection === "#" && state.currentBundlePage < Math.ceil((state.bundles?.length || 0) / 4)) {
       state.currentBundlePage++;
       this.sessionMap.set(req.SessionId, state);
       return this.displayBundlePage(req.SessionId, state);
     }
 
-    if (selection === "7" && state.currentBundlePage > 1) {
-      state.currentBundlePage--;
-      this.sessionMap.set(req.SessionId, state);
-      return this.displayBundlePage(req.SessionId, state);
-    }
-
     if (selection === "0") {
-      // Go back to network selection
-      state.serviceType = "data_bundle";
-      state.bundles = undefined;
-      state.currentBundlePage = undefined;
-      this.sessionMap.set(req.SessionId, state);
-      return this.createResponse(
-        req.SessionId,
-        "Select Network",
-        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
-        HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_NUMBER,
-        HbEnums.RESPONSE
-      );
+      // If on first page, go back to network selection
+      if (state.currentBundlePage === 1) {
+        state.serviceType = "data_bundle";
+        state.bundles = undefined;
+        state.currentBundlePage = undefined;
+        this.sessionMap.set(req.SessionId, state);
+        return this.createResponse(
+          req.SessionId,
+          "Select Network",
+          "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_NUMBER,
+          HbEnums.RESPONSE
+        );
+      } else {
+        // Go to previous page
+        state.currentBundlePage--;
+        this.sessionMap.set(req.SessionId, state);
+        return this.displayBundlePage(req.SessionId, state);
+      }
     }
 
     // Handle bundle selection
@@ -799,7 +797,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Invalid Selection",
-        `Please select a valid bundle option (1-${pagination.items.length}) or use navigation options (6=Next, 7=Previous, 0=Back):`,
+        `Please select a valid bundle option (1-${pagination.items.length}) or use navigation options (#=Next, 0=Back):`,
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
