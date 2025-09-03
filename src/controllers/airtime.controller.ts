@@ -6,14 +6,35 @@ import { AirtimeTopUpDto, BundlePurchaseDto, AirtimeCallbackDto } from '../model
 export class AirtimeController {
   constructor(private readonly airtimeService: AirtimeService) {}
 
+  @Post('payment-request')
+  async createAirtimePaymentRequest(@Body() airtimeDto: AirtimeTopUpDto) {
+    try {
+      const result = await this.airtimeService.createAirtimePaymentRequest(airtimeDto);
+      return {
+        success: true,
+        data: result,
+        message: 'Payment request created successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to create payment request',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
   @Post('topup')
   async purchaseAirtime(@Body() airtimeDto: AirtimeTopUpDto) {
     try {
+      // This now redirects to payment flow for backward compatibility
       const result = await this.airtimeService.purchaseAirtime(airtimeDto);
       return {
         success: true,
         data: result,
-        message: 'Airtime top-up request submitted successfully'
+        message: 'Payment request created successfully'
       };
     } catch (error) {
       throw new HttpException(
@@ -40,6 +61,25 @@ export class AirtimeController {
         {
           success: false,
           message: error.message || 'Failed to process bundle purchase',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('payment-callback')
+  async handlePaymentCallback(@Body() callbackData: any) {
+    try {
+      await this.airtimeService.handlePaymentCallback(callbackData);
+      return {
+        success: true,
+        message: 'Payment callback processed successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to process payment callback',
         },
         HttpStatus.BAD_REQUEST
       );

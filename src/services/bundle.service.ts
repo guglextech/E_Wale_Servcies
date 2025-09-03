@@ -103,7 +103,7 @@ export class BundleService {
       const requestPayload: BundlePurchaseRequestDto = {
         Destination: bundleDto.destination,
         Amount: bundleDto.amount,
-        CallbackUrl: bundleDto.callbackUrl,
+        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
         ClientReference: bundleDto.clientReference,
         Extradata: {
           bundle: bundleDto.bundleValue

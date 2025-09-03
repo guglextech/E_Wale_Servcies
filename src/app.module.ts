@@ -40,6 +40,7 @@ import { TransactionStatusController } from "./controllers/transaction-status.co
 import { TransactionStatusService } from "./services/transaction-status.service";
 import { UssdLog, UssdLogSchema } from "./models/schemas/ussd-log.schema";
 import { UssdLogsController } from "./controllers/ussd-logs.controller";
+import { PaymentController } from "./controllers/payment.controller";
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { UssdLogsController } from "./controllers/ussd-logs.controller";
     UtilityController,
     TransactionStatusController,
     UssdLogsController,
+    PaymentController,
   ],
   providers: [
     AppService,
