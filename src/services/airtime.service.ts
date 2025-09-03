@@ -262,70 +262,10 @@ export class AirtimeService {
     return this.createAirtimePaymentRequest(airtimeDto);
   }
 
-  async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<HubtelAirtimeResponseDto> {
-    try {
-      // Map bundle type to endpoint key
-      let endpointKey: string;
-      switch (bundleDto.bundleType) {
-        case BundleType.DATA:
-          endpointKey = 'data';
-          break;
-        case BundleType.VOICE:
-          endpointKey = 'voice';
-          break;
-        default:
-          endpointKey = 'airtime';
-      }
-      
-      const endpoint = this.hubtelEndpoints[bundleDto.network][endpointKey];
-      if (!endpoint) {
-        throw new Error(`Bundle type '${bundleDto.bundleType}' not supported for network '${bundleDto.network}'`);
-      }
-      
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
-
-      // Calculate total amount based on bundle type and quantity
-      const unitPrice = this.bundlePrices[bundleDto.bundleType][bundleDto.network];
-      const totalAmount = unitPrice * bundleDto.quantity;
-
-      const requestPayload = {
-        Destination: bundleDto.destination,
-        Amount: totalAmount,
-        CallbackUrl: bundleDto.callbackUrl,
-        ClientReference: bundleDto.clientReference,
-        BundleType: bundleDto.bundleType,
-        Quantity: bundleDto.quantity
-      };
-
-      const response = await axios.post(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`,
-        requestPayload,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
-          }
-        }
-      );
-
-      // Log the transaction
-      await this.logTransaction({
-        type: 'bundle_purchase',
-        bundleType: bundleDto.bundleType,
-        network: bundleDto.network,
-        destination: bundleDto.destination,
-        quantity: bundleDto.quantity,
-        amount: totalAmount,
-        clientReference: bundleDto.clientReference,
-        response: response.data
-      });
-
-      return response.data;
-    } catch (error) {
-      this.logger.error(`Error purchasing bundle: ${error.message}`);
-      throw error;
-    }
+  // Legacy method - kept for backward compatibility but now redirects to payment flow
+  async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<any> {
+    this.logger.warn('Bundle purchase should use BundleService. This method is deprecated.');
+    throw new Error('Please use /bundle/payment-request endpoint for bundle purchases');
   }
 
   async handleAirtimeCallback(callbackData: AirtimeCallbackDto): Promise<void> {

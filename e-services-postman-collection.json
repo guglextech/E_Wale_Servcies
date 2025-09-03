@@ -324,6 +324,27 @@
           }
         },
         {
+          "name": "Create Bundle Payment Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"bundleValue\": \"data_bundle_1\",\n  \"amount\": 0.5,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"bundle_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/bundle/payment-request",
+              "host": ["{{base_url_local}}"],
+              "path": ["bundle", "payment-request"]
+            }
+          }
+        },
+        {
           "name": "Purchase Bundle",
           "request": {
             "method": "POST",
@@ -370,6 +391,27 @@
     {
       "name": "Airtime Services",
       "item": [
+        {
+          "name": "Create Airtime Payment Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination\": \"233246912184\",\n  \"amount\": 1.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"airtime_123456789\",\n  \"network\": \"MTN\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/airtime/payment-request",
+              "host": ["{{base_url_local}}"],
+              "path": ["airtime", "payment-request"]
+            }
+          }
+        },
         {
           "name": "Purchase Airtime",
           "request": {
@@ -461,6 +503,27 @@
           }
         },
         {
+          "name": "Create TV Bill Payment Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"DSTV\",\n  \"accountNumber\": \"1234567890\",\n  \"amount\": 50.00,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"tvbill_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/tv-bills/payment-request",
+              "host": ["{{base_url_local}}"],
+              "path": ["tv-bills", "payment-request"]
+            }
+          }
+        },
+        {
           "name": "Pay TV Bill",
           "request": {
             "method": "POST",
@@ -472,7 +535,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"provider\": \"DSTV\",\n  \"accountNumber\": \"1234567890\",\n  \"amount\": 50.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"tv_bill_123456789\"\n}"
+              "raw": "{\n  \"provider\": \"DSTV\",\n  \"accountNumber\": \"1234567890\",\n  \"amount\": 50.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"tv_bill_123456789\"\n}"
             },
             "url": {
               "raw": "{{base_url_local}}/tv-bills/pay",
@@ -548,6 +611,48 @@
           }
         },
         {
+          "name": "Create ECG Top-Up Payment Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"233246912184\",\n  \"meterNumber\": \"123456789\",\n  \"amount\": 25.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"ecg_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/utility/ecg/payment-request",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "ecg", "payment-request"]
+            }
+          }
+        },
+        {
+          "name": "Create Ghana Water Top-Up Payment Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meterNumber\": \"123456789\",\n  \"email\": \"user@example.com\",\n  \"sessionId\": \"session_123456\",\n  \"amount\": 15.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"ghana_water_123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_local}}/utility/ghana-water/payment-request",
+              "host": ["{{base_url_local}}"],
+              "path": ["utility", "ghana-water", "payment-request"]
+            }
+          }
+        },
+        {
           "name": "Top Up ECG",
           "request": {
             "method": "POST",
@@ -559,7 +664,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mobileNumber\": \"233246912184\",\n  \"meterNumber\": \"123456789\",\n  \"amount\": 25.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"ecg_123456789\"\n}"
+              "raw": "{\n  \"mobileNumber\": \"233246912184\",\n  \"meterNumber\": \"123456789\",\n  \"amount\": 25.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"ecg_123456789\"\n}"
             },
             "url": {
               "raw": "{{base_url_local}}/utility/ecg/topup",
@@ -580,7 +685,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"meterNumber\": \"123456789\",\n  \"email\": \"user@example.com\",\n  \"sessionId\": \"session_123456\",\n  \"amount\": 15.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"ghana_water_123456789\"\n}"
+              "raw": "{\n  \"meterNumber\": \"123456789\",\n  \"email\": \"user@example.com\",\n  \"sessionId\": \"session_123456\",\n  \"amount\": 15.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"ghana_water_123456789\"\n}"
             },
             "url": {
               "raw": "{{base_url_local}}/utility/ghana-water/topup",

@@ -26,28 +26,20 @@ export class BundleController {
     }
   }
 
-  @Get('available')
-  async getAvailableBundles(
-    @Query('network') network: string,
-    @Query('destination') destination: string,
-    @Query('bundleType') bundleType: string = 'data'
-  ) {
+  @Post('payment-request')
+  async createBundlePaymentRequest(@Body() bundleDto: BundlePurchaseDto) {
     try {
-      const bundles = await this.bundleService.getAvailableBundles(
-        network as any,
-        destination,
-        bundleType
-      );
+      const result = await this.bundleService.createBundlePaymentRequest(bundleDto);
       return {
         success: true,
-        data: bundles,
-        message: 'Available bundles retrieved successfully'
+        data: result,
+        message: 'Payment request created successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to get available bundles',
+          message: error.message || 'Failed to create payment request',
         },
         HttpStatus.BAD_REQUEST
       );
@@ -57,17 +49,37 @@ export class BundleController {
   @Post('purchase')
   async purchaseBundle(@Body() bundleDto: BundlePurchaseDto) {
     try {
+      // This now redirects to payment flow for backward compatibility
       const result = await this.bundleService.purchaseBundle(bundleDto);
       return {
         success: true,
         data: result,
-        message: 'Bundle purchase request submitted successfully'
+        message: 'Payment request created successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
           message: error.message || 'Failed to process bundle purchase',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('payment-callback')
+  async handlePaymentCallback(@Body() callbackData: any) {
+    try {
+      await this.bundleService.handlePaymentCallback(callbackData);
+      return {
+        success: true,
+        message: 'Payment callback processed successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to process payment callback',
         },
         HttpStatus.BAD_REQUEST
       );

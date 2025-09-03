@@ -13,7 +13,7 @@ export class UtilityController {
       return {
         success: true,
         data: result,
-        message: 'ECG meter query successful'
+        message: 'ECG meters query successful'
       };
     } catch (error) {
       throw new HttpException(
@@ -46,14 +46,55 @@ export class UtilityController {
     }
   }
 
-  @Post('ecg/topup')
-  async topUpECG(@Body() topUpDto: ECGTopUpDto) {
+  @Post('ecg/payment-request')
+  async createECGTopUpPaymentRequest(@Body() ecgTopUpDto: ECGTopUpDto) {
     try {
-      const result = await this.utilityService.topUpECG(topUpDto);
+      const result = await this.utilityService.createECGTopUpPaymentRequest(ecgTopUpDto);
       return {
         success: true,
         data: result,
-        message: 'ECG top-up request submitted successfully'
+        message: 'Payment request created successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to create payment request',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('ghana-water/payment-request')
+  async createGhanaWaterTopUpPaymentRequest(@Body() ghanaWaterTopUpDto: GhanaWaterTopUpDto) {
+    try {
+      const result = await this.utilityService.createGhanaWaterTopUpPaymentRequest(ghanaWaterTopUpDto);
+      return {
+        success: true,
+        data: result,
+        message: 'Payment request created successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to create payment request',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('ecg/topup')
+  async topUpECG(@Body() ecgTopUpDto: ECGTopUpDto) {
+    try {
+      // This now redirects to payment flow for backward compatibility
+      const result = await this.utilityService.topUpECG(ecgTopUpDto);
+      return {
+        success: true,
+        data: result,
+        message: 'Payment request created successfully'
       };
     } catch (error) {
       throw new HttpException(
@@ -67,13 +108,14 @@ export class UtilityController {
   }
 
   @Post('ghana-water/topup')
-  async topUpGhanaWater(@Body() topUpDto: GhanaWaterTopUpDto) {
+  async topUpGhanaWater(@Body() ghanaWaterTopUpDto: GhanaWaterTopUpDto) {
     try {
-      const result = await this.utilityService.topUpGhanaWater(topUpDto);
+      // This now redirects to payment flow for backward compatibility
+      const result = await this.utilityService.topUpGhanaWater(ghanaWaterTopUpDto);
       return {
         success: true,
         data: result,
-        message: 'Ghana Water top-up request submitted successfully'
+        message: 'Payment request created successfully'
       };
     } catch (error) {
       throw new HttpException(
@@ -86,19 +128,57 @@ export class UtilityController {
     }
   }
 
-  @Post('callback')
-  async handleCallback(@Body() callbackData: any) {
+  @Post('payment-callback')
+  async handlePaymentCallback(@Body() callbackData: any) {
     try {
-      await this.utilityService.handleUtilityCallback(callbackData);
+      await this.utilityService.handlePaymentCallback(callbackData);
       return {
         success: true,
-        message: 'Callback processed successfully'
+        message: 'Payment callback processed successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to process callback',
+          message: error.message || 'Failed to process payment callback',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('ecg/callback')
+  async handleECGCallback(@Body() callbackData: any) {
+    try {
+      await this.utilityService.handleECGCallback(callbackData);
+      return {
+        success: true,
+        message: 'ECG callback processed successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to process ECG callback',
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  @Post('ghana-water/callback')
+  async handleGhanaWaterCallback(@Body() callbackData: any) {
+    try {
+      await this.utilityService.handleGhanaWaterCallback(callbackData);
+      return {
+        success: true,
+        message: 'Ghana Water callback processed successfully'
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          message: error.message || 'Failed to process Ghana Water callback',
         },
         HttpStatus.BAD_REQUEST
       );
