@@ -67,7 +67,7 @@ export class UssdService {
     private readonly tvBillsService: TVBillsService,
     private readonly utilityService: UtilityService,
     private readonly transactionStatusService: TransactionStatusService,
-  ) {}
+  ) { }
 
   async handleUssdRequest(req: HBussdReq) {
     try {
@@ -119,12 +119,10 @@ export class UssdService {
       );
     }
 
-    // Log each USSD interaction
-    await this.logUssdInteraction(req, state, 'interaction');
-  
+
     switch (req.Sequence) {
       case 2:
-        return this.handleMainMenuSelection(req, state);
+        return await this.handleMainMenuSelection(req, state);
       case 3:
         return this.handleServiceTypeSelection(req, state);
       case 4:
@@ -146,7 +144,7 @@ export class UssdService {
     }
   }
 
-  private handleMainMenuSelection(req: HBussdReq, state: SessionState) {
+  private async handleMainMenuSelection(req: HBussdReq, state: SessionState) {
     if (req.Message === "0") {
       return this.createResponse(
         req.SessionId,
@@ -161,6 +159,10 @@ export class UssdService {
     if (req.Message === "1") {
       state.serviceType = "result_checker";
       this.sessionMap.set(req.SessionId, state);
+      
+      // Log service selection
+      await this.logUssdInteraction(req, state, 'service_selected');
+      
       return this.createResponse(
         req.SessionId,
         "Result E-Checkers",
@@ -174,6 +176,10 @@ export class UssdService {
     if (req.Message === "2") {
       state.serviceType = "data_bundle";
       this.sessionMap.set(req.SessionId, state);
+      
+      // Log service selection
+      await this.logUssdInteraction(req, state, 'service_selected');
+      
       return this.createResponse(
         req.SessionId,
         "Select Network",
@@ -187,6 +193,10 @@ export class UssdService {
     if (req.Message === "3") {
       state.serviceType = "airtime_topup";
       this.sessionMap.set(req.SessionId, state);
+      
+      // Log service selection
+      await this.logUssdInteraction(req, state, 'service_selected');
+      
       return this.createResponse(
         req.SessionId,
         "Select Network",
@@ -200,6 +210,10 @@ export class UssdService {
     if (req.Message === "4") {
       state.serviceType = "pay_bills";
       this.sessionMap.set(req.SessionId, state);
+      
+      // Log service selection
+      await this.logUssdInteraction(req, state, 'service_selected');
+      
       return this.createResponse(
         req.SessionId,
         "Select TV Provider",
@@ -213,6 +227,10 @@ export class UssdService {
     if (req.Message === "5") {
       state.serviceType = "utility_service";
       this.sessionMap.set(req.SessionId, state);
+      
+      // Log service selection
+      await this.logUssdInteraction(req, state, 'service_selected');
+      
       return this.createResponse(
         req.SessionId,
         "Select Utility Service",
@@ -228,7 +246,7 @@ export class UssdService {
       const serviceNames = {
         "6": "Other Services"
       };
-      
+
       return this.createResponse(
         req.SessionId,
         "Coming Soon",
@@ -265,7 +283,7 @@ export class UssdService {
       // Map service selection to service name
       const serviceMap = {
         "1": "BECE Checker Voucher",
-        "2": "NovDec Checker", 
+        "2": "NovDec Checker",
         "3": "School Placement Checker"
       };
 
@@ -426,7 +444,7 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       return this.handleBundleSelection(req, state);
     } else if (state.serviceType === "airtime_topup") {
-      return this.handleAmountInput(req, state);
+      return this.handleAirtimeMobileNumber(req, state);
     } else if (state.serviceType === "pay_bills") {
       return this.handleTVAccountQuery(req, state);
     } else if (state.serviceType === "utility_service") {
@@ -444,7 +462,7 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       return this.handleBundleMobileNumber(req, state);
     } else if (state.serviceType === "airtime_topup") {
-      return this.handleOrderDetails(req, state);
+      return this.handleAmountInput(req, state);
     } else if (state.serviceType === "pay_bills") {
       return this.handleTVAmountInput(req, state);
     } else if (state.serviceType === "utility_service") {
@@ -462,7 +480,7 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "airtime_topup") {
-      return this.releaseSession(req.SessionId);
+      return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "pay_bills") {
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "utility_service") {
@@ -593,7 +611,7 @@ export class UssdService {
 
       // Display account information
       const accountDisplay = this.tvBillsService.formatAccountInfo(accountResponse.Data);
-      
+
       return this.createResponse(
         req.SessionId,
         "Account Information",
@@ -646,7 +664,7 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
 
     const accountDisplay = this.tvBillsService.formatAccountInfo(state.accountInfo);
-    
+
     return this.createResponse(
       req.SessionId,
       "Confirm Payment",
@@ -716,11 +734,11 @@ export class UssdService {
       // In a real implementation, you would get the user's number from the session
       const sampleNumber = this.getSampleNumberForNetwork(state.network);
       const availableBundles = await this.bundleService.getAvailableBundles(
-        state.network, 
-        sampleNumber, 
+        state.network,
+        sampleNumber,
         'data'
       );
-      
+
       if (!availableBundles || availableBundles.length === 0) {
         return this.createResponse(
           sessionId,
@@ -765,7 +783,10 @@ export class UssdService {
 
 
   private displayBundlePage(sessionId: string, state: SessionState) {
+    console.log(`Displaying bundle page - Session: ${sessionId}, Page: ${state.currentBundlePage}, Total Bundles: ${state.bundles?.length}`);
+
     if (!state.bundles || state.bundles.length === 0) {
+      console.log('No bundles available for display');
       return this.createResponse(
         sessionId,
         "No Bundles",
@@ -777,13 +798,14 @@ export class UssdService {
     }
 
     const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
-    const bundleOptions = pagination.items.map((bundle, index) => 
+    console.log(`Pagination info - Current: ${pagination.currentPage}, Total: ${pagination.totalPages}, Items: ${pagination.items.length}, HasNext: ${pagination.hasNext}`);
+    const bundleOptions = pagination.items.map((bundle, index) =>
       this.bundleService.formatBundleDisplay(bundle, index)
     ).join('\n');
 
     // Create navigation options
     let navigationOptions = '';
-    
+
     if (pagination.hasNext) {
       navigationOptions += '\n#. Next';
     }
@@ -804,11 +826,35 @@ export class UssdService {
   private handleBundleSelection(req: HBussdReq, state: SessionState) {
     const selection = req.Message;
 
+    // Debug logging
+    console.log(`Bundle Selection - Session: ${req.SessionId}, Selection: ${selection}, Current Page: ${state.currentBundlePage}, Total Bundles: ${state.bundles?.length}`);
+
+    // Ensure bundles and currentBundlePage are set
+    if (!state.bundles || state.bundles.length === 0) {
+      console.log('No bundles found in state, redirecting to network selection');
+      state.serviceType = "data_bundle";
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Network",
+        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (!state.currentBundlePage) {
+      state.currentBundlePage = 1;
+      this.sessionMap.set(req.SessionId, state);
+    }
+
     // Get pagination info for navigation and selection
     const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
 
     // Handle navigation - Next page
     if (selection === "#" && pagination.hasNext) {
+      console.log(`Moving to next page: ${state.currentBundlePage} -> ${state.currentBundlePage + 1}`);
       state.currentBundlePage++;
       this.sessionMap.set(req.SessionId, state);
       return this.displayBundlePage(req.SessionId, state);
@@ -834,10 +880,10 @@ export class UssdService {
 
     // Handle bundle selection
     const selectedIndex = parseInt(selection) - 1;
-    
+
     if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= pagination.items.length) {
       let errorMessage = `Please select a valid bundle option (1-${pagination.items.length})`;
-      
+
       if (pagination.hasNext) {
         errorMessage += ', # for Next';
       }
@@ -892,6 +938,33 @@ export class UssdService {
       `Bundle: ${state.selectedBundle.Display}\nAmount: GHS ${state.selectedBundle.Amount.toFixed(2)}\nRecipient: ${state.mobile}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private handleAirtimeMobileNumber(req: HBussdReq, state: SessionState) {
+    // Validate and convert mobile number format
+    const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+    if (!mobileValidation.isValid) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Mobile Number",
+        `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_PHONE,
+        HbEnums.RESPONSE
+      );
+    }
+
+    state.mobile = mobileValidation.convertedNumber;
+    this.sessionMap.set(req.SessionId, state);
+
+    return this.createResponse(
+      req.SessionId,
+      "Enter Amount",
+      "Enter airtime amount (0.01-100):",
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_DECIMAL,
       HbEnums.RESPONSE
     );
   }
@@ -966,7 +1039,7 @@ export class UssdService {
     // Determine which mobile number to display based on flow
     // For airtime, always use the dialer's mobile number since there's no "self" vs "other" flow
     const displayMobile = state.serviceType === "airtime_topup" ? req.Mobile : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
-    
+
     return this.createResponse(
       req.SessionId,
       "Order Details",
@@ -1008,13 +1081,12 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
 
     // Determine which mobile number to display based on flow
-    // For airtime, always use the dialer's mobile number since there's no "self" vs "other" flow
-    const displayMobile = state.serviceType === "airtime_topup" ? req.Mobile : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
-    
+    const displayMobile = state.serviceType === "airtime_topup" ? (state.mobile || req.Mobile) : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
+
     return this.createResponse(
       req.SessionId,
       "Order Details",
-      `Service: Airtime Top-Up\nNetwork: ${state.network}\nBought For: ${displayMobile}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+      `Service: Airtime Top-Up\nNetwork: ${state.network}\nRecipient: ${displayMobile}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -1102,7 +1174,7 @@ export class UssdService {
   private async releaseSession(sessionId: string) {
     // Log session completion
     await this.updateUssdLog(sessionId, 'completed');
-    
+
     // Clean up session state
     this.sessionMap.delete(sessionId);
     return this.createResponse(
@@ -1196,7 +1268,7 @@ export class UssdService {
                 bought_for_mobile: sessionState.flow === "other" ? sessionState.mobile : req.OrderInfo.CustomerMobileNumber,
                 bought_for_name: sessionState.flow === "other" ? sessionState.name : req.OrderInfo.CustomerMobileNumber
               });
-              
+
               // Send SMS with all assigned voucher details
               await sendVoucherSms(
                 {
@@ -1208,16 +1280,16 @@ export class UssdService {
                   buyer_mobile: sessionState.flow === "other" ? req.OrderInfo.CustomerMobileNumber : undefined
                 }
               );
-              
+
               // Update the assigned vouchers to mark them as sold and successful
               await this.voucherModel.updateMany(
                 { serial_number: { $in: purchaseResult.assigned_vouchers.map(v => v.serial_number) } },
-                { 
-                  $set: { 
+                {
+                  $set: {
                     sold: true,
                     isSuccessful: true,
                     paymentStatus: req.OrderInfo.Status
-                  } 
+                  }
                 }
               );
             } catch (error) {
@@ -1242,7 +1314,7 @@ export class UssdService {
             try {
               // Process airtime purchase after successful payment
               await this.airtimeService.purchaseAirtime({
-                destination: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
+                destination: sessionState.mobile || req.OrderInfo.CustomerMobileNumber,
                 amount: sessionState.amount,
                 network: sessionState.network,
                 callbackUrl: `${process.env.HB_CALLBACK_URL}`,
@@ -1326,7 +1398,7 @@ export class UssdService {
 
         // Display meter information
         const meterDisplay = this.utilityService.formatECGMeterInfo(meterResponse.Data);
-        
+
         return this.createResponse(
           req.SessionId,
           "Select Meter",
@@ -1377,7 +1449,7 @@ export class UssdService {
     if (state.utilityProvider === UtilityProvider.ECG) {
       // Handle ECG meter selection
       const selectedIndex = parseInt(req.Message) - 1;
-      
+
       if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= (state.meterInfo?.length || 0)) {
         return this.createResponse(
           req.SessionId,
@@ -1439,7 +1511,7 @@ export class UssdService {
 
         // Display account information
         const accountDisplay = this.utilityService.formatGhanaWaterInfo(accountResponse.Data);
-        
+
         return this.createResponse(
           req.SessionId,
           "Account Information",
@@ -1495,7 +1567,7 @@ export class UssdService {
     if (state.utilityProvider === UtilityProvider.ECG) {
       const meterDisplay = this.utilityService.formatECGMeterInfo(state.meterInfo);
       const selectedMeter = state.meterInfo.find(m => m.Value.trim() === state.meterNumber);
-      
+
       return this.createResponse(
         req.SessionId,
         "Confirm ECG Top-Up",
@@ -1506,7 +1578,7 @@ export class UssdService {
       );
     } else {
       const accountDisplay = this.utilityService.formatGhanaWaterInfo(state.meterInfo);
-      
+
       return this.createResponse(
         req.SessionId,
         "Confirm Ghana Water Payment",
@@ -1540,7 +1612,7 @@ export class UssdService {
     try {
       const statusResponse = await this.transactionStatusService.checkStatusByClientReference(clientReference);
       const summary = this.transactionStatusService.getTransactionStatusSummary(statusResponse);
-      
+
       return {
         success: true,
         data: statusResponse,
@@ -1572,7 +1644,7 @@ export class UssdService {
   }
 
   /**
-   * Log USSD interaction
+   * Log USSD interaction (upsert - update existing or create new)
    */
   private async logUssdInteraction(req: HBussdReq, state: SessionState, action: string = 'interaction') {
     try {
@@ -1599,14 +1671,27 @@ export class UssdService {
         accountInfo: state.accountInfo,
         meterInfo: state.meterInfo,
         status: action,
-        dialedAt: new Date(),
         ipAddress: req.Mobile, // Using mobile as identifier since we don't have IP
         userAgent: 'USSD',
         deviceInfo: 'Mobile USSD',
         location: 'Ghana', // Default location
       };
 
-      await this.ussdLogModel.create(logData);
+      // Only set dialedAt for new records (initiated status)
+      if (action === 'initiated') {
+        logData['dialedAt'] = new Date();
+      }
+
+      // Use upsert to update existing record or create new one
+      await this.ussdLogModel.findOneAndUpdate(
+        { sessionId: req.SessionId },
+        logData,
+        { 
+          upsert: true, 
+          new: true,
+          setDefaultsOnInsert: true
+        }
+      );
     } catch (error) {
       console.error('Error logging USSD interaction:', error);
     }
@@ -1617,21 +1702,29 @@ export class UssdService {
    */
   private async updateUssdLog(sessionId: string, status: string, additionalData: any = {}) {
     try {
+      // Get existing record to calculate duration
+      const existingLog = await this.ussdLogModel.findOne({ sessionId });
+      
       const updateData = {
         status,
         completedAt: new Date(),
         ...additionalData
       };
 
-      if (status === 'completed') {
+      if (status === 'completed' && existingLog) {
         updateData.isSuccessful = true;
-        updateData.duration = Math.floor((new Date().getTime() - new Date(additionalData.dialedAt || Date.now()).getTime()) / 1000);
+        updateData.duration = Math.floor((new Date().getTime() - existingLog.dialedAt.getTime()) / 1000);
+      } else if (status === 'failed') {
+        updateData.isSuccessful = false;
       }
 
       await this.ussdLogModel.findOneAndUpdate(
         { sessionId },
-        updateData,
-        { new: true }
+        { $set: updateData }, // Use $set to only update specific fields
+        { 
+          new: true,
+          upsert: false // Don't create if doesn't exist, should already exist
+        }
       );
     } catch (error) {
       console.error('Error updating USSD log:', error);
@@ -1701,7 +1794,7 @@ export class UssdService {
     try {
       const skip = (page - 1) * limit;
       const filter: any = {};
-      
+
       if (status) {
         filter.status = status;
       }
