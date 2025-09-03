@@ -53,7 +53,11 @@ export class AirtimeService {
     }
   };
 
-  async purchaseAirtime(airtimeDto: AirtimeTopUpDto): Promise<HubtelAirtimeResponseDto> {
+  /**
+   * Create a payment request for airtime purchase
+   * This follows the payment-first approach like USSD flow
+   */
+  async createAirtimePaymentRequest(airtimeDto: AirtimeTopUpDto): Promise<any> {
     try {
       // Validate amount (max 100 cedis)
       if (airtimeDto.amount > 100) {
@@ -63,19 +67,8 @@ export class AirtimeService {
       // Validate amount format (2 decimal places)
       const decimalPlaces = (airtimeDto.amount.toString().split('.')[1] || '').length;
       if (decimalPlaces > 2) {
-        throw new Error('Amount must have maximum 2 decimal places');
+        throw new Error('Enter valid amount (e.g., 10.50)');
       }
-
-      const endpoint = this.hubtelEndpoints[airtimeDto.network].airtime;
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
-      
-      if (!hubtelPrepaidDepositID) {
-        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
-      }
-
-      // Debug logging
-      this.logger.log(`Airtime purchase request - Network: ${airtimeDto.network}, Endpoint: ${endpoint}, DepositID: ${hubtelPrepaidDepositID}`);
-      this.logger.log(`Auth token exists: ${!!process.env.HUBTEL_AUTH_TOKEN}`);
 
       // Validate and convert mobile number format if needed
       let destination = airtimeDto.destination;
@@ -88,16 +81,105 @@ export class AirtimeService {
         }
       }
 
+      // Create payment request payload
+      const paymentPayload = {
+        amount: airtimeDto.amount,
+        callbackUrl: airtimeDto.callbackUrl,
+        clientReference: airtimeDto.clientReference,
+        description: `Airtime top-up for ${destination} (${airtimeDto.network})`,
+        returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
+        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
+        metadata: {
+          serviceType: 'airtime_topup',
+          network: airtimeDto.network,
+          destination: destination,
+          amount: airtimeDto.amount
+        }
+      };
+
+      // Get Hubtel POS ID for payments
+      const hubtelPosId = process.env.HUBTEL_POS_SALES_ID;
+      if (!hubtelPosId) {
+        throw new Error('HUBTEL_POS_SALES_ID environment variable is required');
+      }
+
+      this.logger.log(`Creating payment request for airtime - Amount: ${airtimeDto.amount}, Network: ${airtimeDto.network}, Destination: ${destination}`);
+
+      // Create payment request via Hubtel Payment API
+      const response = await axios.post(
+        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        paymentPayload,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+          }
+        }
+      );
+
+      this.logger.log(`Payment request created successfully - Response: ${JSON.stringify(response.data)}`);
+
+      // Log the payment request
+      await this.logTransaction({
+        type: 'airtime_payment_request',
+        network: airtimeDto.network,
+        destination: destination,
+        amount: airtimeDto.amount,
+        clientReference: airtimeDto.clientReference,
+        response: response.data,
+        status: 'pending'
+      });
+
+      return {
+        success: true,
+        data: {
+          paymentUrl: response.data.data?.checkoutUrl,
+          checkoutId: response.data.data?.checkoutId,
+          clientReference: airtimeDto.clientReference,
+          amount: airtimeDto.amount,
+          network: airtimeDto.network,
+          destination: destination
+        },
+        message: 'Payment request created successfully. Please complete payment to receive airtime.'
+      };
+
+    } catch (error) {
+      this.logger.error(`Error creating airtime payment request: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`Hubtel response status: ${error.response.status}`);
+        this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Process airtime delivery after successful payment
+   * This is called from the payment callback
+   */
+  async processAirtimeAfterPayment(paymentData: any): Promise<HubtelAirtimeResponseDto> {
+    try {
+      const { network, destination, amount, clientReference } = paymentData.metadata;
+
+      this.logger.log(`Processing airtime delivery after payment - Network: ${network}, Destination: ${destination}, Amount: ${amount}`);
+
+      const endpoint = this.hubtelEndpoints[network].airtime;
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
+      
+      if (!hubtelPrepaidDepositID) {
+        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
+      }
+
       const requestPayload = {
         Destination: destination,
-        Amount: airtimeDto.amount,
-        CallbackUrl: airtimeDto.callbackUrl,
-        ClientReference: airtimeDto.clientReference
+        Amount: amount,
+        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
+        ClientReference: `AIRTIME_${clientReference}_${Date.now()}`
       };
 
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
-      this.logger.log(`Making request to: ${url}`);
-      this.logger.log(`Request payload: ${JSON.stringify(requestPayload)}`);
+      this.logger.log(`Delivering airtime via: ${url}`);
 
       const response = await axios.post(
         url,
@@ -111,21 +193,23 @@ export class AirtimeService {
         }
       );
 
-      this.logger.log(`Hubtel response: ${JSON.stringify(response.data)}`);
+      this.logger.log(`Airtime delivery response: ${JSON.stringify(response.data)}`);
 
-      // Log the transaction
+      // Log the successful airtime delivery
       await this.logTransaction({
-        type: 'airtime_topup',
-        network: airtimeDto.network,
-        destination: airtimeDto.destination,
-        amount: airtimeDto.amount,
-        clientReference: airtimeDto.clientReference,
-        response: response.data
+        type: 'airtime_delivery',
+        network: network,
+        destination: destination,
+        amount: amount,
+        clientReference: requestPayload.ClientReference,
+        response: response.data,
+        status: 'completed'
       });
 
       return response.data;
+
     } catch (error) {
-      this.logger.error(`Error purchasing airtime: ${error.message}`);
+      this.logger.error(`Error processing airtime after payment: ${error.message}`);
       if (error.response) {
         this.logger.error(`Hubtel response status: ${error.response.status}`);
         this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
@@ -134,70 +218,54 @@ export class AirtimeService {
     }
   }
 
-  async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<HubtelAirtimeResponseDto> {
+  /**
+   * Handle payment callback from Hubtel
+   * This processes the payment result and delivers airtime if successful
+   */
+  async handlePaymentCallback(callbackData: any): Promise<void> {
     try {
-      // Map bundle type to endpoint key
-      let endpointKey: string;
-      switch (bundleDto.bundleType) {
-        case BundleType.DATA:
-          endpointKey = 'data';
-          break;
-        case BundleType.VOICE:
-          endpointKey = 'voice';
-          break;
-        default:
-          endpointKey = 'airtime';
+      this.logger.log(`Processing payment callback: ${JSON.stringify(callbackData)}`);
+
+      const { clientReference, status, metadata } = callbackData;
+
+      if (status === 'success' && metadata?.serviceType === 'airtime_topup') {
+        // Payment successful, deliver airtime
+        await this.processAirtimeAfterPayment(callbackData);
+        
+        this.logger.log(`Airtime delivered successfully for payment: ${clientReference}`);
+      } else {
+        this.logger.log(`Payment failed or not for airtime: ${clientReference}, Status: ${status}`);
       }
-      
-      const endpoint = this.hubtelEndpoints[bundleDto.network][endpointKey];
-      if (!endpoint) {
-        throw new Error(`Bundle type '${bundleDto.bundleType}' not supported for network '${bundleDto.network}'`);
-      }
-      
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
 
-      // Calculate total amount based on bundle type and quantity
-      const unitPrice = this.bundlePrices[bundleDto.bundleType][bundleDto.network];
-      const totalAmount = unitPrice * bundleDto.quantity;
-
-      const requestPayload = {
-        Destination: bundleDto.destination,
-        Amount: totalAmount,
-        CallbackUrl: bundleDto.callbackUrl,
-        ClientReference: bundleDto.clientReference,
-        BundleType: bundleDto.bundleType,
-        Quantity: bundleDto.quantity
-      };
-
-      const response = await axios.post(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`,
-        requestPayload,
+      // Update transaction status
+      await this.transactionModel.findOneAndUpdate(
+        { clientReference: clientReference },
         {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+          $set: {
+            status: status === 'success' ? 'completed' : 'failed',
+            paymentStatus: status,
+            callbackReceived: true,
+            callbackDate: new Date()
           }
         }
       );
 
-      // Log the transaction
-      await this.logTransaction({
-        type: 'bundle_purchase',
-        bundleType: bundleDto.bundleType,
-        network: bundleDto.network,
-        destination: bundleDto.destination,
-        quantity: bundleDto.quantity,
-        amount: totalAmount,
-        clientReference: bundleDto.clientReference,
-        response: response.data
-      });
-
-      return response.data;
     } catch (error) {
-      this.logger.error(`Error purchasing bundle: ${error.message}`);
+      this.logger.error(`Error handling payment callback: ${error.message}`);
       throw error;
     }
+  }
+
+  // Legacy method - kept for backward compatibility but now redirects to payment flow
+  async purchaseAirtime(airtimeDto: AirtimeTopUpDto): Promise<any> {
+    this.logger.warn('Direct airtime purchase deprecated. Use createAirtimePaymentRequest instead.');
+    return this.createAirtimePaymentRequest(airtimeDto);
+  }
+
+  // Legacy method - kept for backward compatibility but now redirects to payment flow
+  async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<any> {
+    this.logger.warn('Bundle purchase should use BundleService. This method is deprecated.');
+    throw new Error('Please use /bundle/payment-request endpoint for bundle purchases');
   }
 
   async handleAirtimeCallback(callbackData: AirtimeCallbackDto): Promise<void> {
@@ -243,14 +311,14 @@ export class AirtimeService {
           response: transactionData.response
         },
         CustomerMobileNumber: transactionData.destination || 'N/A',
-        Status: transactionData.response?.ResponseCode === '0000' ? 'success' : 'pending',
+        Status: transactionData.status || (transactionData.response?.ResponseCode === '0000' ? 'success' : 'pending'),
         OrderDate: new Date(),
         Currency: 'GHS',
         Subtotal: transactionData.amount || 0,
         PaymentType: 'mobile_money',
         AmountPaid: transactionData.amount || 0,
         PaymentDate: new Date(),
-        IsSuccessful: transactionData.response?.ResponseCode === '0000' || false,
+        IsSuccessful: transactionData.status === 'completed' || transactionData.response?.ResponseCode === '0000' || false,
         createdAt: new Date()
       });
       await transaction.save();

@@ -7,7 +7,6 @@ import {
   TVBillPaymentDto, 
   TVBillPaymentRequestDto,
   TVProvider,
-  TVAccountQueryResponse,
   TVAccountInfo
 } from '../models/dto/tv-bills.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
@@ -27,13 +26,46 @@ export class TVBillsService {
     [TVProvider.STARTIMES]: '6598652d34ea4112949c93c079c501ce'
   };
 
-  async queryAccount(tvQueryDto: TVAccountQueryDto): Promise<TVAccountQueryResponse> {
+  /**
+   * Create a payment request for TV bill payment
+   * This follows the payment-first approach like USSD flow
+   */
+  async createTVBillPaymentRequest(tvBillDto: TVBillPaymentDto): Promise<any> {
     try {
-      const endpoint = this.hubtelEndpoints[tvQueryDto.provider];
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
+      // Validate amount format (2 decimal places)
+      const decimalPlaces = (tvBillDto.amount.toString().split('.')[1] || '').length;
+      if (decimalPlaces > 2) {
+        throw new Error('Enter valid amount (e.g., 10.50)');
+      }
 
-      const response = await axios.get(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${tvQueryDto.accountNumber}`,
+      // Create payment request payload
+      const paymentPayload = {
+        amount: tvBillDto.amount,
+        callbackUrl: tvBillDto.callbackUrl,
+        clientReference: tvBillDto.clientReference,
+        description: `${tvBillDto.provider} bill payment for ${tvBillDto.accountNumber}`,
+        returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
+        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
+        metadata: {
+          serviceType: 'tv_bill_payment',
+          provider: tvBillDto.provider,
+          accountNumber: tvBillDto.accountNumber,
+          amount: tvBillDto.amount
+        }
+      };
+
+      // Get Hubtel POS ID for payments
+      const hubtelPosId = process.env.HUBTEL_POS_SALES_ID;
+      if (!hubtelPosId) {
+        throw new Error('HUBTEL_POS_SALES_ID environment variable is required');
+      }
+
+      this.logger.log(`Creating payment request for TV bill - Amount: ${tvBillDto.amount}, Provider: ${tvBillDto.provider}, Account: ${tvBillDto.accountNumber}`);
+
+      // Create payment request via Hubtel Payment API
+      const response = await axios.post(
+        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
+        paymentPayload,
         {
           headers: {
             'Accept': 'application/json',
@@ -42,6 +74,157 @@ export class TVBillsService {
           }
         }
       );
+
+      this.logger.log(`Payment request created successfully - Response: ${JSON.stringify(response.data)}`);
+
+      // Log the payment request
+      await this.logTransaction({
+        type: 'tv_bill_payment_request',
+        provider: tvBillDto.provider,
+        accountNumber: tvBillDto.accountNumber,
+        amount: tvBillDto.amount,
+        clientReference: tvBillDto.clientReference,
+        response: response.data,
+        status: 'pending'
+      });
+
+      return {
+        success: true,
+        data: {
+          paymentUrl: response.data.data?.checkoutUrl,
+          checkoutId: response.data.data?.checkoutId,
+          clientReference: tvBillDto.clientReference,
+          amount: tvBillDto.amount,
+          provider: tvBillDto.provider,
+          accountNumber: tvBillDto.accountNumber
+        },
+        message: 'Payment request created successfully. Please complete payment to process TV bill.'
+      };
+
+    } catch (error) {
+      this.logger.error(`Error creating TV bill payment request: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`Hubtel response status: ${error.response.status}`);
+        this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Process TV bill payment after successful payment
+   * This is called from the payment callback
+   */
+  async processTVBillAfterPayment(paymentData: any): Promise<any> {
+    try {
+      const { provider, accountNumber, amount, clientReference } = paymentData.metadata;
+
+      this.logger.log(`Processing TV bill payment after payment - Provider: ${provider}, Account: ${accountNumber}, Amount: ${amount}`);
+
+      const endpoint = this.hubtelEndpoints[provider];
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
+      
+      if (!hubtelPrepaidDepositID) {
+        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
+      }
+
+      const requestPayload: TVBillPaymentRequestDto = {
+        Destination: accountNumber,
+        Amount: amount,
+        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
+        ClientReference: `TVBILL_${clientReference}_${Date.now()}`
+      };
+
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
+      this.logger.log(`Processing TV bill payment via: ${url}`);
+
+      const response = await axios.post(url, requestPayload, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+        }
+      });
+
+      this.logger.log(`TV bill payment response: ${JSON.stringify(response.data)}`);
+
+      // Log the successful TV bill payment
+      await this.logTransaction({
+        type: 'tv_bill_payment_processed',
+        provider: provider,
+        accountNumber: accountNumber,
+        amount: amount,
+        clientReference: requestPayload.ClientReference,
+        response: response.data,
+        status: 'completed'
+      });
+
+      return response.data;
+
+    } catch (error) {
+      this.logger.error(`Error processing TV bill after payment: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`Hubtel response status: ${error.response.status}`);
+        this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle payment callback from Hubtel
+   * This processes the payment result and processes TV bill if successful
+   */
+  async handlePaymentCallback(callbackData: any): Promise<void> {
+    try {
+      this.logger.log(`Processing TV bill payment callback: ${JSON.stringify(callbackData)}`);
+
+      const { clientReference, status, metadata } = callbackData;
+
+      if (status === 'success' && metadata?.serviceType === 'tv_bill_payment') {
+        // Payment successful, process TV bill
+        await this.processTVBillAfterPayment(callbackData);
+        
+        this.logger.log(`TV bill processed successfully for payment: ${clientReference}`);
+      } else {
+        this.logger.log(`Payment failed or not for TV bill: ${clientReference}, Status: ${status}`);
+      }
+
+      // Update transaction status
+      await this.transactionModel.findOneAndUpdate(
+        { clientReference: clientReference },
+        {
+          $set: {
+            status: status === 'success' ? 'completed' : 'failed',
+            paymentStatus: status,
+            callbackReceived: true,
+            callbackDate: new Date()
+          }
+        }
+      );
+
+    } catch (error) {
+      this.logger.error(`Error handling TV bill payment callback: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async queryAccount(tvQueryDto: TVAccountQueryDto): Promise<any> {
+    try {
+      const endpoint = this.hubtelEndpoints[tvQueryDto.provider];
+      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
+
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${tvQueryDto.accountNumber}`;
+      
+      this.logger.log(`Querying TV account from: ${url}`);
+
+      const response = await axios.get(url, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+        }
+      });
 
       // Log the query
       await this.logTransaction({
@@ -58,50 +241,10 @@ export class TVBillsService {
     }
   }
 
+  // Legacy method - kept for backward compatibility but now redirects to payment flow
   async payBill(tvBillDto: TVBillPaymentDto): Promise<any> {
-    try {
-      const endpoint = this.hubtelEndpoints[tvBillDto.provider];
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID || '2023298';
-
-      // Validate amount format (2 decimal places)
-      if (tvBillDto.amount % 0.01 !== 0) {
-        throw new Error('Amount must have maximum 2 decimal places');
-      }
-
-      const requestPayload: TVBillPaymentRequestDto = {
-        Destination: tvBillDto.accountNumber,
-        Amount: tvBillDto.amount,
-        CallbackUrl: tvBillDto.callbackUrl,
-        ClientReference: tvBillDto.clientReference
-      };
-
-      const response = await axios.post(
-        `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`,
-        requestPayload,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
-          }
-        }
-      );
-
-      // Log the transaction
-      await this.logTransaction({
-        type: 'tv_bill_payment',
-        provider: tvBillDto.provider,
-        accountNumber: tvBillDto.accountNumber,
-        amount: tvBillDto.amount,
-        clientReference: tvBillDto.clientReference,
-        response: response.data
-      });
-
-      return response.data;
-    } catch (error) {
-      this.logger.error(`Error paying TV bill: ${error.message}`);
-      throw error;
-    }
+    this.logger.warn('Direct TV bill payment deprecated. Use createTVBillPaymentRequest instead.');
+    return this.createTVBillPaymentRequest(tvBillDto);
   }
 
   async handleTVBillCallback(callbackData: any): Promise<void> {
@@ -128,6 +271,29 @@ export class TVBillsService {
     }
   }
 
+  // Helper method to validate account number format
+  validateAccountNumber(accountNumber: string, provider: TVProvider): boolean {
+    // Basic validation - can be enhanced based on provider-specific formats
+    if (!accountNumber || accountNumber.length < 5) {
+      return false;
+    }
+
+    // Provider-specific validation
+    switch (provider) {
+      case TVProvider.DSTV:
+        // DSTV account numbers are typically 8-10 digits
+        return /^\d{8,10}$/.test(accountNumber);
+      case TVProvider.GOTV:
+        // GoTV account numbers are typically 8-10 digits
+        return /^\d{8,10}$/.test(accountNumber);
+      case TVProvider.STARTIMES:
+        // StarTimes account numbers can vary
+        return /^\d{6,12}$/.test(accountNumber);
+      default:
+        return /^\d{5,12}$/.test(accountNumber);
+    }
+  }
+
   // Helper method to format account info for USSD display
   formatAccountInfo(accountData: TVAccountInfo[]): string {
     const accountInfo = accountData.reduce((acc, item) => {
@@ -149,34 +315,35 @@ export class TVBillsService {
     if (accountInfo.bouquet) {
       display += `Bouquet: ${accountInfo.bouquet}\n`;
     }
+    if (accountInfo.balance) {
+      display += `Balance: GHS ${accountInfo.balance}\n`;
+    }
 
     return display.trim();
   }
 
-  // Helper method to validate account number format
-  validateAccountNumber(accountNumber: string, provider: TVProvider): boolean {
-    // Basic validation - can be enhanced based on specific provider requirements
-    if (!accountNumber || accountNumber.trim().length === 0) {
-      return false;
-    }
-
-    switch (provider) {
-      case TVProvider.DSTV:
-      case TVProvider.GOTV:
-        // DSTV/GoTV account numbers are typically 10 digits
-        return /^\d{10}$/.test(accountNumber);
-      case TVProvider.STARTIMES:
-        // StarTimes account numbers can vary in length
-        return /^\d{8,12}$/.test(accountNumber);
-      default:
-        return true;
-    }
-  }
-
   private async logTransaction(transactionData: any): Promise<void> {
     try {
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
       const transaction = new this.transactionModel({
-        ...transactionData,
+        SessionId: transactionData.clientReference || `session_${timestamp}_${randomSuffix}`,
+        OrderId: transactionData.clientReference || `order_${timestamp}_${randomSuffix}`,
+        ExtraData: {
+          type: transactionData.type,
+          provider: transactionData.provider,
+          accountNumber: transactionData.accountNumber,
+          response: transactionData.response
+        },
+        CustomerMobileNumber: transactionData.accountNumber || 'N/A',
+        Status: transactionData.status || (transactionData.response?.ResponseCode === '0000' ? 'success' : 'pending'),
+        OrderDate: new Date(),
+        Currency: 'GHS',
+        Subtotal: transactionData.amount || 0,
+        PaymentType: 'mobile_money',
+        AmountPaid: transactionData.amount || 0,
+        PaymentDate: new Date(),
+        IsSuccessful: transactionData.status === 'completed' || transactionData.response?.ResponseCode === '0000' || false,
         createdAt: new Date()
       });
       await transaction.save();
