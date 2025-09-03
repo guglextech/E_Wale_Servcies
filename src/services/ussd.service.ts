@@ -348,10 +348,10 @@ export class UssdService {
 
       return this.createResponse(
         req.SessionId,
-        "Enter Amount",
-        "Enter airtime amount (max GHS 100):",
+        "Enter Mobile Number",
+        "Enter mobile number to purchase airtime (e.g., 0550982043):",
         HbEnums.DATATYPE_INPUT,
-        HbEnums.FIELDTYPE_DECIMAL,
+        HbEnums.FIELDTYPE_PHONE,
         HbEnums.RESPONSE
       );
     }

@@ -92,3 +92,20 @@ I've created a comprehensive diagram showing all the USSD flows step by step. He
 - Session expiry management
 
 This comprehensive flow covers all current features and provides a clear path for users through each service type, with proper validation, confirmation steps, and payment processing.
+
+
+
+
+
+Error issues.
+==============
+Airtime purchase flow
+
+✅ FIXED: The sequence bug has been resolved. The airtime flow now correctly follows:
+1. Select Airtime Top-Up (sequence 2)
+2. Select Network (sequence 3) 
+3. Enter Mobile Number (sequence 4)
+4. Enter Amount (sequence 5)
+5. Confirm Order (sequence 6)
+
+The previous issue where amount input would incorrectly trigger mobile number validation has been fixed by reordering the flow to ask for mobile number before amount.
