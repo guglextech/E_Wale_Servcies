@@ -98,7 +98,7 @@ export class UtilityService {
       const requestPayload: ECGTopUpRequestDto = {
         Destination: ecgTopUpDto.mobileNumber,
         Amount: ecgTopUpDto.amount,
-        CallbackUrl: ecgTopUpDto.callbackUrl,
+        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
         ClientReference: ecgTopUpDto.clientReference,
         Extradata: {
           bundle: ecgTopUpDto.meterNumber
@@ -147,7 +147,7 @@ export class UtilityService {
           Email: ghanaWaterTopUpDto.email,
           SessionId: ghanaWaterTopUpDto.sessionId
         },
-        CallbackUrl: ghanaWaterTopUpDto.callbackUrl,
+        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
         ClientReference: ghanaWaterTopUpDto.clientReference
       };
 

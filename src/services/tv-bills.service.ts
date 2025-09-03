@@ -71,7 +71,7 @@ export class TVBillsService {
       const requestPayload: TVBillPaymentRequestDto = {
         Destination: tvBillDto.accountNumber,
         Amount: tvBillDto.amount,
-        CallbackUrl: tvBillDto.callbackUrl,
+        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
         ClientReference: tvBillDto.clientReference
       };
 

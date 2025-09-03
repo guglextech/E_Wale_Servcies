@@ -335,7 +335,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"bundleValue\": \"data_bundle_1\",\n  \"amount\": 0.5,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"bundle_123456789\"\n}"
+              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"bundleValue\": \"data_bundle_1\",\n  \"amount\": 0.5,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"bundle_123456789\"\n}"
             },
             "url": {
               "raw": "{{base_url_local}}/bundle/purchase",
@@ -382,7 +382,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"destination\": \"233246912184\",\n  \"amount\": 1.0,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"airtime_123456789\",\n  \"network\": \"MTN\"\n}"
+              "raw": "{\n  \"destination\": \"233246912184\",\n  \"amount\": 1.0,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"airtime_123456789\",\n  \"network\": \"MTN\"\n}"
             },
             "url": {
               "raw": "{{base_url_local}}/airtime/topup",
@@ -403,7 +403,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"quantity\": 1,\n  \"callbackUrl\": \"https://your-callback-url.com/webhook\",\n  \"clientReference\": \"airtime_bundle_123456789\"\n}"
+              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"233246912184\",\n  \"quantity\": 1,\n  \"callbackUrl\": \"{{callback_url}}\",\n  \"clientReference\": \"airtime_bundle_123456789\"\n}"
             },
             "url": {
               "raw": "{{base_url_local}}/airtime/bundle",

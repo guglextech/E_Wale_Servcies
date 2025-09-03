@@ -82,8 +82,14 @@ Welcome to E-Wale
 - `POST /tv-bills/callback` - Handle Hubtel callbacks
 
 ### Airtime Services
-- `POST /airtime/topup` - Purchase airtime top-up
+- `POST /airtime/payment-request` - Create payment request for airtime
+- `POST /airtime/topup` - Create payment request (legacy endpoint)
+- `POST /airtime/payment-callback` - Handle payment callbacks
 - `POST /airtime/callback` - Handle Hubtel callbacks
+
+### Payment Services
+- `GET /payment/return` - Handle successful payment returns
+- `GET /payment/cancel` - Handle cancelled payments
 
 ### USSD Services
 - `POST /ussd` - Handle USSD requests
@@ -237,6 +243,7 @@ JWT_EXPIRES_IN=24h
 7. Confirm payment and complete via Mobile Money
 
 ### API Testing
+- Test airtime payment request: `POST /airtime/payment-request` with airtime details
 - Test bundle query: `GET /bundle/query?destination=233246912184&network=MTN`
 - Test bundle purchase: `POST /bundle/purchase` with proper payload
 - Test callback handling: `POST /bundle/callback` with Hubtel callback data
