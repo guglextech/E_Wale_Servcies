@@ -306,7 +306,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter mobile number to check available bundles:",
+        "Enter mobile number to check available bundles (e.g., 0550982043):",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_PHONE,
         HbEnums.RESPONSE
@@ -368,7 +368,7 @@ export class UssdService {
         return this.createResponse(
           req.SessionId,
           "Enter Mobile Number",
-          "Enter mobile number linked to ECG meter:",
+          "Enter mobile number linked to ECG meter (e.g., 0550982034):",
           HbEnums.DATATYPE_INPUT,
           HbEnums.FIELDTYPE_PHONE,
           HbEnums.RESPONSE
@@ -544,7 +544,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter other mobile number:",
+        "Enter other mobile number (e.g., 0550982034):",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_PHONE,
         HbEnums.RESPONSE
@@ -665,9 +665,22 @@ export class UssdService {
 
   private async handleBundleQuery(req: HBussdReq, state: SessionState) {
     try {
-      // Query bundles from Hubtel
+      // Validate and convert mobile number format
+      const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+      if (!mobileValidation.isValid) {
+        return this.createResponse(
+          req.SessionId,
+          "Invalid Mobile Number",
+          `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
+          HbEnums.DATATYPE_INPUT,
+          HbEnums.FIELDTYPE_PHONE,
+          HbEnums.RESPONSE
+        );
+      }
+
+      // Query bundles from Hubtel using converted number
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: req.Message,
+        destination: mobileValidation.convertedNumber,
         network: state.network
       });
 
@@ -682,9 +695,9 @@ export class UssdService {
         );
       }
 
-      // Store bundles and mobile number in session
+      // Store bundles and converted mobile number in session
       state.bundles = bundleResponse.Data;
-      state.mobile = req.Message;
+      state.mobile = mobileValidation.convertedNumber;
       state.currentBundlePage = 1;
       this.sessionMap.set(req.SessionId, state);
 
@@ -805,18 +818,20 @@ export class UssdService {
   }
 
   private handleMobileNumber(req: HBussdReq, state: SessionState) {
-    if (!req.Message || req.Message.length < 10) {
+    // Validate and convert mobile number format
+    const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+    if (!mobileValidation.isValid) {
       return this.createResponse(
         req.SessionId,
         "Invalid Mobile Number",
-        "Please enter a valid mobile number:",
+        `Please enter a valid mobile number (e.g., 0550982034): ${mobileValidation.error}`,
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_PHONE,
         HbEnums.RESPONSE
       );
     }
 
-    state.mobile = req.Message;
+    state.mobile = mobileValidation.convertedNumber;
     this.sessionMap.set(req.SessionId, state);
     return this.createResponse(
       req.SessionId,
@@ -1182,21 +1197,22 @@ export class UssdService {
   private async handleUtilityQuery(req: HBussdReq, state: SessionState) {
     try {
       if (state.utilityProvider === UtilityProvider.ECG) {
-        // Validate mobile number format
-        if (!this.utilityService.validateMobileNumber(req.Message)) {
+        // Validate and convert mobile number format
+        const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+        if (!mobileValidation.isValid) {
           return this.createResponse(
             req.SessionId,
             "Invalid Mobile Number",
-            "Please enter a valid mobile number (233xxxxxxxxx):",
+            `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
             HbEnums.DATATYPE_INPUT,
             HbEnums.FIELDTYPE_PHONE,
             HbEnums.RESPONSE
           );
         }
 
-        // Query ECG meters from Hubtel
+        // Query ECG meters from Hubtel using converted number
         const meterResponse = await this.utilityService.queryECGMeters({
-          mobileNumber: req.Message
+          mobileNumber: mobileValidation.convertedNumber
         });
 
         if (meterResponse.ResponseCode !== '0000') {
@@ -1210,9 +1226,9 @@ export class UssdService {
           );
         }
 
-        // Store meter info and mobile number in session
+        // Store meter info and converted mobile number in session
         state.meterInfo = meterResponse.Data;
-        state.mobile = req.Message;
+        state.mobile = mobileValidation.convertedNumber;
         this.sessionMap.set(req.SessionId, state);
 
         // Display meter information
@@ -1245,7 +1261,7 @@ export class UssdService {
         return this.createResponse(
           req.SessionId,
           "Enter Mobile Number",
-          "Enter mobile number for Ghana Water:",
+          "Enter mobile number for Ghana Water (e.g., 0550982043):",
           HbEnums.DATATYPE_INPUT,
           HbEnums.FIELDTYPE_PHONE,
           HbEnums.RESPONSE
@@ -1294,11 +1310,12 @@ export class UssdService {
       );
     } else {
       // Ghana Water - validate mobile number and query account
-      if (!this.utilityService.validateMobileNumber(req.Message)) {
+      const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+      if (!mobileValidation.isValid) {
         return this.createResponse(
           req.SessionId,
           "Invalid Mobile Number",
-          "Please enter a valid mobile number (233xxxxxxxxx):",
+          `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
           HbEnums.DATATYPE_INPUT,
           HbEnums.FIELDTYPE_PHONE,
           HbEnums.RESPONSE
@@ -1308,7 +1325,7 @@ export class UssdService {
       try {
         const accountResponse = await this.utilityService.queryGhanaWaterAccount({
           meterNumber: state.meterNumber,
-          mobileNumber: req.Message
+          mobileNumber: mobileValidation.convertedNumber
         });
 
         if (accountResponse.ResponseCode !== '0000') {
@@ -1322,9 +1339,9 @@ export class UssdService {
           );
         }
 
-        // Store account info and mobile number in session
+        // Store account info and converted mobile number in session
         state.meterInfo = accountResponse.Data;
-        state.mobile = req.Message;
+        state.mobile = mobileValidation.convertedNumber;
         this.sessionMap.set(req.SessionId, state);
 
         // Display account information
