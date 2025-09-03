@@ -213,13 +213,26 @@ export class BundleService {
   }
 
   // Helper method to paginate bundle options for USSD
-  paginateBundles(bundles: BundleOption[], page: number = 1, itemsPerPage: number = 5): {
+  paginateBundles(bundles: BundleOption[], page: number = 1, itemsPerPage: number = 8): {
     items: BundleOption[];
     currentPage: number;
     totalPages: number;
     hasNext: boolean;
     hasPrevious: boolean;
+    totalItems: number;
   } {
+    // If itemsPerPage is 0 or negative, show all items
+    if (itemsPerPage <= 0) {
+      return {
+        items: bundles,
+        currentPage: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+        totalItems: bundles.length
+      };
+    }
+
     const totalPages = Math.ceil(bundles.length / itemsPerPage);
     const startIndex = (page - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -230,9 +243,12 @@ export class BundleService {
       currentPage: page,
       totalPages,
       hasNext: page < totalPages,
-      hasPrevious: page > 1
+      hasPrevious: page > 1,
+      totalItems: bundles.length
     };
   }
+
+
 
   // Helper method to format bundle display for USSD
   formatBundleDisplay(bundle: BundleOption, index: number): string {
@@ -241,8 +257,27 @@ export class BundleService {
 
   private async logTransaction(transactionData: any): Promise<void> {
     try {
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
       const transaction = new this.transactionModel({
-        ...transactionData,
+        SessionId: transactionData.clientReference || `session_${timestamp}_${randomSuffix}`,
+        OrderId: transactionData.clientReference || `order_${timestamp}_${randomSuffix}`,
+        ExtraData: {
+          type: transactionData.type,
+          network: transactionData.network,
+          bundleType: transactionData.bundleType,
+          bundleValue: transactionData.bundleValue,
+          response: transactionData.response
+        },
+        CustomerMobileNumber: transactionData.destination || 'N/A',
+        Status: transactionData.response?.ResponseCode === '0000' ? 'success' : 'pending',
+        OrderDate: new Date(),
+        Currency: 'GHS',
+        Subtotal: transactionData.amount || 0,
+        PaymentType: 'mobile_money',
+        AmountPaid: transactionData.amount || 0,
+        PaymentDate: new Date(),
+        IsSuccessful: transactionData.response?.ResponseCode === '0000' || false,
         createdAt: new Date()
       });
       await transaction.save();

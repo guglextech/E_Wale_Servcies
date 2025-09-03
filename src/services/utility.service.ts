@@ -319,8 +319,26 @@ export class UtilityService {
 
   private async logTransaction(transactionData: any): Promise<void> {
     try {
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
       const transaction = new this.transactionModel({
-        ...transactionData,
+        SessionId: transactionData.sessionId || transactionData.clientReference || `session_${timestamp}_${randomSuffix}`,
+        OrderId: transactionData.clientReference || `order_${timestamp}_${randomSuffix}`,
+        ExtraData: {
+          type: transactionData.type,
+          meterNumber: transactionData.meterNumber,
+          email: transactionData.email,
+          response: transactionData.response
+        },
+        CustomerMobileNumber: transactionData.mobileNumber || 'N/A',
+        Status: transactionData.response?.ResponseCode === '0000' ? 'success' : 'pending',
+        OrderDate: new Date(),
+        Currency: 'GHS',
+        Subtotal: transactionData.amount || 0,
+        PaymentType: 'mobile_money',
+        AmountPaid: transactionData.amount || 0,
+        PaymentDate: new Date(),
+        IsSuccessful: transactionData.response?.ResponseCode === '0000' || false,
         createdAt: new Date()
       });
       await transaction.save();

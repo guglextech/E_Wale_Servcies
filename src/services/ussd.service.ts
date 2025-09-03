@@ -762,6 +762,8 @@ export class UssdService {
     return sampleNumbers[network] || '233246912184';
   }
 
+
+
   private displayBundlePage(sessionId: string, state: SessionState) {
     if (!state.bundles || state.bundles.length === 0) {
       return this.createResponse(
@@ -774,12 +776,14 @@ export class UssdService {
       );
     }
 
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 8);
     const bundleOptions = pagination.items.map((bundle, index) => 
       this.bundleService.formatBundleDisplay(bundle, index)
     ).join('\n');
 
+    // Create navigation options
     let navigationOptions = '';
+    
     if (pagination.hasNext) {
       navigationOptions += '\n#. Next';
     }
@@ -801,46 +805,48 @@ export class UssdService {
     const selection = req.Message;
 
     // Get pagination info for navigation and selection
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 8);
 
-    // Handle navigation
+    // Handle navigation - Next page
     if (selection === "#" && pagination.hasNext) {
       state.currentBundlePage++;
       this.sessionMap.set(req.SessionId, state);
       return this.displayBundlePage(req.SessionId, state);
     }
 
+
+
+    // Handle back to network selection
     if (selection === "0") {
-      // If on first page, go back to network selection
-      if (state.currentBundlePage === 1) {
-        state.serviceType = "data_bundle";
-        state.bundles = undefined;
-        state.currentBundlePage = undefined;
-        this.sessionMap.set(req.SessionId, state);
-        return this.createResponse(
-          req.SessionId,
-          "Select Network",
-          "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
-          HbEnums.DATATYPE_INPUT,
-          HbEnums.FIELDTYPE_NUMBER,
-          HbEnums.RESPONSE
-        );
-      } else {
-        // Go to previous page
-        state.currentBundlePage--;
-        this.sessionMap.set(req.SessionId, state);
-        return this.displayBundlePage(req.SessionId, state);
-      }
+      state.serviceType = "data_bundle";
+      state.bundles = undefined;
+      state.currentBundlePage = undefined;
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Network",
+        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
     }
 
     // Handle bundle selection
     const selectedIndex = parseInt(selection) - 1;
     
     if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= pagination.items.length) {
+      let errorMessage = `Please select a valid bundle option (1-${pagination.items.length})`;
+      
+      if (pagination.hasNext) {
+        errorMessage += ', # for Next';
+      }
+      errorMessage += ', or 0 to go Back:';
+
       return this.createResponse(
         req.SessionId,
         "Invalid Selection",
-        `Please select a valid bundle option (1-${pagination.items.length}) or use navigation options (#=Next, 0=Back):`,
+        errorMessage,
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_NUMBER,
         HbEnums.RESPONSE
