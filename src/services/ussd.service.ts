@@ -651,7 +651,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Invalid Amount",
-        "Amount must have maximum 2 decimal places:",
+        "Amount must be in cedis (e.g., 10 or 10.50):",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_DECIMAL,
         HbEnums.RESPONSE
@@ -896,7 +896,8 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
 
     // Determine which mobile number to display based on flow
-    const displayMobile = state.flow === "self" ? req.Mobile : state.mobile;
+    // For airtime, always use the dialer's mobile number since there's no "self" vs "other" flow
+    const displayMobile = state.serviceType === "airtime_topup" ? req.Mobile : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
     
     return this.createResponse(
       req.SessionId,
@@ -927,7 +928,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Invalid Amount",
-        "Amount must have maximum 2 decimal places:",
+        "Amount must be in cedis (e.g., 10 or 10.50):",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_DECIMAL,
         HbEnums.RESPONSE
@@ -939,7 +940,8 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
 
     // Determine which mobile number to display based on flow
-    const displayMobile = state.flow === "self" ? req.Mobile : state.mobile;
+    // For airtime, always use the dialer's mobile number since there's no "self" vs "other" flow
+    const displayMobile = state.serviceType === "airtime_topup" ? req.Mobile : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
     
     return this.createResponse(
       req.SessionId,
@@ -1411,7 +1413,7 @@ export class UssdService {
       return this.createResponse(
         req.SessionId,
         "Invalid Amount",
-        "Amount must have maximum 2 decimal places:",
+        "Amount must be in cedis (e.g., 10 or 10.50):",
         HbEnums.DATATYPE_INPUT,
         HbEnums.FIELDTYPE_DECIMAL,
         HbEnums.RESPONSE
