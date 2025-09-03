@@ -776,7 +776,7 @@ export class UssdService {
       );
     }
 
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 8);
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
     const bundleOptions = pagination.items.map((bundle, index) => 
       this.bundleService.formatBundleDisplay(bundle, index)
     ).join('\n');
@@ -805,7 +805,7 @@ export class UssdService {
     const selection = req.Message;
 
     // Get pagination info for navigation and selection
-    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 8);
+    const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
 
     // Handle navigation - Next page
     if (selection === "#" && pagination.hasNext) {

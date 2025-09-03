@@ -213,7 +213,7 @@ export class BundleService {
   }
 
   // Helper method to paginate bundle options for USSD
-  paginateBundles(bundles: BundleOption[], page: number = 1, itemsPerPage: number = 8): {
+  paginateBundles(bundles: BundleOption[], page: number = 1, itemsPerPage: number = 4): {
     items: BundleOption[];
     currentPage: number;
     totalPages: number;
