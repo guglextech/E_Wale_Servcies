@@ -1297,28 +1297,30 @@ export class UssdService {
             }
           } else if (sessionState.serviceType === "data_bundle") {
             try {
-              // Process bundle purchase after successful payment
-              await this.bundleService.purchaseBundle({
-                bundleType: BundleType.DATA,
-                network: sessionState.network,
-                destination: sessionState.mobile,
-                bundleValue: sessionState.bundleValue,
-                amount: sessionState.totalAmount,
-                callbackUrl: `${process.env.HB_CALLBACK_URL}`,
-                clientReference: `BUNDLE_${req.SessionId}_${Date.now()}`
+              // Process bundle delivery after successful payment
+              await this.bundleService.processBundleAfterPayment({
+                metadata: {
+                  network: sessionState.network,
+                  destination: sessionState.mobile,
+                  bundleType: 'data',
+                  bundleValue: sessionState.bundleValue,
+                  amount: sessionState.totalAmount,
+                  clientReference: req.SessionId
+                }
               });
             } catch (error) {
               console.error("Error processing bundle after payment:", error);
             }
           } else if (sessionState.serviceType === "airtime_topup") {
             try {
-              // Process airtime purchase after successful payment
-              await this.airtimeService.purchaseAirtime({
-                destination: sessionState.mobile || req.OrderInfo.CustomerMobileNumber,
-                amount: sessionState.amount,
-                network: sessionState.network,
-                callbackUrl: `${process.env.HB_CALLBACK_URL}`,
-                clientReference: `AIRTIME_${req.SessionId}_${Date.now()}`
+              // Process airtime delivery after successful payment
+              await this.airtimeService.processAirtimeAfterPayment({
+                metadata: {
+                  network: sessionState.network,
+                  destination: sessionState.mobile || req.OrderInfo.CustomerMobileNumber,
+                  amount: sessionState.amount,
+                  clientReference: req.SessionId
+                }
               });
             } catch (error) {
               console.error("Error processing airtime after payment:", error);
@@ -1326,12 +1328,13 @@ export class UssdService {
           } else if (sessionState.serviceType === "pay_bills") {
             try {
               // Process TV bill payment after successful payment
-              await this.tvBillsService.payBill({
-                provider: sessionState.tvProvider,
-                accountNumber: sessionState.accountNumber,
-                amount: sessionState.totalAmount,
-                callbackUrl: `${process.env.HB_CALLBACK_URL}`,
-                clientReference: `TVBILL_${req.SessionId}_${Date.now()}`
+              await this.tvBillsService.processTVBillAfterPayment({
+                metadata: {
+                  provider: sessionState.tvProvider,
+                  accountNumber: sessionState.accountNumber,
+                  amount: sessionState.totalAmount,
+                  clientReference: req.SessionId
+                }
               });
             } catch (error) {
               console.error("Error processing TV bill after payment:", error);

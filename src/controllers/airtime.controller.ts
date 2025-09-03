@@ -49,22 +49,13 @@ export class AirtimeController {
 
   @Post('bundle')
   async purchaseBundle(@Body() bundleDto: BundlePurchaseDto) {
-    try {
-      const result = await this.airtimeService.purchaseBundle(bundleDto);
-      return {
-        success: true,
-        data: result,
-        message: 'Bundle purchase request submitted successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process bundle purchase',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
+    throw new HttpException(
+      {
+        success: false,
+        message: 'Bundle purchases should use /bundle/payment-request endpoint',
+      },
+      HttpStatus.BAD_REQUEST
+    );
   }
 
   @Post('payment-callback')
