@@ -249,6 +249,56 @@ export class UtilityService {
     return /^233\d{9}$/.test(mobileNumber);
   }
 
+  // Helper method to convert local Ghana number to international format
+  convertToInternationalFormat(mobileNumber: string): string {
+    // Remove any spaces, dashes, or other characters
+    const cleanNumber = mobileNumber.replace(/[\s\-\(\)]/g, '');
+    
+    // If it's already in international format (starts with 233), return as is
+    if (cleanNumber.startsWith('233')) {
+      return cleanNumber;
+    }
+    
+    // If it starts with 0, replace with 233
+    if (cleanNumber.startsWith('0')) {
+      return '233' + cleanNumber.substring(1);
+    }
+    
+    // If it's a 9-digit number (without country code), add 233
+    if (cleanNumber.length === 9) {
+      return '233' + cleanNumber;
+    }
+    
+    // If it's a 10-digit number starting with 0, replace 0 with 233
+    if (cleanNumber.length === 10 && cleanNumber.startsWith('0')) {
+      return '233' + cleanNumber.substring(1);
+    }
+    
+    // Return as is if no conversion needed
+    return cleanNumber;
+  }
+
+  // Helper method to validate and convert mobile number
+  validateAndConvertMobileNumber(mobileNumber: string): { isValid: boolean; convertedNumber?: string; error?: string } {
+    const convertedNumber = this.convertToInternationalFormat(mobileNumber);
+    
+    // Check if the converted number is valid
+    if (this.validateMobileNumber(convertedNumber)) {
+      return { isValid: true, convertedNumber };
+    }
+    
+    // Provide specific error messages
+    if (mobileNumber.length < 9) {
+      return { isValid: false, error: 'Mobile number too short' };
+    }
+    
+    if (mobileNumber.length > 11) {
+      return { isValid: false, error: 'Mobile number too long' };
+    }
+    
+    return { isValid: false, error: 'Invalid mobile number format' };
+  }
+
   // Helper method to validate ECG meter number format
   validateECGMeterNumber(meterNumber: string): boolean {
     // ECG meter numbers can vary in format
