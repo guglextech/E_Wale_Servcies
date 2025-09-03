@@ -426,7 +426,7 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       return this.handleBundleSelection(req, state);
     } else if (state.serviceType === "airtime_topup") {
-      return this.handleAmountInput(req, state);
+      return this.handleAirtimeMobileNumber(req, state);
     } else if (state.serviceType === "pay_bills") {
       return this.handleTVAccountQuery(req, state);
     } else if (state.serviceType === "utility_service") {
@@ -444,7 +444,7 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       return this.handleBundleMobileNumber(req, state);
     } else if (state.serviceType === "airtime_topup") {
-      return this.handleOrderDetails(req, state);
+      return this.handleAmountInput(req, state);
     } else if (state.serviceType === "pay_bills") {
       return this.handleTVAmountInput(req, state);
     } else if (state.serviceType === "utility_service") {
@@ -462,7 +462,7 @@ export class UssdService {
     } else if (state.serviceType === "data_bundle") {
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "airtime_topup") {
-      return this.releaseSession(req.SessionId);
+      return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "pay_bills") {
       return this.handleOrderDetails(req, state);
     } else if (state.serviceType === "utility_service") {
@@ -765,7 +765,10 @@ export class UssdService {
 
 
   private displayBundlePage(sessionId: string, state: SessionState) {
+    console.log(`Displaying bundle page - Session: ${sessionId}, Page: ${state.currentBundlePage}, Total Bundles: ${state.bundles?.length}`);
+    
     if (!state.bundles || state.bundles.length === 0) {
+      console.log('No bundles available for display');
       return this.createResponse(
         sessionId,
         "No Bundles",
@@ -777,6 +780,7 @@ export class UssdService {
     }
 
     const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
+    console.log(`Pagination info - Current: ${pagination.currentPage}, Total: ${pagination.totalPages}, Items: ${pagination.items.length}, HasNext: ${pagination.hasNext}`);
     const bundleOptions = pagination.items.map((bundle, index) => 
       this.bundleService.formatBundleDisplay(bundle, index)
     ).join('\n');
@@ -804,11 +808,35 @@ export class UssdService {
   private handleBundleSelection(req: HBussdReq, state: SessionState) {
     const selection = req.Message;
 
+    // Debug logging
+    console.log(`Bundle Selection - Session: ${req.SessionId}, Selection: ${selection}, Current Page: ${state.currentBundlePage}, Total Bundles: ${state.bundles?.length}`);
+
+    // Ensure bundles and currentBundlePage are set
+    if (!state.bundles || state.bundles.length === 0) {
+      console.log('No bundles found in state, redirecting to network selection');
+      state.serviceType = "data_bundle";
+      this.sessionMap.set(req.SessionId, state);
+      return this.createResponse(
+        req.SessionId,
+        "Select Network",
+        "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT",
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_NUMBER,
+        HbEnums.RESPONSE
+      );
+    }
+
+    if (!state.currentBundlePage) {
+      state.currentBundlePage = 1;
+      this.sessionMap.set(req.SessionId, state);
+    }
+
     // Get pagination info for navigation and selection
     const pagination = this.bundleService.paginateBundles(state.bundles, state.currentBundlePage, 4);
 
     // Handle navigation - Next page
     if (selection === "#" && pagination.hasNext) {
+      console.log(`Moving to next page: ${state.currentBundlePage} -> ${state.currentBundlePage + 1}`);
       state.currentBundlePage++;
       this.sessionMap.set(req.SessionId, state);
       return this.displayBundlePage(req.SessionId, state);
@@ -892,6 +920,33 @@ export class UssdService {
       `Bundle: ${state.selectedBundle.Display}\nAmount: GHS ${state.selectedBundle.Amount.toFixed(2)}\nRecipient: ${state.mobile}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
+      HbEnums.RESPONSE
+    );
+  }
+
+  private handleAirtimeMobileNumber(req: HBussdReq, state: SessionState) {
+    // Validate and convert mobile number format
+    const mobileValidation = this.utilityService.validateAndConvertMobileNumber(req.Message);
+    if (!mobileValidation.isValid) {
+      return this.createResponse(
+        req.SessionId,
+        "Invalid Mobile Number",
+        `Please enter a valid mobile number (e.g., 0550982043): ${mobileValidation.error}`,
+        HbEnums.DATATYPE_INPUT,
+        HbEnums.FIELDTYPE_PHONE,
+        HbEnums.RESPONSE
+      );
+    }
+
+    state.mobile = mobileValidation.convertedNumber;
+    this.sessionMap.set(req.SessionId, state);
+
+    return this.createResponse(
+      req.SessionId,
+      "Enter Amount",
+      "Enter airtime amount (0.01-100):",
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_DECIMAL,
       HbEnums.RESPONSE
     );
   }
@@ -1008,13 +1063,12 @@ export class UssdService {
     this.sessionMap.set(req.SessionId, state);
 
     // Determine which mobile number to display based on flow
-    // For airtime, always use the dialer's mobile number since there's no "self" vs "other" flow
-    const displayMobile = state.serviceType === "airtime_topup" ? req.Mobile : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
+    const displayMobile = state.serviceType === "airtime_topup" ? (state.mobile || req.Mobile) : (state.flow === "self" ? req.Mobile : (state.mobile || req.Mobile));
     
     return this.createResponse(
       req.SessionId,
       "Order Details",
-      `Service: Airtime Top-Up\nNetwork: ${state.network}\nBought For: ${displayMobile}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
+      `Service: Airtime Top-Up\nNetwork: ${state.network}\nRecipient: ${displayMobile}\nAmount: GHS ${amount.toFixed(2)}\n\n1. Confirm\n2. Cancel`,
       HbEnums.DATATYPE_INPUT,
       HbEnums.FIELDTYPE_NUMBER,
       HbEnums.RESPONSE
@@ -1242,7 +1296,7 @@ export class UssdService {
             try {
               // Process airtime purchase after successful payment
               await this.airtimeService.purchaseAirtime({
-                destination: sessionState.flow === "self" ? req.OrderInfo.CustomerMobileNumber : sessionState.mobile,
+                destination: sessionState.mobile || req.OrderInfo.CustomerMobileNumber,
                 amount: sessionState.amount,
                 network: sessionState.network,
                 callbackUrl: `${process.env.HB_CALLBACK_URL}`,
