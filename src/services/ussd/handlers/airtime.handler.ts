@@ -42,7 +42,7 @@ export class AirtimeHandler {
     return this.responseBuilder.createPhoneInputResponse(
       req.SessionId,
       "Enter Mobile Number",
-      "Enter mobile number to purchase airtime (e.g., 0550982043):"
+      "Enter recipients mobile number"
     );
   }
 
@@ -68,7 +68,7 @@ export class AirtimeHandler {
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
       "Enter Amount",
-      "Enter airtime amount (e.g., 5.00):"
+      "Enter amount to pay:"
     );
   }
 
@@ -102,7 +102,7 @@ export class AirtimeHandler {
     // Show order summary and trigger payment confirmation
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
-      "Order Summary",
+      "Airtime Top-Up",
       this.formatAirtimeOrderSummary(state) + "\n\n"
     );
   }
@@ -115,11 +115,11 @@ export class AirtimeHandler {
     const network = state.network;
     const amount = state.amount;
 
-    return `Airtime Order Summary:\n\n` +
+    return `Airtime Top-Up Summary:\n\n` +
            `Network: ${network}\n` +
            `Mobile: ${mobile}\n` +
            `Amount: GH${amount?.toFixed(2)}\n\n` +
-           `Press 1. Confirm\n2. Cancel`;
+           `1. Confirm\n2. Cancel`;
   }
 
   /**

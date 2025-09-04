@@ -45,20 +45,20 @@ export class CommissionService {
     },
     // Bundle endpoints
     bundle: {
-      [NetworkProvider.MTN]: 'fdd76c884e614b1c8f669a3207b09a98',
-      [NetworkProvider.TELECEL]: 'f4be83ad74c742e185224fdae1304800',
-      [NetworkProvider.AT]: 'dae2142eb5a14c298eace60240c09e4b'
+      [NetworkProvider.MTN]: 'b230733cd56b4a0fad820e39f66bc27c',
+      [NetworkProvider.TELECEL]: 'fa27127ba039455da04a2ac8a1613e00',
+      [NetworkProvider.AT]: '06abd92da459428496967612463575ca'
     },
     // TV Bill endpoints
     tv_bill: {
-      [TVProvider.DSTV]: 'b230733cd56b4a0fad820e39f66bc27c',
-      [TVProvider.GOTV]: 'fa27127ba039455da04a2ac8a1613e00',
-      [TVProvider.STARTIMES]: 'dae2142eb5a14c298eace60240c09e4b'
+      [TVProvider.DSTV]: '297a96656b5846ad8b00d5d41b256ea7',
+      [TVProvider.GOTV]: 'e6ceac7f3880435cb30b048e9617eb41',
+      [TVProvider.STARTIMES]: '6598652d34ea4112949c93c079c501ce'
     },
     // Utility endpoints
     utility: {
-      [UtilityProvider.ECG]: 'b230733cd56b4a0fad820e39f66bc27c',
-      [UtilityProvider.GHANA_WATER]: 'fa27127ba039455da04a2ac8a1613e00'
+      [UtilityProvider.ECG]: 'e6d6bac062b5499cb1ece1ac3d742a84',
+      [UtilityProvider.GHANA_WATER]: '6c1e8a82d2e84feeb8bfd6be2790d71d'
     }
   };
 
