@@ -176,10 +176,13 @@ export class UtilityHandler {
     this.sessionManager.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'ghana_water_queried');
 
+    // Display account information before proceeding
+    const accountInfo = this.formatGhanaWaterAccountInfo(accountResponse.Data);
+    
     return this.responseBuilder.createResponse(
       req.SessionId,
-      "Enter Email",
-      "Enter your email address:",
+      "Account Found",
+      accountInfo + "\n\nPress any key to continue...",
       "input",
       "text"
     );
@@ -254,6 +257,30 @@ export class UtilityHandler {
       "Utility Top-Up",
       this.formatUtilityOrderSummary(state) + "\n\n"
     );
+  }
+
+  /**
+   * Format Ghana Water account information
+   */
+  private formatGhanaWaterAccountInfo(data: any[]): string {
+    const nameData = data.find(item => item.Display === 'name');
+    const amountDueData = data.find(item => item.Display === 'amountDue');
+    
+    let info = "Account Details:\n";
+    info += `Customer: ${nameData?.Value || 'N/A'}\n`;
+    
+    if (amountDueData) {
+      const amount = parseFloat(amountDueData.Value);
+      if (amount > 0) {
+        info += `Amount Due: GHS${amount.toFixed(2)}\n`;
+      } else if (amount < 0) {
+        info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
+      } else {
+        info += `Balance: GHS0.00\n`;
+      }
+    }
+    
+    return info;
   }
 
   /**
