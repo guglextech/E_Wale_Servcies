@@ -182,7 +182,7 @@ export class UtilityHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Account Found",
-      accountInfo + "\n\nPress any key to continue...",
+      accountInfo + "\n\nEnter email address to continue...",
       "input",
       "text"
     );
@@ -272,7 +272,7 @@ export class UtilityHandler {
     if (amountDueData) {
       const amount = parseFloat(amountDueData.Value);
       if (amount > 0) {
-        info += `Amount Due: GHS${amount.toFixed(2)}\n`;
+        info += `Amount Due: GHS -${amount.toFixed(2)}\n`;
       } else if (amount < 0) {
         info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
       } else {
