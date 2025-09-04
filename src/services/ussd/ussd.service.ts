@@ -1,0 +1,535 @@
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { HBussdReq } from "../../models/dto/hubtel/hb-ussd.dto";
+import { HbEnums } from "../../models/dto/hubtel/hb-enums";
+import { HbPayments } from "../../models/dto/hubtel/callback-ussd.schema";
+import { FinalUssdReq } from "../../models/dto/hubtel/callback-ussd.dto";
+import { Transactions } from "../../models/schemas/transaction.schema";
+import axios from "axios";
+
+// Import modular services
+import { SessionManager } from "./session-manager";
+import { ResponseBuilder } from "./response-builder";
+import { UssdLoggingService } from "./logging.service";
+import { PaymentProcessor } from "./payment-processor";
+import { MenuHandler } from "./menu-handler";
+import { ResultCheckerHandler } from "./handlers/result-checker.handler";
+
+// Import business services
+import { VouchersService } from "../vouchers.service";
+import { AirtimeService } from "../airtime.service";
+import { BundleService } from "../bundle.service";
+import { TVBillsService } from "../tv-bills.service";
+import { UtilityService } from "../utility.service";
+import { TransactionStatusService } from "../transaction-status.service";
+import { CommissionService } from "../commission.service";
+
+// Import types
+import { SessionState, UssdLogData } from "./types";
+
+@Injectable()
+export class UssdService {
+  constructor(
+    // Database models
+    @InjectModel(HbPayments.name) private readonly hbPaymentsModel: Model<HbPayments>,
+    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    
+    // Modular services
+    private readonly sessionManager: SessionManager,
+    private readonly responseBuilder: ResponseBuilder,
+    private readonly loggingService: UssdLoggingService,
+    private readonly paymentProcessor: PaymentProcessor,
+    private readonly menuHandler: MenuHandler,
+    private readonly resultCheckerHandler: ResultCheckerHandler,
+    
+    // Business services
+    private readonly vouchersService: VouchersService,
+    private readonly airtimeService: AirtimeService,
+    private readonly bundleService: BundleService,
+    private readonly tvBillsService: TVBillsService,
+    private readonly utilityService: UtilityService,
+    private readonly transactionStatusService: TransactionStatusService,
+    private readonly commissionService: CommissionService,
+  ) {}
+
+  /**
+   * Main USSD request handler
+   */
+  async handleUssdRequest(req: HBussdReq): Promise<string> {
+    try {
+      switch (req.Type.toLowerCase()) {
+        case HbEnums.INITIATION:
+          return await this.handleInitiation(req);
+        case HbEnums.RESPONSE:
+          return await this.handleResponse(req);
+        case HbEnums.ADDTOCART:
+        default:
+          return this.releaseSession(req.SessionId);
+      }
+    } catch (error) {
+      console.error('USSD request error:', error);
+      await this.loggingService.updateUssdLog(req.SessionId, 'failed', {
+        errorMessage: error.message || 'Unknown error occurred'
+      });
+      return this.responseBuilder.createErrorResponse(req.SessionId, 'An error occurred. Please try again.');
+    }
+  }
+
+  /**
+   * Handle USSD initiation
+   */
+  private async handleInitiation(req: HBussdReq): Promise<string> {
+    // Create new session
+    this.sessionManager.createSession(req.SessionId);
+
+    // Log the initial USSD dial
+    await this.loggingService.logUssdInteraction({
+      mobileNumber: req.Mobile,
+      sessionId: req.SessionId,
+      sequence: req.Sequence,
+      message: req.Message,
+      status: 'initiated',
+      userAgent: 'USSD',
+      deviceInfo: 'Mobile USSD',
+      location: 'Ghana'
+    });
+
+    return this.responseBuilder.createNumberInputResponse(
+      req.SessionId,
+      "Welcome to E-Wale",
+      "Welcome to E-Wale\n1. Results Voucher\n2. Data Bundle\n3. Airtime Top-Up\n4. Pay Bills\n5. Utility Service \n0. Contact us"
+    );
+  }
+
+  /**
+   * Handle USSD response
+   */
+  private async handleResponse(req: HBussdReq): Promise<string> {
+    const state = this.sessionManager.getSession(req.SessionId);
+    if (!state) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Session expired or invalid. Please restart."
+      );
+    }
+
+    // Log interaction
+    await this.loggingService.logUssdInteraction({
+      mobileNumber: req.Mobile,
+      sessionId: req.SessionId,
+      sequence: req.Sequence,
+      message: req.Message,
+      serviceType: state.serviceType,
+      service: state.service,
+      flow: state.flow,
+      network: state.network,
+      amount: state.amount,
+      totalAmount: state.totalAmount,
+      quantity: state.quantity,
+      recipientName: state.name,
+      recipientMobile: state.mobile,
+      tvProvider: state.tvProvider,
+      accountNumber: state.accountNumber,
+      utilityProvider: state.utilityProvider,
+      meterNumber: state.meterNumber,
+      bundleValue: state.bundleValue,
+      selectedBundle: state.selectedBundle,
+      accountInfo: state.accountInfo,
+      meterInfo: state.meterInfo,
+      status: 'interaction',
+      userAgent: 'USSD',
+      deviceInfo: 'Mobile USSD',
+      location: 'Ghana'
+    });
+
+    // Route to appropriate handler based on sequence
+    switch (req.Sequence) {
+      case 2:
+        return await this.menuHandler.handleMainMenuSelection(req, state);
+      case 3:
+        return this.menuHandler.handleServiceTypeSelection(req, state);
+      case 4:
+        return await this.handleStep4(req, state);
+      case 5:
+        return await this.handleStep5(req, state);
+      case 6:
+        return await this.handleStep6(req, state);
+      case 7:
+        return await this.handleStep7(req, state);
+      case 8:
+        return await this.handleStep8(req, state);
+      case 9:
+        return await this.handleStep9(req, state);
+      case 10:
+        return await this.handlePaymentConfirmation(req, state);
+      default:
+        return this.releaseSession(req.SessionId);
+    }
+  }
+
+  /**
+   * Handle step 4 - Service-specific input
+   */
+  private async handleStep4(req: HBussdReq, state: SessionState): Promise<string> {
+    switch (state.serviceType) {
+      case 'result_checker':
+        return this.resultCheckerHandler.handleBuyerType(req, state);
+      case 'data_bundle':
+        return await this.handleBundleSelection(req, state);
+      case 'airtime_topup':
+        return this.handleAirtimeMobileNumber(req, state);
+      case 'pay_bills':
+        return await this.handleTVAccountQuery(req, state);
+      case 'utility_service':
+        return await this.handleUtilityQuery(req, state);
+      default:
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
+    }
+  }
+
+  /**
+   * Handle step 5 - Additional input
+   */
+  private async handleStep5(req: HBussdReq, state: SessionState): Promise<string> {
+    switch (state.serviceType) {
+      case 'result_checker':
+        if (state.flow === 'self') {
+          return this.resultCheckerHandler.handleQuantityInput(req, state);
+        } else {
+          return this.resultCheckerHandler.handleMobileNumber(req, state);
+        }
+      case 'data_bundle':
+        return this.handleBundleMobileNumber(req, state);
+      case 'airtime_topup':
+        return this.handleAmountInput(req, state);
+      case 'pay_bills':
+        return this.handleTVAmountInput(req, state);
+      case 'utility_service':
+        return await this.handleUtilityStep5(req, state);
+      default:
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
+    }
+  }
+
+  /**
+   * Handle step 6 - Order details
+   */
+  private async handleStep6(req: HBussdReq, state: SessionState): Promise<string> {
+    switch (state.serviceType) {
+      case 'result_checker':
+        if (state.flow === 'self') {
+          return this.resultCheckerHandler.handleOrderDetails(req, state);
+        } else {
+          return this.resultCheckerHandler.handleNameInput(req, state);
+        }
+      case 'data_bundle':
+      case 'airtime_topup':
+      case 'pay_bills':
+        return this.handleOrderDetails(req, state);
+      case 'utility_service':
+        return this.handleUtilityAmountInput(req, state);
+      default:
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
+    }
+  }
+
+  /**
+   * Handle step 7 - Additional processing
+   */
+  private async handleStep7(req: HBussdReq, state: SessionState): Promise<string> {
+    switch (state.serviceType) {
+      case 'result_checker':
+        if (state.flow === 'other') {
+          return this.resultCheckerHandler.handleQuantityInput(req, state);
+        } else {
+          return this.releaseSession(req.SessionId);
+        }
+      case 'data_bundle':
+      case 'airtime_topup':
+      case 'pay_bills':
+        return this.releaseSession(req.SessionId);
+      case 'utility_service':
+        return this.handleOrderDetails(req, state);
+      default:
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
+    }
+  }
+
+  /**
+   * Handle step 8 - Final processing
+   */
+  private async handleStep8(req: HBussdReq, state: SessionState): Promise<string> {
+    switch (state.serviceType) {
+      case 'result_checker':
+        if (state.flow === 'other') {
+          return this.resultCheckerHandler.handleOrderDetails(req, state);
+        } else {
+          return this.releaseSession(req.SessionId);
+        }
+      case 'data_bundle':
+      case 'airtime_topup':
+      case 'pay_bills':
+      case 'utility_service':
+        return this.releaseSession(req.SessionId);
+      default:
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
+    }
+  }
+
+  /**
+   * Handle step 9 - Payment confirmation
+   */
+  private async handleStep9(req: HBussdReq, state: SessionState): Promise<string> {
+    switch (state.serviceType) {
+      case 'result_checker':
+      case 'data_bundle':
+      case 'pay_bills':
+      case 'utility_service':
+        return await this.handlePaymentConfirmation(req, state);
+      case 'airtime_topup':
+        return this.releaseSession(req.SessionId);
+      default:
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
+    }
+  }
+
+  /**
+   * Handle payment confirmation
+   */
+  private async handlePaymentConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
+    if (req.Message !== "1") {
+      return this.releaseSession(req.SessionId);
+    }
+
+    const total = state.totalAmount;
+    state.totalAmount = total;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    const serviceName = this.paymentProcessor.getServiceName(state);
+    return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
+  }
+
+  /**
+   * Release session
+   */
+  private async releaseSession(sessionId: string): Promise<string> {
+    await this.loggingService.updateUssdLog(sessionId, 'completed');
+    this.sessionManager.deleteSession(sessionId);
+    return this.responseBuilder.createThankYouResponse(sessionId);
+  }
+
+  /**
+   * Handle USSD callback
+   */
+  async handleUssdCallback(req: HbPayments): Promise<void> {
+    console.error("LOGGING CALLBACK::::::", req);
+
+    if (!req.OrderInfo || !req.OrderInfo.Payment) return;
+
+    let finalResponse = new FinalUssdReq();
+    finalResponse.SessionId = req.SessionId;
+    finalResponse.OrderId = req.OrderId;
+    finalResponse.MetaData = null;
+
+    const transaction = new this.transactionModel({
+      SessionId: req.SessionId,
+      OrderId: req.OrderId,
+      ExtraData: req.ExtraData,
+      CustomerMobileNumber: req.OrderInfo.CustomerMobileNumber,
+      CustomerEmail: req.OrderInfo.CustomerEmail,
+      CustomerName: req.OrderInfo.CustomerName,
+      Status: req.OrderInfo.Status,
+      OrderDate: req.OrderInfo.OrderDate,
+      Currency: req.OrderInfo.Currency,
+      BranchName: req.OrderInfo.BranchName,
+      IsRecurring: req.OrderInfo.IsRecurring,
+      RecurringInvoiceId: req.OrderInfo.RecurringInvoiceId,
+      Subtotal: req.OrderInfo.Subtotal,
+      Items: req.OrderInfo.Items,
+      PaymentType: req.OrderInfo.Payment.PaymentType,
+      AmountPaid: req.OrderInfo.Payment.AmountPaid,
+      AmountAfterCharges: req.OrderInfo.Payment.AmountAfterCharges,
+      PaymentDate: req.OrderInfo.Payment.PaymentDate,
+      PaymentDescription: req.OrderInfo.Payment.PaymentDescription,
+      IsSuccessful: req.OrderInfo.Payment.IsSuccessful
+    });
+
+    await transaction.save();
+
+    try {
+      const isSuccessful = req.OrderInfo.Payment.IsSuccessful;
+
+      // Log payment completion
+      await this.loggingService.updateUssdLog(req.SessionId, isSuccessful ? 'completed' : 'failed', {
+        paymentStatus: req.OrderInfo.Status,
+        orderId: req.OrderId,
+        amountPaid: req.OrderInfo.Payment.AmountPaid,
+        isSuccessful: isSuccessful
+      });
+
+      if (isSuccessful) {
+        finalResponse.ServiceStatus = "success";
+
+        // Get the session state to process after successful payment
+        const sessionState = this.sessionManager.getSession(req.SessionId);
+        if (sessionState) {
+          // Process commission service for all service types
+          try {
+            await this.processCommissionServiceAfterPayment(sessionState, req.SessionId, req.OrderInfo);
+          } catch (error) {
+            console.error("Error processing commission service after payment:", error);
+          }
+        }
+
+        await this.hbPaymentsModel.findOneAndUpdate(
+          { SessionId: req.SessionId },
+          { $set: { SessionId: req.SessionId, OrderId: req.OrderId } },
+          { upsert: true, new: true }
+        );
+      } else {
+        finalResponse.ServiceStatus = "failed";
+      }
+
+      await axios.post(`${process.env.HB_CALLBACK_URL}`, finalResponse, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${process.env.HUB_ACCESS_TOKEN}`
+        }
+      });
+    } catch (error) {
+      console.error("Error processing USSD callback:", error);
+    }
+  }
+
+  /**
+   * Process commission service after successful payment
+   */
+  private async processCommissionServiceAfterPayment(sessionState: SessionState, sessionId: string, orderInfo: any): Promise<void> {
+    try {
+      if (sessionState.serviceType === "result_checker") {
+        // Handle voucher assignment (not a commission service)
+        await this.resultCheckerHandler.processVoucherPurchase(sessionState, orderInfo);
+      } else {
+        // Handle commission services
+        const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(
+          sessionState, 
+          sessionId, 
+          `${process.env.HB_CALLBACK_URL}`
+        );
+        if (commissionRequest) {
+          await this.commissionService.processCommissionService(commissionRequest);
+        }
+      }
+    } catch (error) {
+      console.error("Error processing commission service after payment:", error);
+      throw error;
+    }
+  }
+
+  // Placeholder methods for other services - these would be implemented in separate handlers
+  private async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    // TODO: Implement bundle selection logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Bundle selection not implemented');
+  }
+
+  private handleBundleMobileNumber(req: HBussdReq, state: SessionState): string {
+    // TODO: Implement bundle mobile number logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Bundle mobile number not implemented');
+  }
+
+  private handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): string {
+    // TODO: Implement airtime mobile number logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Airtime mobile number not implemented');
+  }
+
+  private handleAmountInput(req: HBussdReq, state: SessionState): string {
+    // TODO: Implement amount input logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Amount input not implemented');
+  }
+
+  private async handleTVAccountQuery(req: HBussdReq, state: SessionState): Promise<string> {
+    // TODO: Implement TV account query logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'TV account query not implemented');
+  }
+
+  private handleTVAmountInput(req: HBussdReq, state: SessionState): string {
+    // TODO: Implement TV amount input logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'TV amount input not implemented');
+  }
+
+  private async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
+    // TODO: Implement utility query logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Utility query not implemented');
+  }
+
+  private async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
+    // TODO: Implement utility step 5 logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Utility step 5 not implemented');
+  }
+
+  private handleUtilityAmountInput(req: HBussdReq, state: SessionState): string {
+    // TODO: Implement utility amount input logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Utility amount input not implemented');
+  }
+
+  private handleOrderDetails(req: HBussdReq, state: SessionState): string {
+    // TODO: Implement order details logic
+    return this.responseBuilder.createErrorResponse(req.SessionId, 'Order details not implemented');
+  }
+
+  /**
+   * Check transaction status for USSD transactions
+   */
+  async checkUssdTransactionStatus(clientReference: string): Promise<any> {
+    try {
+      const statusResponse = await this.transactionStatusService.checkStatusByClientReference(clientReference);
+      const summary = this.transactionStatusService.getTransactionStatusSummary(statusResponse);
+
+      return {
+        success: true,
+        data: statusResponse,
+        summary: summary,
+        isSuccessful: this.transactionStatusService.isTransactionSuccessful(statusResponse),
+        shouldRetry: this.transactionStatusService.shouldRetryTransaction(statusResponse),
+        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(statusResponse)
+      };
+    } catch (error) {
+      console.error('Error checking USSD transaction status:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to check transaction status',
+        shouldRetry: true
+      };
+    }
+  }
+
+  /**
+   * Handle transaction status check for pending transactions
+   */
+  async handlePendingTransactionStatusCheck(): Promise<void> {
+    try {
+      await this.transactionStatusService.checkPendingTransactions();
+      console.log('Pending transaction status check completed');
+    } catch (error) {
+      console.error('Error in pending transaction status check:', error);
+    }
+  }
+
+  // Expose logging service methods for external use
+  async getUssdLogsByMobile(mobileNumber: string, limit: number = 50) {
+    return this.loggingService.getUssdLogsByMobile(mobileNumber, limit);
+  }
+
+  async getUssdLogsBySession(sessionId: string) {
+    return this.loggingService.getUssdLogsBySession(sessionId);
+  }
+
+  async getUssdStatistics() {
+    return this.loggingService.getUssdStatistics();
+  }
+
+  async getAllUssdLogs(page: number = 1, limit: number = 50, status?: string) {
+    return this.loggingService.getAllUssdLogs(page, limit, status);
+  }
+}

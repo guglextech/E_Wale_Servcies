@@ -228,3 +228,21 @@ This project is licensed under the MIT License.
 ## 📞 Support
 
 For support and questions, please contact the development team. 
+
+
+
+
+Review the implementation 
+Start the implementation of the commission service api based on this handleUssdCallback  async handleUssdCallback(req: HbPayments)
+
+Why because based on the documentation the commission service is based after
+payment is made into my POSSale account by the user, After the payment isSuccessful.
+
+THe call the right service and send the amount and destination as defined in the document. 
+Review the entire code for the services. Everything should be based on isSuccessful when the user is done
+with the USSD interaction flow
+
+
+
+Debit the User Account 
+The purhcase on behalf of the user with 

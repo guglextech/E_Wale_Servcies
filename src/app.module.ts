@@ -12,7 +12,6 @@ import { APP_GUARD } from "@nestjs/core";
 import { AuthGuards } from "./configs/guards/jwt-auth.guard";
 import { AuthService } from "./services/auth.service";
 import { LocalStrategy } from "./configs/strategies/local.strategy";
-import { GoogleStrategy } from "./configs/strategies/google.strategy";
 import { UsersService } from "./services/users.service";
 import { UsersController } from "./controllers/users.controller";
 import { AppController } from "./controllers/app.controller";
@@ -41,6 +40,16 @@ import { TransactionStatusService } from "./services/transaction-status.service"
 import { UssdLog, UssdLogSchema } from "./models/schemas/ussd-log.schema";
 import { UssdLogsController } from "./controllers/ussd-logs.controller";
 import { PaymentController } from "./controllers/payment.controller";
+import { CommissionService } from "./services/commission.service";
+import { CommissionController } from "./controllers/commission.controller";
+
+// Import USSD modular services
+import { SessionManager } from "./services/ussd/session-manager";
+import { ResponseBuilder } from "./services/ussd/response-builder";
+import { UssdLoggingService } from "./services/ussd/logging.service";
+import { PaymentProcessor } from "./services/ussd/payment-processor";
+import { MenuHandler } from "./services/ussd/menu-handler";
+import { ResultCheckerHandler } from "./services/ussd/handlers/result-checker.handler";
 
 @Module({
   imports: [
@@ -85,6 +94,7 @@ import { PaymentController } from "./controllers/payment.controller";
     TransactionStatusController,
     UssdLogsController,
     PaymentController,
+    CommissionController,
   ],
   providers: [
     AppService,
@@ -96,6 +106,14 @@ import { PaymentController } from "./controllers/payment.controller";
     TVBillsService,
     UtilityService,
     TransactionStatusService,
+    CommissionService,
+    // USSD modular services
+    SessionManager,
+    ResponseBuilder,
+    UssdLoggingService,
+    PaymentProcessor,
+    MenuHandler,
+    ResultCheckerHandler,
     // {
     //   provide: APP_GUARD,
     //   useClass: AuthGuards,
