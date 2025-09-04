@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { HBussdReq } from "../../models/dto/hubtel/hb-ussd.dto";
-import { SessionState, ServiceType, FlowType } from "./types";
+import { SessionState, ServiceType } from "./types";
 import { ResponseBuilder } from "./response-builder";
 import { SessionManager } from "./session-manager";
 import { UssdLoggingService } from "./logging.service";
@@ -25,11 +25,11 @@ export class MenuHandler {
     }
 
     const menuHandlers = {
-      "1": () => this.handleResultCheckerSelection(req, state),
-      "2": () => this.handleDataBundleSelection(req, state),
-      "3": () => this.handleAirtimeSelection(req, state),
-      "4": () => this.handlePayBillsSelection(req, state),
-      "5": () => this.handleUtilitySelection(req, state),
+      "1": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE \n2. WASSCE/NovDec \n3. School Placement Checker"),
+      "2": () => this.handleServiceSelection(req, state, ServiceType.DATA_BUNDLE, "Select Network", "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
+      "3": () => this.handleServiceSelection(req, state, ServiceType.AIRTIME_TOPUP, "Select Network", "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
+      "4": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
+      "5": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Prepaid\n2. Ghana Water"),
       "6": () => this.handleComingSoon(req, state)
     };
 
@@ -45,133 +45,21 @@ export class MenuHandler {
   }
 
   /**
-   * Handle result checker selection
+   * Generic service selection handler
    */
-  private async handleResultCheckerSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    state.serviceType = ServiceType.RESULT_CHECKER;
+  private async handleServiceSelection(
+    req: HBussdReq, 
+    state: SessionState, 
+    serviceType: ServiceType, 
+    label: string, 
+    message: string
+  ): Promise<string> {
+    state.serviceType = serviceType;
     this.sessionManager.updateSession(req.SessionId, state);
     
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      status: 'service_selected',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    await this.logServiceSelection(req, state);
     
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Result E-Checkers",
-      "Select Result Checker:\n1. BECE \n2. WASSCE/NovDec \n3. School Placement Checker"
-    );
-  }
-
-  /**
-   * Handle data bundle selection
-   */
-  private async handleDataBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    state.serviceType = ServiceType.DATA_BUNDLE;
-    this.sessionManager.updateSession(req.SessionId, state);
-    
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      status: 'service_selected',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
-    
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Select Network",
-      "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"
-    );
-  }
-
-  /**
-   * Handle airtime selection
-   */
-  private async handleAirtimeSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    state.serviceType = ServiceType.AIRTIME_TOPUP;
-    this.sessionManager.updateSession(req.SessionId, state);
-    
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      status: 'service_selected',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
-    
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Select Network",
-      "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"
-    );
-  }
-
-  /**
-   * Handle pay bills selection
-   */
-  private async handlePayBillsSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    state.serviceType = ServiceType.PAY_BILLS;
-    this.sessionManager.updateSession(req.SessionId, state);
-    
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      status: 'service_selected',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
-    
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Select TV Provider",
-      "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"
-    );
-  }
-
-  /**
-   * Handle utility selection
-   */
-  private async handleUtilitySelection(req: HBussdReq, state: SessionState): Promise<string> {
-    state.serviceType = ServiceType.UTILITY_SERVICE;
-    this.sessionManager.updateSession(req.SessionId, state);
-    
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      status: 'service_selected',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
-    
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Select Utility Service",
-      "Select Utility Service:\n1. ECG Prepaid\n2. Ghana Water"
-    );
+    return this.responseBuilder.createNumberInputResponse(req.SessionId, label, message);
   }
 
   /**
@@ -242,51 +130,22 @@ export class MenuHandler {
    * Handle data bundle service selection
    */
   private handleDataBundleServiceSelection(req: HBussdReq, state: SessionState): string {
-    if (!["1", "2", "3"].includes(req.Message)) {
-      return this.responseBuilder.createInvalidSelectionResponse(
-        req.SessionId,
-        "Please select 1, 2, or 3"
-      );
-    }
-
-    const networkMap = {
-      "1": NetworkProvider.MTN,
-      "2": NetworkProvider.TELECEL,
-      "3": NetworkProvider.AT
-    };
-
-    state.network = networkMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // This will be handled by the bundle service handler
-    return "BUNDLE_SELECTION_REQUIRED";
+    return this.handleNetworkSelection(req, state, "Please select 1, 2, or 3");
   }
 
   /**
    * Handle airtime service selection
    */
   private handleAirtimeServiceSelection(req: HBussdReq, state: SessionState): string {
-    if (!["1", "2", "3"].includes(req.Message)) {
-      return this.responseBuilder.createInvalidSelectionResponse(
+    const result = this.handleNetworkSelection(req, state, "Please select 1, 2, or 3");
+    if (result === "SUCCESS") {
+      return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
-        "Please select 1, 2, or 3"
+        "Enter Mobile Number",
+        "Enter recipient mobile number:"
       );
     }
-
-    const networkMap = {
-      "1": NetworkProvider.MTN,
-      "2": NetworkProvider.TELECEL,
-      "3": NetworkProvider.AT
-    };
-
-    state.network = networkMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    return this.responseBuilder.createPhoneInputResponse(
-      req.SessionId,
-      "Enter Mobile Number",
-      "Enter recipient mobile number:"
-    );
+    return result;
   }
 
   /**
@@ -344,13 +203,55 @@ export class MenuHandler {
         "Enter mobile number linked to ECG meter:"
       );
     } else {
-      return this.responseBuilder.createResponse(
+      return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
-        "Enter Meter Number",
-        "Enter mobile number linked to ECG meter",
-        "INPUT",
-        "TEXT"
+        "Enter Mobile Number",
+        "Enter mobile number linked to Ghana Water meter:"
       );
     }
+  }
+
+  /**
+   * Generic network selection handler
+   */
+  private handleNetworkSelection(req: HBussdReq, state: SessionState, errorMessage: string): string {
+    if (!["1", "2", "3"].includes(req.Message)) {
+      return this.responseBuilder.createInvalidSelectionResponse(
+        req.SessionId,
+        errorMessage
+      );
+    }
+
+    const networkMap = {
+      "1": NetworkProvider.MTN,
+      "2": NetworkProvider.TELECEL,
+      "3": NetworkProvider.AT
+    };
+
+    state.network = networkMap[req.Message];
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    if (state.serviceType === ServiceType.DATA_BUNDLE) {
+      return "BUNDLE_SELECTION_REQUIRED";
+    }
+
+    return "SUCCESS";
+  }
+
+  /**
+   * Log service selection
+   */
+  private async logServiceSelection(req: HBussdReq, state: SessionState): Promise<void> {
+    await this.loggingService.logUssdInteraction({
+      mobileNumber: req.Mobile,
+      sessionId: req.SessionId,
+      sequence: req.Sequence,
+      message: req.Message,
+      serviceType: state.serviceType,
+      status: 'service_selected',
+      userAgent: 'USSD',
+      deviceInfo: 'Mobile USSD',
+      location: 'Ghana'
+    });
   }
 }

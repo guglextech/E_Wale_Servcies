@@ -35,22 +35,17 @@ export class UtilityHandler {
     state.utilityProvider = utilityProviderMap[req.Message];
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log utility provider selection
     await this.logInteraction(req, state, 'utility_provider_selected');
 
-    if (state.utilityProvider === UtilityProvider.ECG) {
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number linked to ECG meter"
-      );
-    } else {
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number linked to Ghana Water meter"
-      );
-    }
+    const message = state.utilityProvider === UtilityProvider.ECG
+      ? "Enter mobile number linked to ECG meter:"
+      : "Enter mobile number linked to Ghana Water meter:";
+
+    return this.responseBuilder.createPhoneInputResponse(
+      req.SessionId,
+      "Enter Mobile Number",
+      message
+    );
   }
 
   /**
@@ -85,7 +80,6 @@ export class UtilityHandler {
       );
     }
 
-    // Query ECG meters
     const meterResponse: UtilityQueryResponse = await this.utilityService.queryECGMeters({
       mobileNumber: validation.convertedNumber
     });
@@ -97,12 +91,10 @@ export class UtilityHandler {
       );
     }
 
-    // Store meter info in session
     state.mobile = validation.convertedNumber;
     state.meterInfo = meterResponse.Data;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log ECG query
     await this.logInteraction(req, state, 'ecg_queried');
 
     return this.responseBuilder.createNumberInputResponse(
@@ -125,11 +117,9 @@ export class UtilityHandler {
       );
     }
 
-    // Store mobile number in session
     state.mobile = validation.convertedNumber;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log mobile number input
     await this.logInteraction(req, state, 'ghana_water_mobile_entered');
 
     return this.responseBuilder.createNumberInputResponse(
@@ -150,7 +140,6 @@ export class UtilityHandler {
       );
     }
 
-    // Validate mobile number is available
     if (!state.mobile) {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
@@ -160,7 +149,6 @@ export class UtilityHandler {
 
     console.log(`Ghana Water Query - Meter: ${req.Message}, Mobile: ${state.mobile}`);
 
-    // Query Ghana Water account
     const accountResponse: UtilityQueryResponse = await this.utilityService.queryGhanaWaterAccount({
       meterNumber: req.Message,
       mobileNumber: state.mobile
@@ -173,7 +161,6 @@ export class UtilityHandler {
       );
     }
 
-    // Store account info in session
     state.meterNumber = req.Message;
     state.meterInfo = accountResponse.Data;
     
@@ -187,8 +174,6 @@ export class UtilityHandler {
     }
     
     this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log Ghana Water query
     await this.logInteraction(req, state, 'ghana_water_queried');
 
     return this.responseBuilder.createResponse(
@@ -226,10 +211,9 @@ export class UtilityHandler {
     }
 
     state.selectedMeter = meters[selectedIndex];
-    state.meterNumber = meters[selectedIndex].Value; // Set meter number for payment processing
+    state.meterNumber = meters[selectedIndex].Value;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log meter selection
     this.logInteraction(req, state, 'meter_selected');
 
     return this.responseBuilder.createDecimalInputResponse(
@@ -260,13 +244,11 @@ export class UtilityHandler {
     }
 
     state.amount = amount;
-    state.totalAmount = amount; // Set total amount for payment
+    state.totalAmount = amount;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log amount input
     await this.logInteraction(req, state, 'amount_entered');
 
-    // Show order summary and trigger payment confirmation
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
       "Utility Top-Up",
@@ -351,12 +333,9 @@ export class UtilityHandler {
    * Validate mobile number format
    */
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
-    // Remove any non-digit characters
     const cleaned = mobile.replace(/\D/g, '');
     
-    // Check if it's a valid Ghanaian mobile number
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
-      // Convert to international format
       const converted = '233' + cleaned.substring(1);
       return { isValid: true, convertedNumber: converted };
     }
@@ -367,7 +346,7 @@ export class UtilityHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid  mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid mobile number (e.g., 0550982034)' 
     };
   }
 
@@ -379,7 +358,6 @@ export class UtilityHandler {
       return false;
     }
 
-    // Basic validation for meter numbers (can be enhanced)
     const cleaned = meterNumber.replace(/\s/g, '');
     return /^\d{8,15}$/.test(cleaned);
   }
