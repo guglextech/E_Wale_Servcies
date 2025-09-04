@@ -244,7 +244,8 @@ export class UssdService {
         // For airtime, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
       case 'utility_service':
-        return this.handleUtilityAmountInput(req, state);
+        // For utility, trigger payment confirmation directly after order summary
+        return await this.handlePaymentConfirmation(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -268,7 +269,8 @@ export class UssdService {
         // Airtime should not reach here - payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        return this.handleOrderDetails(req, state);
+        // Utility should not reach here - payment already triggered in Step 6
+        return this.releaseSession(req.SessionId);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -303,10 +305,12 @@ export class UssdService {
       case 'result_checker':
       case 'data_bundle':
       case 'pay_bills':
-      case 'utility_service':
         return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         // Airtime payment already triggered in Step 6
+        return this.releaseSession(req.SessionId);
+      case 'utility_service':
+        // Utility payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
