@@ -12,7 +12,6 @@ import { APP_GUARD } from "@nestjs/core";
 import { AuthGuards } from "./configs/guards/jwt-auth.guard";
 import { AuthService } from "./services/auth.service";
 import { LocalStrategy } from "./configs/strategies/local.strategy";
-import { GoogleStrategy } from "./configs/strategies/google.strategy";
 import { UsersService } from "./services/users.service";
 import { UsersController } from "./controllers/users.controller";
 import { AppController } from "./controllers/app.controller";
@@ -41,6 +40,21 @@ import { TransactionStatusService } from "./services/transaction-status.service"
 import { UssdLog, UssdLogSchema } from "./models/schemas/ussd-log.schema";
 import { UssdLogsController } from "./controllers/ussd-logs.controller";
 import { PaymentController } from "./controllers/payment.controller";
+import { CommissionService } from "./services/commission.service";
+import { CommissionController } from "./controllers/commission.controller";
+
+// Import USSD modular services
+import { SessionManager } from "./services/ussd/session-manager";
+import { ResponseBuilder } from "./services/ussd/response-builder";
+import { UssdLoggingService } from "./services/ussd/logging.service";
+import { PaymentProcessor } from "./services/ussd/payment-processor";
+import { MenuHandler } from "./services/ussd/menu-handler";
+import { ResultCheckerHandler } from "./services/ussd/handlers/result-checker.handler";
+import { BundleHandler } from "./services/ussd/handlers/bundle.handler";
+import { AirtimeHandler } from "./services/ussd/handlers/airtime.handler";
+import { TVBillsHandler } from "./services/ussd/handlers/tv-bills.handler";
+import { UtilityHandler } from "./services/ussd/handlers/utility.handler";
+import { OrderDetailsHandler } from "./services/ussd/handlers/order-details.handler";
 
 @Module({
   imports: [
@@ -85,6 +99,7 @@ import { PaymentController } from "./controllers/payment.controller";
     TransactionStatusController,
     UssdLogsController,
     PaymentController,
+    CommissionController,
   ],
   providers: [
     AppService,
@@ -96,6 +111,19 @@ import { PaymentController } from "./controllers/payment.controller";
     TVBillsService,
     UtilityService,
     TransactionStatusService,
+    CommissionService,
+    // USSD modular services
+    SessionManager,
+    ResponseBuilder,
+    UssdLoggingService,
+    PaymentProcessor,
+    MenuHandler,
+    ResultCheckerHandler,
+    BundleHandler,
+    AirtimeHandler,
+    TVBillsHandler,
+    UtilityHandler,
+    OrderDetailsHandler,
     // {
     //   provide: APP_GUARD,
     //   useClass: AuthGuards,

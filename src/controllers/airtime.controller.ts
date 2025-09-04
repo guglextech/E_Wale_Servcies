@@ -1,76 +1,25 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
 import { AirtimeService } from '../services/airtime.service';
-import { AirtimeTopUpDto, BundlePurchaseDto, AirtimeCallbackDto } from '../models/dto/airtime.dto';
+import { AirtimeTopUpDto, AirtimeCallbackDto } from '../models/dto/airtime.dto';
 
 @Controller('airtime')
 export class AirtimeController {
   constructor(private readonly airtimeService: AirtimeService) {}
 
-  @Post('payment-request')
-  async createAirtimePaymentRequest(@Body() airtimeDto: AirtimeTopUpDto) {
+  @Post('deliver')
+  async deliverAirtime(@Body() airtimeDto: AirtimeTopUpDto) {
     try {
-      const result = await this.airtimeService.createAirtimePaymentRequest(airtimeDto);
+      const result = await this.airtimeService.deliverAirtime(airtimeDto);
       return {
         success: true,
         data: result,
-        message: 'Payment request created successfully'
+        message: 'Airtime delivery initiated successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to create payment request',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('topup')
-  async purchaseAirtime(@Body() airtimeDto: AirtimeTopUpDto) {
-    try {
-      // This now redirects to payment flow for backward compatibility
-      const result = await this.airtimeService.purchaseAirtime(airtimeDto);
-      return {
-        success: true,
-        data: result,
-        message: 'Payment request created successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process airtime top-up',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('bundle')
-  async purchaseBundle(@Body() bundleDto: BundlePurchaseDto) {
-    throw new HttpException(
-      {
-        success: false,
-        message: 'Bundle purchases should use /bundle/payment-request endpoint',
-      },
-      HttpStatus.BAD_REQUEST
-    );
-  }
-
-  @Post('payment-callback')
-  async handlePaymentCallback(@Body() callbackData: any) {
-    try {
-      await this.airtimeService.handlePaymentCallback(callbackData);
-      return {
-        success: true,
-        message: 'Payment callback processed successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process payment callback',
+          message: error.message || 'Failed to deliver airtime',
         },
         HttpStatus.BAD_REQUEST
       );

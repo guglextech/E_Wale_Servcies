@@ -1,18 +1,55 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import axios from 'axios';
-import { 
-  BundleQueryDto, 
-  BundlePurchaseDto, 
+import axios, { AxiosResponse } from 'axios';
+import {
+  BundleQueryDto,
+  BundlePurchaseDto,
   BundlePurchaseRequestDto,
-  NetworkProvider, 
+  NetworkProvider,
   BundleType,
   BundleQueryResponse,
   BundleOption
 } from '../models/dto/bundle.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
 import { TransactionStatusService } from './transaction-status.service';
+
+// Types for better type safety
+interface HubtelEndpoints {
+  [NetworkProvider.MTN]: {
+    data: string;
+    fibre: string;
+  };
+  [NetworkProvider.TELECEL]: {
+    data: string;
+    broadband: string;
+  };
+  [NetworkProvider.AT]: {
+    data: string;
+  };
+}
+
+interface BundleDeliveryPayload {
+  Destination: string;
+  Amount: number;
+  CallbackUrl: string;
+  ClientReference: string;
+  Extradata: {
+    bundle: string;
+  };
+}
+
+interface TransactionLogData {
+  type: 'bundle_delivery';
+  network: NetworkProvider;
+  destination: string;
+  bundleType: string;
+  bundleValue: string;
+  amount: number;
+  clientReference: string;
+  response?: any;
+  status: 'pending' | 'completed' | 'failed';
+}
 
 @Injectable()
 export class BundleService {
@@ -21,10 +58,10 @@ export class BundleService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly transactionStatusService: TransactionStatusService,
-  ) {}
+  ) { }
 
-  // Hubtel API endpoints for different networks and services
-  private readonly hubtelEndpoints: Record<NetworkProvider, Record<string, string>> = {
+  // Hubtel Commission Service endpoints for different networks and services
+  private readonly hubtelEndpoints: HubtelEndpoints = {
     [NetworkProvider.MTN]: {
       data: 'b230733cd56b4a0fad820e39f66bc27c',
       fibre: '39fbe120e9b542899eb7dad526fb04b9'
@@ -38,210 +75,53 @@ export class BundleService {
     }
   };
 
-  /**
-   * Create a payment request for bundle purchase
-   * This follows the payment-first approach like USSD flow
-   */
-  async createBundlePaymentRequest(bundleDto: BundlePurchaseDto): Promise<any> {
-    try {
-      const { network, bundleType = 'data' } = bundleDto;
-      
-      // Determine the correct endpoint based on network and bundle type
-      const endpoint = this.getEndpointForBundleType(network, bundleType);
-      
-      if (!endpoint) {
-        throw new Error(`Bundle type '${bundleType}' not supported for network '${network}'`);
-      }
-
-      // Validate and convert mobile number format if needed
-      let destination = bundleDto.destination;
-      if (!destination.startsWith('233')) {
-        // Convert to international format if not already
-        if (destination.startsWith('0')) {
-          destination = '233' + destination.substring(1);
-        } else if (destination.length === 9) {
-          destination = '233' + destination;
-        }
-      }
-
-      // Create payment request payload
-      const paymentPayload = {
-        amount: bundleDto.amount,
-        callbackUrl: bundleDto.callbackUrl,
-        clientReference: bundleDto.clientReference,
-        description: `Data bundle for ${destination} (${network})`,
-        returnUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/return`,
-        cancelUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          serviceType: 'bundle_purchase',
-          network: network,
-          destination: destination,
-          bundleType: bundleType,
-          bundleValue: bundleDto.bundleValue,
-          amount: bundleDto.amount
-        }
-      };
-
-      // Get Hubtel POS ID for payments
-      const hubtelPosId = process.env.HUBTEL_POS_SALES_ID;
-      if (!hubtelPosId) {
-        throw new Error('HUBTEL_POS_SALES_ID environment variable is required');
-      }
-
-      this.logger.log(`Creating payment request for bundle - Amount: ${bundleDto.amount}, Network: ${network}, Destination: ${destination}`);
-
-      // Create payment request via Hubtel Payment API
-      const response = await axios.post(
-        `https://api.hubtel.com/v2/pos/online/checkout/initiate`,
-        paymentPayload,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
-          }
-        }
-      );
-
-      this.logger.log(`Payment request created successfully - Response: ${JSON.stringify(response.data)}`);
-
-      // Log the payment request
-      await this.logTransaction({
-        type: 'bundle_payment_request',
-        network: network,
-        destination: destination,
-        bundleType: bundleType,
-        bundleValue: bundleDto.bundleValue,
-        amount: bundleDto.amount,
-        clientReference: bundleDto.clientReference,
-        response: response.data,
-        status: 'pending'
-      });
-
-      return {
-        success: true,
-        data: {
-          paymentUrl: response.data.data?.checkoutUrl,
-          checkoutId: response.data.data?.checkoutId,
-          clientReference: bundleDto.clientReference,
-          amount: bundleDto.amount,
-          network: network,
-          destination: destination,
-          bundleType: bundleType,
-          bundleValue: bundleDto.bundleValue
-        },
-        message: 'Payment request created successfully. Please complete payment to receive bundle.'
-      };
-
-    } catch (error) {
-      this.logger.error(`Error creating bundle payment request: ${error.message}`);
-      if (error.response) {
-        this.logger.error(`Hubtel response status: ${error.response.status}`);
-        this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
-      }
-      throw error;
-    }
-  }
+  // ==================== PUBLIC METHODS ====================
 
   /**
-   * Process bundle delivery after successful payment
-   * This is called from the payment callback
+   * Deliver bundle via Hubtel Commission Service
+   * This is called after payment is successful
    */
-  async processBundleAfterPayment(paymentData: any): Promise<any> {
+  async deliverBundle(bundleDto: BundlePurchaseDto): Promise<any> {
     try {
-      const { network, destination, bundleType, bundleValue, amount, clientReference } = paymentData.metadata;
-
-      this.logger.log(`Processing bundle delivery after payment - Network: ${network}, Destination: ${destination}, Bundle: ${bundleValue}`);
-
-      const endpoint = this.getEndpointForBundleType(network, bundleType);
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
+      this.validateBundleRequest(bundleDto);
+      const destination = this.formatMobileNumber(bundleDto.destination);
       
-      if (!hubtelPrepaidDepositID) {
-        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
-      }
+      this.logger.log(`Delivering bundle - Network: ${bundleDto.network}, Destination: ${destination}, Bundle: ${bundleDto.bundleValue}`);
 
-      const requestPayload: BundlePurchaseRequestDto = {
+      const endpoint = this.getEndpointForBundleType(bundleDto.network, bundleDto.bundleType);
+      const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
+
+      const requestPayload: BundleDeliveryPayload = {
         Destination: destination,
-        Amount: amount,
-        CallbackUrl: `${process.env.HB_CALLBACK_URL}`,
-        ClientReference: `BUNDLE_${clientReference}_${Date.now()}`,
+        Amount: bundleDto.amount,
+        CallbackUrl: this.getRequiredEnvVar('HB_CALLBACK_URL'),
+        ClientReference: `BUNDLE_${bundleDto.clientReference}_${Date.now()}`,
         Extradata: {
-          bundle: bundleValue
+          bundle: bundleDto.bundleValue
         }
       };
 
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
       this.logger.log(`Delivering bundle via: ${url}`);
 
-      const response = await axios.post(url, requestPayload, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
-        }
-      });
-
-      this.logger.log(`Bundle delivery response: ${JSON.stringify(response.data)}`);
-
-      // Log the successful bundle delivery
+      const response = await this.callCommissionService(url, requestPayload);
+      
       await this.logTransaction({
         type: 'bundle_delivery',
-        network: network,
-        destination: destination,
-        bundleType: bundleType,
-        bundleValue: bundleValue,
-        amount: amount,
+        network: bundleDto.network,
+        destination,
+        bundleType: bundleDto.bundleType,
+        bundleValue: bundleDto.bundleValue,
+        amount: bundleDto.amount,
         clientReference: requestPayload.ClientReference,
         response: response.data,
         status: 'completed'
       });
 
       return response.data;
-
     } catch (error) {
-      this.logger.error(`Error processing bundle after payment: ${error.message}`);
-      if (error.response) {
-        this.logger.error(`Hubtel response status: ${error.response.status}`);
-        this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Handle payment callback from Hubtel
-   * This processes the payment result and delivers bundle if successful
-   */
-  async handlePaymentCallback(callbackData: any): Promise<void> {
-    try {
-      this.logger.log(`Processing bundle payment callback: ${JSON.stringify(callbackData)}`);
-
-      const { clientReference, status, metadata } = callbackData;
-
-      if (status === 'success' && metadata?.serviceType === 'bundle_purchase') {
-        // Payment successful, deliver bundle
-        await this.processBundleAfterPayment(callbackData);
-        
-        this.logger.log(`Bundle delivered successfully for payment: ${clientReference}`);
-      } else {
-        this.logger.log(`Payment failed or not for bundle: ${clientReference}, Status: ${status}`);
-      }
-
-      // Update transaction status
-      await this.transactionModel.findOneAndUpdate(
-        { clientReference: clientReference },
-        {
-          $set: {
-            status: status === 'success' ? 'completed' : 'failed',
-            paymentStatus: status,
-            callbackReceived: true,
-            callbackDate: new Date()
-          }
-        }
-      );
-
-    } catch (error) {
-      this.logger.error(`Error handling bundle payment callback: ${error.message}`);
+      this.logger.error(`Error delivering bundle: ${error.message}`);
+      this.logHubtelError(error);
       throw error;
     }
   }
@@ -270,60 +150,49 @@ export class BundleService {
     }
   }
 
+  /**
+   * Query available bundles from Hubtel Commission Service
+   */
   async queryBundles(bundleQueryDto: BundleQueryDto): Promise<BundleQueryResponse> {
     try {
       const { network, destination, bundleType = 'data' } = bundleQueryDto;
-      
+
       // Determine the correct endpoint based on network and bundle type
       const endpoint = this.getEndpointForBundleType(network, bundleType);
-      
+
       if (!endpoint) {
         throw new Error(`Bundle type '${bundleType}' not supported for network '${network}'`);
       }
 
-      const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
-      
-      if (!hubtelPrepaidDepositID) {
-        throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
-      }
+      const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
 
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${destination}`;
-      
+
       this.logger.log(`Querying bundles from: ${url}`);
 
       const response = await axios.get(url, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Basic ${process.env.HUBTEL_AUTH_TOKEN}`
+          'Authorization': `Basic ${this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN')}`
         }
       });
 
-      // Log the query
-      await this.logTransaction({
-        type: 'bundle_query',
-        network: network,
-        destination: destination,
-        bundleType: bundleType,
-        response: response.data
-      });
+      this.logger.log(`Bundle query response: ${JSON.stringify(response.data)}`);
 
       return response.data;
     } catch (error) {
       this.logger.error(`Error querying bundles: ${error.message}`);
+      this.logHubtelError(error);
       throw error;
     }
   }
 
-  // Legacy method - kept for backward compatibility but now redirects to payment flow
-  async purchaseBundle(bundleDto: BundlePurchaseDto): Promise<any> {
-    this.logger.warn('Direct bundle purchase deprecated. Use createBundlePaymentRequest instead.');
-    return this.createBundlePaymentRequest(bundleDto);
-  }
-
+  /**
+   * Handle bundle delivery callback from Hubtel Commission Service
+   */
   async handleBundleCallback(callbackData: any): Promise<void> {
     try {
-      // Update transaction status based on callback
       await this.transactionModel.findOneAndUpdate(
         { clientReference: callbackData.ClientReference },
         {
@@ -331,7 +200,7 @@ export class BundleService {
             status: callbackData.ResponseCode === '0000' ? 'success' : 'failed',
             transactionId: callbackData.TransactionId,
             finalAmount: callbackData.Amount,
-            commission: callbackData.Meta?.Commission,
+            commission: callbackData.Commission,
             callbackReceived: true,
             callbackDate: new Date()
           }
@@ -345,74 +214,106 @@ export class BundleService {
     }
   }
 
+  // ==================== PRIVATE HELPER METHODS ====================
+
   /**
-   * Get the appropriate endpoint for a given network and bundle type
+   * Validate bundle request parameters
+   */
+  private validateBundleRequest(bundleDto: BundlePurchaseDto): void {
+    if (bundleDto.amount <= 0) {
+      throw new BadRequestException('Amount must be greater than 0');
+    }
+
+    if (!bundleDto.destination || bundleDto.destination.trim().length === 0) {
+      throw new BadRequestException('Destination mobile number is required');
+    }
+
+    if (!bundleDto.bundleValue || bundleDto.bundleValue.trim().length === 0) {
+      throw new BadRequestException('Bundle value is required');
+    }
+
+    if (!bundleDto.network) {
+      throw new BadRequestException('Network provider is required');
+    }
+  }
+
+  /**
+   * Format mobile number to international format
+   */
+  private formatMobileNumber(destination: string): string {
+    if (!destination.startsWith('233')) {
+      if (destination.startsWith('0')) {
+        return '233' + destination.substring(1);
+      } else if (destination.length === 9) {
+        return '233' + destination;
+      }
+    }
+    return destination;
+  }
+
+  /**
+   * Get endpoint for bundle type and network
    */
   private getEndpointForBundleType(network: NetworkProvider, bundleType: string): string | null {
     const networkEndpoints = this.hubtelEndpoints[network];
-    
     if (!networkEndpoints) {
       return null;
     }
 
-    switch (bundleType.toLowerCase()) {
-      case 'data':
-        return networkEndpoints.data;
-      case 'fibre':
-      case 'fibre_broadband':
-        return networkEndpoints.fibre || null;
-      case 'broadband':
-        return networkEndpoints.broadband || null;
-      default:
-        return networkEndpoints.data; // Default to data bundles
-    }
-  }
-
-  // Helper method to paginate bundle options for USSD
-  paginateBundles(bundles: BundleOption[], page: number = 1, itemsPerPage: number = 4): {
-    items: BundleOption[];
-    currentPage: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrevious: boolean;
-    totalItems: number;
-  } {
-    // If itemsPerPage is 0 or negative, show all items
-    if (itemsPerPage <= 0) {
-      return {
-        items: bundles,
-        currentPage: 1,
-        totalPages: 1,
-        hasNext: false,
-        hasPrevious: false,
-        totalItems: bundles.length
-      };
-    }
-
-    const totalPages = Math.ceil(bundles.length / itemsPerPage);
-    const startIndex = (page - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const items = bundles.slice(startIndex, endIndex);
-
-    return {
-      items,
-      currentPage: page,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrevious: page > 1,
-      totalItems: bundles.length
+    // Map bundle types to endpoint keys
+    const endpointMap: Record<string, string> = {
+      'data': 'data',
+      'voice': 'data', // Voice bundles use same endpoint as data
+      'fibre': 'fibre',
+      'broadband': 'broadband'
     };
+
+    const endpointKey = endpointMap[bundleType] || 'data';
+    return networkEndpoints[endpointKey] || null;
   }
 
-  // Helper method to format bundle display for USSD
-  formatBundleDisplay(bundle: BundleOption, index: number): string {
-    return `${index + 1}. ${bundle.Display} - GHS ${bundle.Amount.toFixed(2)}`;
+  /**
+   * Call Hubtel Commission Service
+   */
+  private async callCommissionService(url: string, payload: BundleDeliveryPayload): Promise<AxiosResponse> {
+    return await axios.post(url, payload, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN')}`
+      }
+    });
   }
 
-  private async logTransaction(transactionData: any): Promise<void> {
+  /**
+   * Get required environment variable or throw error
+   */
+  private getRequiredEnvVar(key: string): string {
+    const value = process.env[key];
+    if (!value) {
+      throw new InternalServerErrorException(`${key} environment variable is required`);
+    }
+    return value;
+  }
+
+  /**
+   * Log Hubtel API errors
+   */
+  private logHubtelError(error: any): void {
+    if (error.response) {
+      this.logger.error(`Hubtel response status: ${error.response.status}`);
+      this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
+    }
+  }
+
+  /**
+   * Log transaction to database
+   */
+  private async logTransaction(transactionData: TransactionLogData): Promise<void> {
     try {
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 8);
+      
       const transaction = new this.transactionModel({
         SessionId: transactionData.clientReference || `session_${timestamp}_${randomSuffix}`,
         OrderId: transactionData.clientReference || `order_${timestamp}_${randomSuffix}`,
@@ -434,63 +335,10 @@ export class BundleService {
         IsSuccessful: transactionData.status === 'completed' || transactionData.response?.ResponseCode === '0000' || false,
         createdAt: new Date()
       });
+      
       await transaction.save();
     } catch (error) {
       this.logger.error(`Error logging transaction: ${error.message}`);
-    }
-  }
-
-  /**
-   * Check transaction status for bundle purchases
-   */
-  async checkBundleTransactionStatus(clientReference: string): Promise<any> {
-    try {
-      const statusResponse = await this.transactionStatusService.checkStatusByClientReference(clientReference);
-      const summary = this.transactionStatusService.getTransactionStatusSummary(statusResponse);
-      
-      return {
-        success: true,
-        data: statusResponse,
-        summary: summary,
-        isSuccessful: this.transactionStatusService.isTransactionSuccessful(statusResponse),
-        shouldRetry: this.transactionStatusService.shouldRetryTransaction(statusResponse),
-        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(statusResponse)
-      };
-    } catch (error) {
-      this.logger.error(`Error checking bundle transaction status: ${error.message}`);
-      return {
-        success: false,
-        message: error.message || 'Failed to check transaction status',
-        shouldRetry: true
-      };
-    }
-  }
-
-  /**
-   * Handle pending bundle transaction status checks
-   */
-  async handlePendingBundleTransactions(): Promise<void> {
-    try {
-      const pendingTransactions = await this.transactionModel.find({
-        type: 'bundle_purchase',
-        Status: { $in: ['pending', 'processing'] },
-        OrderDate: { $lt: new Date(Date.now() - 5 * 60 * 1000) } // 5 minutes ago
-      }).exec();
-
-      this.logger.log(`Found ${pendingTransactions.length} pending bundle transactions to check`);
-
-      for (const transaction of pendingTransactions) {
-        try {
-          if (transaction.OrderId) {
-            await this.checkBundleTransactionStatus(transaction.OrderId);
-            this.logger.log(`Checked status for bundle transaction: ${transaction.OrderId}`);
-          }
-        } catch (error) {
-          this.logger.error(`Error checking status for bundle transaction ${transaction.OrderId}: ${error.message}`);
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Error in pending bundle transaction check: ${error.message}`);
     }
   }
 }

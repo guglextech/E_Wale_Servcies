@@ -26,60 +26,20 @@ export class TVBillsController {
     }
   }
 
-  @Post('payment-request')
-  async createTVBillPaymentRequest(@Body() tvBillDto: TVBillPaymentDto) {
-    try {
-      const result = await this.tvBillsService.createTVBillPaymentRequest(tvBillDto);
-      return {
-        success: true,
-        data: result,
-        message: 'Payment request created successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to create payment request',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
   @Post('pay')
-  async payBill(@Body() tvBillDto: TVBillPaymentDto) {
+  async payTVBill(@Body() tvBillDto: TVBillPaymentDto) {
     try {
-      // This now redirects to payment flow for backward compatibility
-      const result = await this.tvBillsService.payBill(tvBillDto);
+      const result = await this.tvBillsService.payTVBill(tvBillDto);
       return {
         success: true,
         data: result,
-        message: 'Payment request created successfully'
+        message: 'TV bill payment processed successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to process bill payment',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('payment-callback')
-  async handlePaymentCallback(@Body() callbackData: any) {
-    try {
-      await this.tvBillsService.handlePaymentCallback(callbackData);
-      return {
-        success: true,
-        message: 'Payment callback processed successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process payment callback',
+          message: error.message || 'Failed to process TV bill payment',
         },
         HttpStatus.BAD_REQUEST
       );
