@@ -285,7 +285,7 @@ export class MenuHandler {
     return this.responseBuilder.createPhoneInputResponse(
       req.SessionId,
       "Enter Mobile Number",
-      "Enter mobile number to purchase airtime (e.g., 0550982043):"
+      "Enter recipient mobile number:"
     );
   }
 
@@ -341,7 +341,7 @@ export class MenuHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter mobile number linked to ECG meter (e.g., 0550982034):"
+        "Enter mobile number linked to ECG meter:"
       );
     } else {
       return this.responseBuilder.createResponse(

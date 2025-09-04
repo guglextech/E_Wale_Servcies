@@ -180,7 +180,7 @@ export class UtilityService {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-          'Authorization': `Basic ${this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN')}`
+            'Authorization': `Basic ${this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN')}`
         }
       });
 
@@ -199,14 +199,14 @@ export class UtilityService {
    */
   async queryGhanaWaterAccount(queryDto: GhanaWaterQueryDto): Promise<UtilityQueryResponse> {
     try {
-      const { meterNumber } = queryDto;
+      const { meterNumber, mobileNumber } = queryDto;
       
-      this.logger.log(`Querying Ghana Water account - Meter: ${meterNumber}`);
+      this.logger.log(`Querying Ghana Water account - Meter: ${meterNumber}, Mobile: ${mobileNumber}`);
 
       const endpoint = this.hubtelEndpoints[UtilityProvider.GHANA_WATER];
       const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
 
-      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${meterNumber}`;
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?mobile=${mobileNumber}`;
 
       const response = await axios.get(url, {
           headers: {
@@ -291,10 +291,6 @@ export class UtilityService {
 
     if (!ghanaWaterTopUpDto.meterNumber || ghanaWaterTopUpDto.meterNumber.trim().length === 0) {
       throw new BadRequestException('Meter number is required');
-    }
-
-    if (!ghanaWaterTopUpDto.email || ghanaWaterTopUpDto.email.trim().length === 0) {
-      throw new BadRequestException('Email is required');
     }
   }
 
