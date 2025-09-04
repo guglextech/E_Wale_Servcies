@@ -119,10 +119,12 @@ export class TVBillsHandler {
     await this.logInteraction(req, state, 'amount_entered');
 
     // Show order summary after amount input
-    return this.responseBuilder.createDisplayResponse(
+    return this.responseBuilder.createResponse(
       req.SessionId,
       "Order Summary",
-      this.formatTVOrderSummary(state)
+      this.formatTVOrderSummary(state),
+      "input",
+      "text"
     );
   }
 

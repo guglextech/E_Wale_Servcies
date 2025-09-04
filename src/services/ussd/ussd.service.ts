@@ -268,7 +268,8 @@ export class UssdService {
       case 'data_bundle':
         return this.releaseSession(req.SessionId);
       case 'pay_bills':
-        return this.handleOrderDetails(req, state);
+        // For TV bills, trigger payment confirmation directly after order summary
+        return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
       case 'utility_service':
@@ -291,9 +292,8 @@ export class UssdService {
         }
       case 'data_bundle':
       case 'airtime_topup':
-        return this.releaseSession(req.SessionId);
       case 'pay_bills':
-        return await this.handlePaymentConfirmation(req, state);
+        return this.releaseSession(req.SessionId);
       case 'utility_service':
         return await this.handleUtilityStep8(req, state);
       default:
