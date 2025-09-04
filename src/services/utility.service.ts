@@ -201,12 +201,25 @@ export class UtilityService {
     try {
       const { meterNumber, mobileNumber } = queryDto;
       
-      this.logger.log(`Querying Ghana Water account - Meter: ${meterNumber}, Mobile: ${mobileNumber}`);
+      // Validate meter number
+      if (!meterNumber || meterNumber.trim().length === 0) {
+        throw new BadRequestException('Meter number is required');
+      }
+      
+      // Clean meter number (remove spaces and special characters)
+      const cleanedMeterNumber = meterNumber.replace(/\s/g, '').trim();
+      
+      // Format mobile number to international format
+      const formattedMobileNumber = this.formatMobileNumber(mobileNumber);
+      
+      this.logger.log(`Querying Ghana Water account - Meter: ${cleanedMeterNumber}, Mobile: ${formattedMobileNumber}`);
 
       const endpoint = this.hubtelEndpoints[UtilityProvider.GHANA_WATER];
       const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
 
-      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?mobile=${mobileNumber}`;
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${encodeURIComponent(cleanedMeterNumber)}&mobile=${encodeURIComponent(formattedMobileNumber)}`;
+
+      this.logger.log(`Ghana Water query URL: ${url}`);
 
       const response = await axios.get(url, {
           headers: {
@@ -217,6 +230,12 @@ export class UtilityService {
       });
 
       this.logger.log(`Ghana Water account query response: ${JSON.stringify(response.data)}`);
+
+      // Check if the response indicates an error
+      if (response.data.ResponseCode !== '0000') {
+        this.logger.error(`Ghana Water query failed - ResponseCode: ${response.data.ResponseCode}, Message: ${response.data.Message}`);
+        throw new BadRequestException(`Ghana Water query failed: ${response.data.Message}`);
+      }
 
       return response.data;
     } catch (error) {
