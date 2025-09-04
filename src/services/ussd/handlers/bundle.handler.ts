@@ -160,7 +160,7 @@ export class BundleHandler {
            `Network: ${network}\n` +
            `Bundle: ${bundle?.Display}\n` +
            `Mobile: ${mobile}\n` +
-           `Amount: GH₵${bundle?.Amount}\n\n` +
+           `Amount: GH${bundle?.Amount}\n\n` +
            `Press 1 to confirm payment`;
   }
 

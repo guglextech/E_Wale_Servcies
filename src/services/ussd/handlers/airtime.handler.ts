@@ -85,23 +85,25 @@ export class AirtimeHandler {
       );
     }
 
-    if (amount < 1) {
+    if (amount < 0.50) {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "Minimum airtime amount is GH₵1.00"
+        "Minimum airtime amount is 0.50"
       );
     }
 
     state.amount = amount;
+    state.totalAmount = amount; // Set total amount for payment
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log amount input
     await this.logInteraction(req, state, 'amount_entered');
 
+    // Show order summary and trigger payment confirmation
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
       "Order Summary",
-      this.formatAirtimeOrderSummary(state)
+      this.formatAirtimeOrderSummary(state) + "\n\n"
     );
   }
 
@@ -116,8 +118,8 @@ export class AirtimeHandler {
     return `Airtime Order Summary:\n\n` +
            `Network: ${network}\n` +
            `Mobile: ${mobile}\n` +
-           `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-           `Press 1 to confirm payment`;
+           `Amount: GH${amount?.toFixed(2)}\n\n` +
+           `Press 1. Confirm\n2. Cancel`;
   }
 
   /**

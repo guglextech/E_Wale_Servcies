@@ -122,7 +122,7 @@ export class UtilityService {
   async topUpGhanaWater(ghanaWaterTopUpDto: GhanaWaterTopUpDto): Promise<any> {
     try {
       this.validateGhanaWaterTopUpRequest(ghanaWaterTopUpDto);
-      
+
       this.logger.log(`Processing Ghana Water top-up - Meter: ${ghanaWaterTopUpDto.meterNumber}, Amount: ${ghanaWaterTopUpDto.amount}`);
 
       const endpoint = this.hubtelEndpoints[UtilityProvider.GHANA_WATER];
@@ -177,9 +177,9 @@ export class UtilityService {
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${mobileNumber}`;
 
       const response = await axios.get(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
           'Authorization': `Basic ${this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN')}`
         }
       });
@@ -209,9 +209,9 @@ export class UtilityService {
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}?destination=${meterNumber}`;
 
       const response = await axios.get(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
           'Authorization': `Basic ${this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN')}`
         }
       });

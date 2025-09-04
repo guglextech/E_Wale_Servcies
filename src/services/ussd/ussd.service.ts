@@ -234,9 +234,11 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-      case 'airtime_topup':
       case 'pay_bills':
         return this.handleOrderDetails(req, state);
+      case 'airtime_topup':
+        // For airtime, trigger payment confirmation directly after order summary
+        return await this.handlePaymentConfirmation(req, state);
       case 'utility_service':
         return this.handleUtilityAmountInput(req, state);
       default:
@@ -256,8 +258,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-      case 'airtime_topup':
       case 'pay_bills':
+        return this.releaseSession(req.SessionId);
+      case 'airtime_topup':
+        // Airtime should not reach here - payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       case 'utility_service':
         return this.handleOrderDetails(req, state);
@@ -298,6 +302,7 @@ export class UssdService {
       case 'utility_service':
         return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
+        // Airtime payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
@@ -317,6 +322,9 @@ export class UssdService {
     this.sessionManager.updateSession(req.SessionId, state);
 
     const serviceName = this.paymentProcessor.getServiceName(state);
+    console.log("serviceName", serviceName);
+    console.log("total", total);
+    console.log("req.SessionId", req.SessionId);
     return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
   }
 
@@ -443,6 +451,7 @@ export class UssdService {
   }
 
   private async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
+    console.log("handleBundleMobileNumber", req, state);
     return await this.bundleHandler.handleBundleMobileNumber(req, state);
   }
 
@@ -467,6 +476,7 @@ export class UssdService {
   }
 
   private async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
+    console.log("handleUtilityStep5", req, state);
     return await this.utilityHandler.handleUtilityStep5(req, state);
   }
 
