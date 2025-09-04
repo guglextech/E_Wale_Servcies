@@ -269,7 +269,7 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        return await this.handleOrderDetails(req, state);
+        return await this.handleBundleSelection(req, state);
       case 'pay_bills':
         // For TV bills, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
@@ -462,6 +462,10 @@ export class UssdService {
   }
 
   // Implemented handlers for all services
+  private async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.handleBundleSelection(req, state);
+  }
+
   private async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.bundleHandler.showOrderSummary(req.SessionId, state);
   }
