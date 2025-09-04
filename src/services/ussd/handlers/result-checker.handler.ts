@@ -156,6 +156,9 @@ export class ResultCheckerHandler {
     this.sessionManager.updateSession(req.SessionId, state);
 
     const serviceName = this.paymentProcessor.getServiceName(state);
+    console.log("serviceName", serviceName);
+    console.log("total", total);
+    console.log("req.SessionId", req.SessionId);
     return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
   }
 
