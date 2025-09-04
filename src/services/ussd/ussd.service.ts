@@ -333,9 +333,12 @@ export class UssdService {
     this.sessionManager.updateSession(req.SessionId, state);
 
     const serviceName = this.paymentProcessor.getServiceName(state);
-    console.log("serviceName", serviceName);
-    console.log("total", total);
-    console.log("req.SessionId", req.SessionId);
+    console.log("Payment Confirmation - ServiceName:", serviceName);
+    console.log("Payment Confirmation - Total:", total);
+    console.log("Payment Confirmation - Amount:", state.amount);
+    console.log("Payment Confirmation - SessionId:", req.SessionId);
+    console.log("Payment Confirmation - State:", state);
+    
     return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
   }
 

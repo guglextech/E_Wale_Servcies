@@ -113,6 +113,7 @@ export class TVBillsHandler {
     }
 
     state.amount = amount;
+    state.totalAmount = amount; // Set totalAmount for payment processing
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log amount input
@@ -159,11 +160,16 @@ export class TVBillsHandler {
     const amount = state.amount;
     const accountInfo = state.accountInfo?.[0];
 
+    // Debug logging
+    console.log('TV Order Summary - Amount:', amount);
+    console.log('TV Order Summary - TotalAmount:', state.totalAmount);
+    console.log('TV Order Summary - State:', state);
+
     return `Bill Payment Summary:\n\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${accountInfo?.Display || 'N/A'}\n` +
-           `Amount: GH${amount?.toFixed(2)}\n\n` +
+           `Amount: GH${amount?.toFixed(2) || '0.00'}\n\n` +
            `1. Confirm\n2. Cancel`;
   }
 
