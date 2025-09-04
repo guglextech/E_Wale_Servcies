@@ -237,15 +237,17 @@ export class UtilityHandler {
     }
 
     state.amount = amount;
+    state.totalAmount = amount; // Set total amount for payment
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log amount input
     await this.logInteraction(req, state, 'amount_entered');
 
+    // Show order summary and trigger payment confirmation
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
-      "Order Summary",
-      this.formatUtilityOrderSummary(state)
+      "Utility Top-Up",
+      this.formatUtilityOrderSummary(state) + "\n\n"
     );
   }
 
@@ -272,20 +274,20 @@ export class UtilityHandler {
 
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
-      return `ECG Top-Up Order Summary:\n\n` +
+      return `ECG Top-Up Summary:\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${meter?.Display}\n` +
              `Customer: ${meter?.Value}\n` +
-             `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-             `Press 1 to confirm payment`;
+             `Amount: GHS${amount?.toFixed(2)}\n\n` +
+             `1. Confirm\n2. Cancel`;
     } else {
       const meter = state.meterInfo?.[0];
-      return `Ghana Water Top-Up Order Summary:\n\n` +
+      return `Ghana Water Top-Up Summary:\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
              `Customer: ${meter?.Display || 'N/A'}\n` +
-             `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-             `Press 1 to confirm payment`;
+             `Amount: GHS${amount?.toFixed(2)}\n\n` +
+             `1. Confirm\n2. Cancel`;
     }
   }
 
