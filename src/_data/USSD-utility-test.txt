@@ -113,11 +113,11 @@
     "Platform": "USSD"
   },
   {
-    "Type": "Response",
+   "Type": "Response",
     "Mobile": "233262195121",
     "SessionId": "water_session_001",
     "ServiceCode": "*714*51",
-    "Message": "233242825109",
+    "Message": "0244060745",
     "Operator": "airtel",
     "Sequence": 4,
     "ClientState": "",
@@ -128,7 +128,7 @@
     "Mobile": "233262195121",
     "SessionId": "water_session_001",
     "ServiceCode": "*714*51",
-    "Message": "091019010006",
+    "Message": "010620621010",
     "Operator": "airtel",
     "Sequence": 5,
     "ClientState": "",
@@ -139,7 +139,7 @@
     "Mobile": "233262195121",
     "SessionId": "water_session_001",
     "ServiceCode": "*714*51",
-    "Message": "any",
+    "Message": "1",
     "Operator": "airtel",
     "Sequence": 6,
     "ClientState": "",
@@ -280,7 +280,7 @@ Step 2: Main Menu - User selects "5" (Utility Service)
 Step 3: Utility Selection - User selects "2" (Ghana Water)
 Step 4: Mobile Input - User enters "233242825109" (Ghana Water-linked mobile)
 Step 5: Meter Input - User enters "091019010006" (meter number)
-Step 6: Account Display - User sees account details and presses any key
+Step 6: Account Display - User sees account details and selects "1" (Confirm)
 Step 7: Email Input - User enters "customer@example.com" (email address)
 Step 8: Amount Input - User enters "25.00" (top-up amount)
 Step 9: Confirmation - User selects "1" (confirm payment)
