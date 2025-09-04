@@ -32,6 +32,7 @@ import { CommissionService } from "../commission.service";
 
 // Import types
 import { SessionState, UssdLogData } from "./types";
+import { UtilityProvider } from "../../models/dto/utility.dto";
 
 @Injectable()
 export class UssdService {
@@ -244,8 +245,8 @@ export class UssdService {
         // For airtime, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
       case 'utility_service':
-        // For utility, trigger payment confirmation directly after order summary
-        return await this.handlePaymentConfirmation(req, state);
+        // For utility, handle email input for Ghana Water or amount input for ECG
+        return await this.handleUtilityStep6(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -269,8 +270,8 @@ export class UssdService {
         // Airtime should not reach here - payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        // Utility should not reach here - payment already triggered in Step 6
-        return this.releaseSession(req.SessionId);
+        // Handle amount input for Ghana Water or confirmation for ECG
+        return await this.handleUtilityStep7(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -290,8 +291,11 @@ export class UssdService {
       case 'data_bundle':
       case 'airtime_topup':
       case 'pay_bills':
-      case 'utility_service':
+        // These services should not reach here - payment already triggered in previous steps
         return this.releaseSession(req.SessionId);
+      case 'utility_service':
+        // Handle confirmation for Ghana Water or end session for ECG
+        return await this.handleUtilityStep8(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -310,7 +314,7 @@ export class UssdService {
         // Airtime payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        // Utility payment already triggered in Step 6
+        // Utility payment already triggered in Step 7 (ECG) or Step 8 (Ghana Water)
         return this.releaseSession(req.SessionId);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
@@ -490,6 +494,103 @@ export class UssdService {
 
   private async handleUtilityAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.utilityHandler.handleUtilityAmountInput(req, state);
+  }
+
+  /**
+   * Handle utility step 6 (email input for Ghana Water or amount input for ECG)
+   */
+  private async handleUtilityStep6(req: HBussdReq, state: SessionState): Promise<string> {
+    if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
+      // For Ghana Water, handle email input
+      return await this.handleGhanaWaterEmailInput(req, state);
+    } else {
+      // For ECG, handle amount input
+      return await this.handleUtilityAmountInput(req, state);
+    }
+  }
+
+  /**
+   * Handle Ghana Water email input
+   */
+  private async handleGhanaWaterEmailInput(req: HBussdReq, state: SessionState): Promise<string> {
+    const email = req.Message.trim();
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please enter a valid email address"
+      );
+    }
+
+    state.email = email;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log email input
+    await this.loggingService.logUssdInteraction({
+      mobileNumber: req.Mobile,
+      sessionId: req.SessionId,
+      sequence: req.Sequence,
+      message: req.Message,
+      serviceType: state.serviceType,
+      utilityProvider: state.utilityProvider,
+      meterNumber: state.meterNumber,
+      status: 'email_entered',
+      userAgent: 'USSD',
+      deviceInfo: 'Mobile USSD',
+      location: 'Ghana'
+    });
+
+    return this.responseBuilder.createDecimalInputResponse(
+      req.SessionId,
+      "Enter Amount",
+      "Enter top-up amount:"
+    );
+  }
+
+  /**
+   * Handle utility step 7 (amount input for Ghana Water or confirmation for ECG)
+   */
+  private async handleUtilityStep7(req: HBussdReq, state: SessionState): Promise<string> {
+    if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
+      // For Ghana Water, handle amount input
+      return await this.handleUtilityAmountInput(req, state);
+    } else {
+      // For ECG, handle confirmation
+      return await this.handleUtilityConfirmation(req, state);
+    }
+  }
+
+  /**
+   * Handle utility step 8 (confirmation for Ghana Water or end session for ECG)
+   */
+  private async handleUtilityStep8(req: HBussdReq, state: SessionState): Promise<string> {
+    if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
+      // For Ghana Water, handle confirmation
+      return await this.handleUtilityConfirmation(req, state);
+    } else {
+      // For ECG, end session (payment already triggered in Step 7)
+      return this.releaseSession(req.SessionId);
+    }
+  }
+
+  /**
+   * Handle utility confirmation
+   */
+  private async handleUtilityConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
+    if (req.Message === "1") {
+      // User confirmed - trigger payment
+      return await this.handlePaymentConfirmation(req, state);
+    } else if (req.Message === "2") {
+      // User cancelled
+      return this.releaseSession(req.SessionId);
+    } else {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select 1 to confirm or 2 to cancel"
+      );
+    }
   }
 
   private async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {

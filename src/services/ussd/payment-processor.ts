@@ -84,7 +84,7 @@ export class PaymentProcessor {
             utilityProvider: sessionState.utilityProvider,
             destination: sessionState.mobile,
             extraData: {
-              meterNumber: sessionState.meterNumber
+              meterNumber: sessionState.selectedMeter?.Value || sessionState.meterNumber
             }
           };
         } else if (sessionState.utilityProvider === UtilityProvider.GHANA_WATER) {
@@ -95,8 +95,8 @@ export class PaymentProcessor {
             destination: sessionState.meterNumber,
             extraData: {
               meterNumber: sessionState.meterNumber,
-              email: sessionState.email,
-              sessionId: sessionId
+              email: sessionState.email || 'customer@example.com', // Default email if not provided
+              sessionId: sessionState.sessionId || sessionId // Use sessionId from query or fallback to USSD sessionId
             }
           };
         }
@@ -121,6 +121,10 @@ export class PaymentProcessor {
     
     if (sessionState.tvProvider) {
       return sessionState.tvProvider;
+    }
+    
+    if (sessionState.utilityProvider) {
+      return `${sessionState.utilityProvider} Top-Up`;
     }
     
     return "Airtime Top-Up";

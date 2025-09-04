@@ -150,10 +150,20 @@ export class UtilityHandler {
       );
     }
 
+    // Validate mobile number is available
+    if (!state.mobile) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Mobile number not found. Please restart the session."
+      );
+    }
+
+    console.log(`Ghana Water Query - Meter: ${req.Message}, Mobile: ${state.mobile}`);
+
     // Query Ghana Water account
     const accountResponse: UtilityQueryResponse = await this.utilityService.queryGhanaWaterAccount({
       meterNumber: req.Message,
-      mobileNumber: state.mobile || ''
+      mobileNumber: state.mobile
     });
 
     if (accountResponse.ResponseCode !== '0000') {
@@ -166,15 +176,27 @@ export class UtilityHandler {
     // Store account info in session
     state.meterNumber = req.Message;
     state.meterInfo = accountResponse.Data;
+    
+    // Extract SessionId from the query response
+    const sessionIdData = accountResponse.Data?.find(item => item.Display === 'sessionId');
+    if (sessionIdData) {
+      state.sessionId = sessionIdData.Value;
+      console.log(`Extracted SessionId: ${state.sessionId}`);
+    } else {
+      console.log('No SessionId found in response data');
+    }
+    
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log Ghana Water query
     await this.logInteraction(req, state, 'ghana_water_queried');
 
-    return this.responseBuilder.createDecimalInputResponse(
+    return this.responseBuilder.createResponse(
       req.SessionId,
-      "Enter Amount",
-      "Enter top-up amount:"
+      "Enter Email",
+      "Enter your email address for Ghana Water top-up:",
+      "input",
+      "text"
     );
   }
 
@@ -204,6 +226,7 @@ export class UtilityHandler {
     }
 
     state.selectedMeter = meters[selectedIndex];
+    state.meterNumber = meters[selectedIndex].Value; // Set meter number for payment processing
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log meter selection
