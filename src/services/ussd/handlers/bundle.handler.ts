@@ -229,70 +229,91 @@ export class BundleHandler {
    * Handle bundle selection with pagination
    */
   async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    const groups = state.bundleGroups || [];
-    const currentGroup = groups[state.currentGroupIndex];
-    
-    if (!currentGroup) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "No bundles available in this category"
-      );
-    }
-
-    const bundles = currentGroup.bundles;
-    const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
-    const endIndex = startIndex + this.BUNDLES_PER_PAGE;
-    const pageBundles = bundles.slice(startIndex, endIndex);
-
-    const selectedIndex = parseInt(req.Message) - 1;
-
-    if (req.Message === "0") {
-      // Next page
-      if (endIndex < bundles.length) {
-        state.currentBundlePage++;
-        this.sessionManager.updateSession(req.SessionId, state);
-        return this.showBundlePage(req.SessionId, state);
-      } else {
+    try {
+      const groups = state.bundleGroups || [];
+      const currentGroup = groups[state.currentGroupIndex];
+      
+      if (!currentGroup) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
-          "No more bundles to show"
+          "No bundles available in this category"
         );
       }
-    } else if (req.Message === "00") {
-      // Previous page
-      if (state.currentBundlePage > 0) {
-        state.currentBundlePage--;
+
+      const bundles = currentGroup.bundles;
+      const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
+      const endIndex = startIndex + this.BUNDLES_PER_PAGE;
+      const pageBundles = bundles.slice(startIndex, endIndex);
+
+      const selectedIndex = parseInt(req.Message) - 1;
+
+      if (req.Message === "0") {
+        // Next page
+        if (endIndex < bundles.length) {
+          state.currentBundlePage++;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return this.showBundlePage(req.SessionId, state);
+        } else {
+          return this.responseBuilder.createErrorResponse(
+            req.SessionId,
+            "No more bundles to show"
+          );
+        }
+      } else if (req.Message === "00") {
+        // Previous page
+        if (state.currentBundlePage > 0) {
+          state.currentBundlePage--;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return this.showBundlePage(req.SessionId, state);
+        } else {
+          return this.responseBuilder.createErrorResponse(
+            req.SessionId,
+            "Already on first page"
+          );
+        }
+      } else if (req.Message === "99") {
+        // Back to categories
+        state.currentGroupIndex = 0;
+        state.currentBundlePage = 0;
         this.sessionManager.updateSession(req.SessionId, state);
-        return this.showBundlePage(req.SessionId, state);
-      } else {
+        return this.formatBundleCategories(req.SessionId, state);
+      }
+
+      if (selectedIndex < 0 || selectedIndex >= pageBundles.length) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
-          "Already on first page"
+          "Please select a valid bundle option"
         );
       }
-    } else if (req.Message === "99") {
-      // Back to categories
-      state.currentGroupIndex = 0;
-      state.currentBundlePage = 0;
+
+      // Set the selected bundle and amount
+      const selectedBundle = pageBundles[selectedIndex];
+      state.selectedBundle = selectedBundle;
+      state.bundleValue = selectedBundle.Value;
+      state.amount = selectedBundle.Amount;
+      state.totalAmount = selectedBundle.Amount;
+      
+      console.log('Selected bundle:', selectedBundle);
+      console.log('Updated state:', {
+        selectedBundle: state.selectedBundle,
+        bundleValue: state.bundleValue,
+        amount: state.amount,
+        totalAmount: state.totalAmount
+      });
+      
       this.sessionManager.updateSession(req.SessionId, state);
-      return this.formatBundleCategories(req.SessionId, state);
-    }
 
-    if (selectedIndex < 0 || selectedIndex >= pageBundles.length) {
+      // Log bundle selection
+      await this.logInteraction(req, state, 'bundle_selected');
+
+      return this.showOrderSummary(req.SessionId, state);
+    } catch (error) {
+      console.error('Error in handleBundleSelection:', error);
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "Please select a valid bundle option"
+        "An error occurred while selecting bundle. Please try again."
       );
     }
-
-    state.selectedBundle = pageBundles[selectedIndex];
-    state.bundleValue = pageBundles[selectedIndex].Value;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log bundle selection
-    await this.logInteraction(req, state, 'bundle_selected');
-
-    return this.showOrderSummary(req.SessionId, state);
   }
 
   /**
@@ -475,18 +496,31 @@ export class BundleHandler {
     const network = state.network;
     const flow = state.flow;
 
+    console.log('Formatting order summary with state:', {
+      selectedBundle: bundle,
+      mobile: mobile,
+      network: network,
+      flow: flow,
+      amount: state.amount,
+      totalAmount: state.totalAmount
+    });
+
     let summary = `Bundle Order Summary:\n\n`;
-    summary += `Network: ${network}\n`;
-    summary += `Bundle: ${bundle?.Display}\n`;
+    summary += `Network: ${network || 'N/A'}\n`;
+    summary += `Bundle: ${bundle?.Display || 'N/A'}\n`;
     
     if (flow === 'self') {
-      summary += `Mobile: ${mobile} (Self)\n`;
+      summary += `Mobile: ${mobile || 'N/A'} (Self)\n`;
     } else {
-      summary += `Mobile: ${mobile} (Other)\n`;
+      summary += `Mobile: ${mobile || 'N/A'} (Other)\n`;
     }
     
-    summary += `Amount: GH${bundle?.Amount}\n\n`;
+    // Use amount from state if bundle amount is not available
+    const amount = bundle?.Amount || state.amount || 'N/A';
+    summary += `Amount: GH${amount}\n\n`;
     summary += `1. Confirm\n2. Cancel`;
+
+    console.log('Generated summary:', summary);
 
     return summary;
   }
