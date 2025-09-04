@@ -219,7 +219,7 @@ export class UssdService {
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
       case 'pay_bills':
-        return this.handleTVAmountInput(req, state);
+        return this.handleTVAccountDisplay(req, state);
       case 'utility_service':
         return await this.handleUtilityStep5(req, state);
       default:
@@ -239,7 +239,9 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
+        return this.handleOrderDetails(req, state);
       case 'pay_bills':
+        // For TV bills, show order summary then trigger payment confirmation
         return this.handleOrderDetails(req, state);
       case 'airtime_topup':
         // For airtime, trigger payment confirmation directly after order summary
@@ -264,8 +266,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-      case 'pay_bills':
         return this.releaseSession(req.SessionId);
+      case 'pay_bills':
+        // For TV bills, trigger payment confirmation after order summary
+        return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         // Airtime should not reach here - payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
@@ -308,7 +312,6 @@ export class UssdService {
     switch (state.serviceType) {
       case 'result_checker':
       case 'data_bundle':
-      case 'pay_bills':
         return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         // Airtime payment already triggered in Step 6
@@ -481,6 +484,14 @@ export class UssdService {
 
   private async handleTVAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.tvBillsHandler.handleTVAmountInput(req, state);
+  }
+
+  /**
+   * Handle TV account display
+   */
+  private async handleTVAccountDisplay(req: HBussdReq, state: SessionState): Promise<string> {
+    // After account display, proceed to amount input
+    return await this.handleTVAmountInput(req, state);
   }
 
   private async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {

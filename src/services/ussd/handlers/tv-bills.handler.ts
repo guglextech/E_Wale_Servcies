@@ -73,10 +73,15 @@ export class TVBillsHandler {
       // Log account query
       await this.logInteraction(req, state, 'account_queried');
 
-      return this.responseBuilder.createDecimalInputResponse(
+      // Display account information before proceeding
+      const accountDisplay = this.formatTVAccountInfo(accountInfo);
+      
+      return this.responseBuilder.createResponse(
         req.SessionId,
-        "Enter Amount",
-        "Enter bill payment amount:"
+        "Account Found",
+        accountDisplay + "\n\nEnter subscription amount to continue...",
+        "input",
+        "text"
       );
     } catch (error) {
       console.error("Error querying TV account:", error);
@@ -113,11 +118,40 @@ export class TVBillsHandler {
     // Log amount input
     await this.logInteraction(req, state, 'amount_entered');
 
-    return this.responseBuilder.createDisplayResponse(
+    // Return simple response - order summary will be handled by USSD service
+    return this.responseBuilder.createResponse(
       req.SessionId,
-      "Order Summary",
-      this.formatTVOrderSummary(state)
+      "Amount Entered",
+      "Amount received. Processing...",
+      "input",
+      "text"
     );
+  }
+
+  /**
+   * Format TV account information
+   */
+  private formatTVAccountInfo(accountInfo: any): string {
+    const nameData = accountInfo.Data?.find(item => item.Display === 'name');
+    const amountDueData = accountInfo.Data?.find(item => item.Display === 'amountDue');
+    const accountData = accountInfo.Data?.find(item => item.Display === 'account');
+    
+    let info = "Account Details:\n";
+    info += `Customer: ${nameData?.Value || 'N/A'}\n`;
+    info += `Account: ${accountData?.Value || 'N/A'}\n`;
+    
+    if (amountDueData) {
+      const amount = parseFloat(amountDueData.Value);
+      if (amount > 0) {
+        info += `Amount Due: GHS${amount.toFixed(2)}\n`;
+      } else if (amount < 0) {
+        info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
+      } else {
+        info += `Balance: GHS0.00\n`;
+      }
+    }
+    
+    return info;
   }
 
   /**
@@ -129,12 +163,12 @@ export class TVBillsHandler {
     const amount = state.amount;
     const accountInfo = state.accountInfo?.[0];
 
-    return `TV Bill Order Summary:\n\n` +
+    return `Bill Payment Summary:\n\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${accountInfo?.Display || 'N/A'}\n` +
-           `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-           `Press 1 to confirm payment`;
+           `Amount: GH${amount?.toFixed(2)}\n\n` +
+           `1. Confirm\n2. Cancel`;
   }
 
   /**
