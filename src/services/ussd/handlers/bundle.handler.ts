@@ -156,12 +156,12 @@ export class BundleHandler {
     const mobile = state.mobile;
     const network = state.network;
 
-    return `Bundle Order Summary:\n\n` +
+    return `Bundle Summary:\n\n` +
            `Network: ${network}\n` +
            `Bundle: ${bundle?.Display}\n` +
            `Mobile: ${mobile}\n` +
            `Amount: GH${bundle?.Amount}\n\n` +
-           `Press 1 to confirm payment`;
+           `1. Confirm\n2. Cancel`;
   }
 
   /**

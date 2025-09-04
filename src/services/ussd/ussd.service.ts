@@ -68,6 +68,10 @@ export class UssdService {
    */
   async handleUssdRequest(req: HBussdReq): Promise<string> {
     try {
+      if (!req.Type) {
+        return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid request type');
+      }
+      
       switch (req.Type.toLowerCase()) {
         case HbEnums.INITIATION:
           return await this.handleInitiation(req);

@@ -62,8 +62,8 @@ export class UtilityService {
 
   // Hubtel Commission Service endpoints for different utility providers
   private readonly hubtelEndpoints: HubtelEndpoints = {
-    [UtilityProvider.ECG]: 'b230733cd56b4a0fad820e39f66bc27c',
-    [UtilityProvider.GHANA_WATER]: 'fa27127ba039455da04a2ac8a1613e00'
+    [UtilityProvider.ECG]: 'e6d6bac062b5499cb1ece1ac3d742a84',
+    [UtilityProvider.GHANA_WATER]: '6c1e8a82d2e84feeb8bfd6be2790d71d'
   };
 
   // ==================== PUBLIC METHODS ====================

@@ -39,7 +39,7 @@
     "Mobile": "233550982043",
     "SessionId": "3c796dac28174f739de4262d08409c51",
     "ServiceCode": "*714*69#",
-    "Message": "0550982043",  
+    "Message": "0550982046",  
     "Operator": "MTN",
     "Sequence": 4,
     "ClientState": "",
