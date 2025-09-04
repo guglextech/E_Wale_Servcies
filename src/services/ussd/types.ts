@@ -17,7 +17,9 @@ export interface SessionState {
   amount?: number;
   // Bundle specific fields
   bundles?: BundleOption[];
+  bundleGroups?: Array<{ name: string; bundles: BundleOption[] }>;
   currentBundlePage?: number;
+  currentGroupIndex?: number;
   selectedBundle?: BundleOption;
   bundleValue?: string;
   // TV Bills specific fields
