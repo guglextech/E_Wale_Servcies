@@ -129,13 +129,14 @@ Step 3: TV Provider Selection - User selects "1" (DSTV)
 Step 4: Account Input - User enters "8218010085" (account number)
 Step 5: Account Display - User sees account details and presses any key
 Step 6: Amount Input - User enters "190.00" (payment amount)
-Step 7: Confirmation - User selects "1" (confirm payment)
+Step 7: Order Summary - User sees payment summary and confirms
 
 ==================== TESTING NOTES ====================
 - Use different SessionId for each test to avoid conflicts
-- DSTV flow: 7 steps total (includes account display)
+- DSTV flow: 7 steps total (includes account display and order summary)
 - Payment callbacks include all necessary data for commission service processing
 - ExtraData contains TV-specific information needed for bill processing
+- Order summary appears only once before payment confirmation
 
 ==================== POSTMAN TESTING ====================
 1. Send each request sequentially to your USSD endpoint

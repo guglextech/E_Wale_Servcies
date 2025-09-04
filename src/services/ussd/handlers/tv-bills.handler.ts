@@ -118,10 +118,13 @@ export class TVBillsHandler {
     // Log amount input
     await this.logInteraction(req, state, 'amount_entered');
 
-    return this.responseBuilder.createDisplayResponse(
+    // Return simple response - order summary will be handled by USSD service
+    return this.responseBuilder.createResponse(
       req.SessionId,
-      "Order Summary",
-      this.formatTVOrderSummary(state)
+      "Amount Entered",
+      "Amount received. Processing...",
+      "input",
+      "text"
     );
   }
 

@@ -239,7 +239,9 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
+        return this.handleOrderDetails(req, state);
       case 'pay_bills':
+        // For TV bills, show order summary then trigger payment confirmation
         return this.handleOrderDetails(req, state);
       case 'airtime_topup':
         // For airtime, trigger payment confirmation directly after order summary
@@ -264,8 +266,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-      case 'pay_bills':
         return this.releaseSession(req.SessionId);
+      case 'pay_bills':
+        // For TV bills, trigger payment confirmation after order summary
+        return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         // Airtime should not reach here - payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
@@ -308,7 +312,6 @@ export class UssdService {
     switch (state.serviceType) {
       case 'result_checker':
       case 'data_bundle':
-      case 'pay_bills':
         return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         // Airtime payment already triggered in Step 6
