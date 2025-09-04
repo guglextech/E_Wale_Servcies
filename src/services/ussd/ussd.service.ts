@@ -294,7 +294,17 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        return this.handleOrderDetails(req, state);
+        // Handle order summary confirmation (1 for confirm, 2 for cancel)
+        if (req.Message === "1") {
+          return await this.handlePaymentConfirmation(req, state);
+        } else if (req.Message === "2") {
+          return this.releaseSession(req.SessionId);
+        } else {
+          return this.responseBuilder.createErrorResponse(
+            req.SessionId,
+            "Please select 1 to confirm or 2 to cancel"
+          );
+        }
       case 'airtime_topup':
       case 'pay_bills':
         return this.releaseSession(req.SessionId);
@@ -311,8 +321,10 @@ export class UssdService {
   private async handleStep9(req: HBussdReq, state: SessionState): Promise<string> {
     switch (state.serviceType) {
       case 'result_checker':
-      case 'data_bundle':
         return await this.handlePaymentConfirmation(req, state);
+      case 'data_bundle':
+        // Payment confirmation already handled in step 8
+        return this.releaseSession(req.SessionId);
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
       case 'utility_service':
