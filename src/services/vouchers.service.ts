@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Voucher } from '../models/schemas/voucher.schema';
 import { AssignVoucherDto, PurchaseVoucherDto, VoucherResponseDto } from '../models/dto/voucher.dto';
-import { sendVoucherSms } from '../utils/sendSMS';
+// import { sendVoucherSms } from '../utils/sendSMS';
 
 @Injectable()
 export class VouchersService {

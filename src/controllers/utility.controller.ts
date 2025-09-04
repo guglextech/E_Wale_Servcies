@@ -46,55 +46,14 @@ export class UtilityController {
     }
   }
 
-  @Post('ecg/payment-request')
-  async createECGTopUpPaymentRequest(@Body() ecgTopUpDto: ECGTopUpDto) {
-    try {
-      const result = await this.utilityService.createECGTopUpPaymentRequest(ecgTopUpDto);
-      return {
-        success: true,
-        data: result,
-        message: 'Payment request created successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to create payment request',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('ghana-water/payment-request')
-  async createGhanaWaterTopUpPaymentRequest(@Body() ghanaWaterTopUpDto: GhanaWaterTopUpDto) {
-    try {
-      const result = await this.utilityService.createGhanaWaterTopUpPaymentRequest(ghanaWaterTopUpDto);
-      return {
-        success: true,
-        data: result,
-        message: 'Payment request created successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to create payment request',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
   @Post('ecg/topup')
   async topUpECG(@Body() ecgTopUpDto: ECGTopUpDto) {
     try {
-      // This now redirects to payment flow for backward compatibility
       const result = await this.utilityService.topUpECG(ecgTopUpDto);
       return {
         success: true,
         data: result,
-        message: 'Payment request created successfully'
+        message: 'ECG top-up processed successfully'
       };
     } catch (error) {
       throw new HttpException(
@@ -110,12 +69,11 @@ export class UtilityController {
   @Post('ghana-water/topup')
   async topUpGhanaWater(@Body() ghanaWaterTopUpDto: GhanaWaterTopUpDto) {
     try {
-      // This now redirects to payment flow for backward compatibility
       const result = await this.utilityService.topUpGhanaWater(ghanaWaterTopUpDto);
       return {
         success: true,
         data: result,
-        message: 'Payment request created successfully'
+        message: 'Ghana Water top-up processed successfully'
       };
     } catch (error) {
       throw new HttpException(
@@ -128,57 +86,19 @@ export class UtilityController {
     }
   }
 
-  @Post('payment-callback')
-  async handlePaymentCallback(@Body() callbackData: any) {
+  @Post('callback')
+  async handleCallback(@Body() callbackData: any) {
     try {
-      await this.utilityService.handlePaymentCallback(callbackData);
+      await this.utilityService.handleUtilityCallback(callbackData);
       return {
         success: true,
-        message: 'Payment callback processed successfully'
+        message: 'Callback processed successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to process payment callback',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('ecg/callback')
-  async handleECGCallback(@Body() callbackData: any) {
-    try {
-      await this.utilityService.handleECGCallback(callbackData);
-      return {
-        success: true,
-        message: 'ECG callback processed successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process ECG callback',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('ghana-water/callback')
-  async handleGhanaWaterCallback(@Body() callbackData: any) {
-    try {
-      await this.utilityService.handleGhanaWaterCallback(callbackData);
-      return {
-        success: true,
-        message: 'Ghana Water callback processed successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process Ghana Water callback',
+          message: error.message || 'Failed to process callback',
         },
         HttpStatus.BAD_REQUEST
       );

@@ -15,6 +15,11 @@ import { UssdLoggingService } from "./logging.service";
 import { PaymentProcessor } from "./payment-processor";
 import { MenuHandler } from "./menu-handler";
 import { ResultCheckerHandler } from "./handlers/result-checker.handler";
+import { BundleHandler } from "./handlers/bundle.handler";
+import { AirtimeHandler } from "./handlers/airtime.handler";
+import { TVBillsHandler } from "./handlers/tv-bills.handler";
+import { UtilityHandler } from "./handlers/utility.handler";
+import { OrderDetailsHandler } from "./handlers/order-details.handler";
 
 // Import business services
 import { VouchersService } from "../vouchers.service";
@@ -42,6 +47,11 @@ export class UssdService {
     private readonly paymentProcessor: PaymentProcessor,
     private readonly menuHandler: MenuHandler,
     private readonly resultCheckerHandler: ResultCheckerHandler,
+    private readonly bundleHandler: BundleHandler,
+    private readonly airtimeHandler: AirtimeHandler,
+    private readonly tvBillsHandler: TVBillsHandler,
+    private readonly utilityHandler: UtilityHandler,
+    private readonly orderDetailsHandler: OrderDetailsHandler,
     
     // Business services
     private readonly vouchersService: VouchersService,
@@ -427,55 +437,45 @@ export class UssdService {
     }
   }
 
-  // Placeholder methods for other services - these would be implemented in separate handlers
+  // Implemented handlers for all services
   private async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    // TODO: Implement bundle selection logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Bundle selection not implemented');
+    return await this.bundleHandler.handleBundleSelection(req, state);
   }
 
-  private handleBundleMobileNumber(req: HBussdReq, state: SessionState): string {
-    // TODO: Implement bundle mobile number logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Bundle mobile number not implemented');
+  private async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.handleBundleMobileNumber(req, state);
   }
 
-  private handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): string {
-    // TODO: Implement airtime mobile number logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Airtime mobile number not implemented');
+  private async handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.airtimeHandler.handleAirtimeMobileNumber(req, state);
   }
 
-  private handleAmountInput(req: HBussdReq, state: SessionState): string {
-    // TODO: Implement amount input logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Amount input not implemented');
+  private async handleAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.airtimeHandler.handleAmountInput(req, state);
   }
 
   private async handleTVAccountQuery(req: HBussdReq, state: SessionState): Promise<string> {
-    // TODO: Implement TV account query logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'TV account query not implemented');
+    return await this.tvBillsHandler.handleTVAccountQuery(req, state);
   }
 
-  private handleTVAmountInput(req: HBussdReq, state: SessionState): string {
-    // TODO: Implement TV amount input logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'TV amount input not implemented');
+  private async handleTVAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.tvBillsHandler.handleTVAmountInput(req, state);
   }
 
   private async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
-    // TODO: Implement utility query logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Utility query not implemented');
+    return await this.utilityHandler.handleUtilityQuery(req, state);
   }
 
   private async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
-    // TODO: Implement utility step 5 logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Utility step 5 not implemented');
+    return await this.utilityHandler.handleUtilityStep5(req, state);
   }
 
-  private handleUtilityAmountInput(req: HBussdReq, state: SessionState): string {
-    // TODO: Implement utility amount input logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Utility amount input not implemented');
+  private async handleUtilityAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.utilityHandler.handleUtilityAmountInput(req, state);
   }
 
-  private handleOrderDetails(req: HBussdReq, state: SessionState): string {
-    // TODO: Implement order details logic
-    return this.responseBuilder.createErrorResponse(req.SessionId, 'Order details not implemented');
+  private async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.orderDetailsHandler.handleOrderDetails(req, state);
   }
 
   /**

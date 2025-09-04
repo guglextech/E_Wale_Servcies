@@ -26,60 +26,20 @@ export class BundleController {
     }
   }
 
-  @Post('payment-request')
-  async createBundlePaymentRequest(@Body() bundleDto: BundlePurchaseDto) {
+  @Post('deliver')
+  async deliverBundle(@Body() bundleDto: BundlePurchaseDto) {
     try {
-      const result = await this.bundleService.createBundlePaymentRequest(bundleDto);
+      const result = await this.bundleService.deliverBundle(bundleDto);
       return {
         success: true,
         data: result,
-        message: 'Payment request created successfully'
+        message: 'Bundle delivery initiated successfully'
       };
     } catch (error) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to create payment request',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('purchase')
-  async purchaseBundle(@Body() bundleDto: BundlePurchaseDto) {
-    try {
-      // This now redirects to payment flow for backward compatibility
-      const result = await this.bundleService.purchaseBundle(bundleDto);
-      return {
-        success: true,
-        data: result,
-        message: 'Payment request created successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process bundle purchase',
-        },
-        HttpStatus.BAD_REQUEST
-      );
-    }
-  }
-
-  @Post('payment-callback')
-  async handlePaymentCallback(@Body() callbackData: any) {
-    try {
-      await this.bundleService.handlePaymentCallback(callbackData);
-      return {
-        success: true,
-        message: 'Payment callback processed successfully'
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          success: false,
-          message: error.message || 'Failed to process payment callback',
+          message: error.message || 'Failed to deliver bundle',
         },
         HttpStatus.BAD_REQUEST
       );

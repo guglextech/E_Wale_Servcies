@@ -50,6 +50,11 @@ import { UssdLoggingService } from "./services/ussd/logging.service";
 import { PaymentProcessor } from "./services/ussd/payment-processor";
 import { MenuHandler } from "./services/ussd/menu-handler";
 import { ResultCheckerHandler } from "./services/ussd/handlers/result-checker.handler";
+import { BundleHandler } from "./services/ussd/handlers/bundle.handler";
+import { AirtimeHandler } from "./services/ussd/handlers/airtime.handler";
+import { TVBillsHandler } from "./services/ussd/handlers/tv-bills.handler";
+import { UtilityHandler } from "./services/ussd/handlers/utility.handler";
+import { OrderDetailsHandler } from "./services/ussd/handlers/order-details.handler";
 
 @Module({
   imports: [
@@ -114,6 +119,11 @@ import { ResultCheckerHandler } from "./services/ussd/handlers/result-checker.ha
     PaymentProcessor,
     MenuHandler,
     ResultCheckerHandler,
+    BundleHandler,
+    AirtimeHandler,
+    TVBillsHandler,
+    UtilityHandler,
+    OrderDetailsHandler,
     // {
     //   provide: APP_GUARD,
     //   useClass: AuthGuards,

@@ -28,6 +28,7 @@ export interface SessionState {
   utilityProvider?: UtilityProvider;
   meterNumber?: string;
   meterInfo?: UtilityMeterInfo[];
+  selectedMeter?: UtilityMeterInfo;
   email?: string;
   sessionId?: string;
 }
