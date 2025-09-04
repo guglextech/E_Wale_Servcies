@@ -55,11 +55,6 @@ export class UssdService {
     private readonly orderDetailsHandler: OrderDetailsHandler,
     
     // Business services
-    private readonly vouchersService: VouchersService,
-    private readonly airtimeService: AirtimeService,
-    private readonly bundleService: BundleService,
-    private readonly tvBillsService: TVBillsService,
-    private readonly utilityService: UtilityService,
     private readonly transactionStatusService: TransactionStatusService,
     private readonly commissionService: CommissionService,
   ) {}
@@ -191,7 +186,7 @@ export class UssdService {
       case 'result_checker':
         return this.resultCheckerHandler.handleBuyerType(req, state);
       case 'data_bundle':
-        return await this.handleBundleSelection(req, state);
+        return await this.handleBundleCategorySelection(req, state);
       case 'airtime_topup':
         return this.handleAirtimeMobileNumber(req, state);
       case 'pay_bills':
@@ -215,7 +210,7 @@ export class UssdService {
           return this.resultCheckerHandler.handleMobileNumber(req, state);
         }
       case 'data_bundle':
-        return this.handleBundleMobileNumber(req, state);
+        return await this.handleBundleSelection(req, state);
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
       case 'pay_bills':
@@ -239,7 +234,7 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        return this.handleOrderDetails(req, state);
+        return await this.handlePurchaseTypeSelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
         return this.handleTVAmountInput(req, state);
@@ -266,7 +261,7 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        return this.releaseSession(req.SessionId);
+        return this.handleBundleMobileNumber(req, state);
       case 'pay_bills':
         // For TV bills, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
@@ -291,6 +286,7 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        return this.handleOrderDetails(req, state);
       case 'airtime_topup':
       case 'pay_bills':
         return this.releaseSession(req.SessionId);
@@ -460,6 +456,14 @@ export class UssdService {
   // Implemented handlers for all services
   private async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.bundleHandler.handleBundleSelection(req, state);
+  }
+
+  private async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.handleBundleCategorySelection(req, state);
+  }
+
+  private async handlePurchaseTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.handlePurchaseTypeSelection(req, state);
   }
 
   private async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
