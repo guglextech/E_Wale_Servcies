@@ -42,26 +42,26 @@ export class UtilityHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter mobile number linked to ECG meter (e.g., 0550982034):"
+        "Enter mobile number linked to ECG meter"
       );
     } else {
-      return this.responseBuilder.createNumberInputResponse(
+      return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
-        "Enter Meter Number",
-        "Enter Ghana Water meter number:"
+        "Enter Mobile Number",
+        "Enter mobile number linked to Ghana Water meter"
       );
     }
   }
 
   /**
-   * Handle utility query (ECG mobile number or Ghana Water meter number)
+   * Handle utility query (ECG mobile number or Ghana Water mobile number)
    */
   async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
     try {
       if (state.utilityProvider === UtilityProvider.ECG) {
         return await this.handleECGQuery(req, state);
       } else {
-        return await this.handleGhanaWaterQuery(req, state);
+        return await this.handleGhanaWaterMobileInput(req, state);
       }
     } catch (error) {
       console.error("Error querying utility:", error);
@@ -113,6 +113,33 @@ export class UtilityHandler {
   }
 
   /**
+   * Handle Ghana Water mobile number input
+   */
+  private async handleGhanaWaterMobileInput(req: HBussdReq, state: SessionState): Promise<string> {
+    const validation = this.validateMobileNumber(req.Message);
+    
+    if (!validation.isValid) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        validation.error || "Invalid mobile number format"
+      );
+    }
+
+    // Store mobile number in session
+    state.mobile = validation.convertedNumber;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log mobile number input
+    await this.logInteraction(req, state, 'ghana_water_mobile_entered');
+
+    return this.responseBuilder.createNumberInputResponse(
+      req.SessionId,
+      "Enter Meter Number",
+      "Enter Ghana Water meter number:"
+    );
+  }
+
+  /**
    * Handle Ghana Water query
    */
   private async handleGhanaWaterQuery(req: HBussdReq, state: SessionState): Promise<string> {
@@ -152,13 +179,13 @@ export class UtilityHandler {
   }
 
   /**
-   * Handle utility step 5 (meter selection for ECG or amount for Ghana Water)
+   * Handle utility step 5 (meter selection for ECG or meter number for Ghana Water)
    */
   async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.ECG) {
       return this.handleECGMeterSelection(req, state);
     } else {
-      return this.handleUtilityAmountInput(req, state);
+      return await this.handleGhanaWaterQuery(req, state);
     }
   }
 
