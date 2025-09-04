@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 5;
+  private readonly BUNDLES_PER_PAGE = 4;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -28,26 +28,40 @@ export class BundleHandler {
    * Handle network selection for bundle service
    */
   async handleNetworkSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (!["1", "2", "3"].includes(req.Message)) {
+    try {
+      console.log(`Bundle network selection - Message: ${req.Message}, Mobile: ${req.Mobile}`);
+      
+      if (!["1", "2", "3"].includes(req.Message)) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Please select 1, 2, or 3"
+        );
+      }
+
+      const networkMap = {
+        "1": NetworkProvider.MTN,
+        "2": NetworkProvider.TELECEL,
+        "3": NetworkProvider.AT
+      };
+
+      state.network = networkMap[req.Message];
+      // Set the user's mobile number for bundle queries
+      state.mobile = req.Mobile;
+      this.sessionManager.updateSession(req.SessionId, state);
+
+      console.log(`Network selected: ${state.network}, Mobile: ${state.mobile}`);
+
+      // Log network selection
+      await this.logInteraction(req, state, 'network_selected');
+
+      return this.showBundleCategories(req.SessionId, state);
+    } catch (error) {
+      console.error('Error in handleNetworkSelection:', error);
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "Please select 1, 2, or 3"
+        "An error occurred while processing your selection. Please try again."
       );
     }
-
-    const networkMap = {
-      "1": NetworkProvider.MTN,
-      "2": NetworkProvider.TELECEL,
-      "3": NetworkProvider.AT
-    };
-
-    state.network = networkMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log network selection
-    await this.logInteraction(req, state, 'network_selected');
-
-    return this.showBundleCategories(req.SessionId, state);
   }
 
   /**
@@ -55,13 +69,29 @@ export class BundleHandler {
    */
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
+      // Use the user's mobile number from the session
+      const destination = state.mobile || '233550982043'; // Fallback for testing
+      
+      console.log(`Querying bundles for network: ${state.network}, destination: ${destination}`);
+      
+      if (!state.network) {
+        console.error('Network not set in session state');
+        return this.responseBuilder.createErrorResponse(
+          sessionId,
+          "Network not selected. Please try again."
+        );
+      }
+      
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile || '233550123456', // Use default for query
+        destination: destination,
         network: state.network,
         bundleType: 'data'
       });
 
+      console.log(`Bundle response:`, bundleResponse);
+
       if (!bundleResponse || !bundleResponse.Data || bundleResponse.Data.length === 0) {
+        console.log('No bundles available for network:', state.network);
         return this.responseBuilder.createErrorResponse(
           sessionId,
           "No bundles available for this network. Please try another network."
@@ -70,6 +100,8 @@ export class BundleHandler {
 
       // Group bundles by category
       const groupedBundles = this.groupBundlesByCategory(bundleResponse.Data);
+      
+      console.log(`Grouped bundles:`, groupedBundles);
       
       // Store grouped bundles in session state
       state.bundleGroups = groupedBundles;
@@ -341,18 +373,40 @@ export class BundleHandler {
    * Format bundle categories menu
    */
   private formatBundleCategories(sessionId: string, state: SessionState): string {
-    const groups = state.bundleGroups || [];
-    let menu = "Select Bundle Package:\n\n";
-    
-    groups.forEach((group, index) => {
-      menu += `${index + 1}. ${group.name}\n`;
-    });
+    try {
+      const groups = state.bundleGroups || [];
+      
+      console.log(`Formatting bundle categories for ${groups.length} groups`);
+      
+      if (groups.length === 0) {
+        console.error('No bundle groups available');
+        return this.responseBuilder.createErrorResponse(
+          sessionId,
+          "No bundle packages available. Please try another network."
+        );
+      }
+      
+      let menu = "Select Bundle Package:\n\n";
+      
+      groups.forEach((group, index) => {
+        console.log(`Group ${index + 1}: ${group.name} (${group.bundles.length} bundles)`);
+        menu += `${index + 1}. ${group.name}\n`;
+      });
 
-    return this.responseBuilder.createNumberInputResponse(
-      sessionId,
-      "Bundle Packages",
-      menu
-    );
+      console.log(`Generated menu: ${menu}`);
+
+      return this.responseBuilder.createNumberInputResponse(
+        sessionId,
+        "Bundle Packages",
+        menu
+      );
+    } catch (error) {
+      console.error('Error formatting bundle categories:', error);
+      return this.responseBuilder.createErrorResponse(
+        sessionId,
+        "Error displaying bundle packages. Please try again."
+      );
+    }
   }
 
   /**

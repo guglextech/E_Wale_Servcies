@@ -130,7 +130,7 @@ export class MenuHandler {
    * Handle data bundle service selection
    */
   private handleDataBundleServiceSelection(req: HBussdReq, state: SessionState): string {
-    return this.handleNetworkSelection(req, state, "Please select 1, 2, or 3");
+    return "BUNDLE_SELECTION_REQUIRED";
   }
 
   /**
@@ -230,11 +230,6 @@ export class MenuHandler {
 
     state.network = networkMap[req.Message];
     this.sessionManager.updateSession(req.SessionId, state);
-
-    if (state.serviceType === ServiceType.DATA_BUNDLE) {
-      return "BUNDLE_SELECTION_REQUIRED";
-    }
-
     return "SUCCESS";
   }
 
