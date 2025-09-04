@@ -219,7 +219,7 @@ export class UssdService {
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
       case 'pay_bills':
-        return this.handleTVAmountInput(req, state);
+        return this.handleTVAccountDisplay(req, state);
       case 'utility_service':
         return await this.handleUtilityStep5(req, state);
       default:
@@ -481,6 +481,14 @@ export class UssdService {
 
   private async handleTVAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.tvBillsHandler.handleTVAmountInput(req, state);
+  }
+
+  /**
+   * Handle TV account display
+   */
+  private async handleTVAccountDisplay(req: HBussdReq, state: SessionState): Promise<string> {
+    // After account display, proceed to amount input
+    return await this.handleTVAmountInput(req, state);
   }
 
   private async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {

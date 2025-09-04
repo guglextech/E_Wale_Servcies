@@ -274,7 +274,7 @@ export class UtilityHandler {
       if (amount > 0) {
         info += `Amount Due: GHS -${amount.toFixed(2)}\n`;
       } else if (amount < 0) {
-        info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
+        info += `Credit Balance: GHS-${Math.abs(amount).toFixed(2)}\n`;
       } else {
         info += `Balance: GHS0.00\n`;
       }
