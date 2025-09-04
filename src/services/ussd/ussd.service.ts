@@ -241,8 +241,8 @@ export class UssdService {
       case 'data_bundle':
         return this.handleOrderDetails(req, state);
       case 'pay_bills':
-        // For TV bills, show order summary then trigger payment confirmation
-        return this.handleOrderDetails(req, state);
+        // For TV bills, handle amount input after account confirmation
+        return this.handleTVAmountInput(req, state);
       case 'airtime_topup':
         // For airtime, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
@@ -268,13 +268,10 @@ export class UssdService {
       case 'data_bundle':
         return this.releaseSession(req.SessionId);
       case 'pay_bills':
-        // For TV bills, trigger payment confirmation after order summary
-        return await this.handlePaymentConfirmation(req, state);
+        return this.handleOrderDetails(req, state);
       case 'airtime_topup':
-        // Airtime should not reach here - payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        // Handle amount input for Ghana Water or confirmation for ECG
         return await this.handleUtilityStep7(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
@@ -294,11 +291,10 @@ export class UssdService {
         }
       case 'data_bundle':
       case 'airtime_topup':
-      case 'pay_bills':
-        // These services should not reach here - payment already triggered in previous steps
         return this.releaseSession(req.SessionId);
+      case 'pay_bills':
+        return await this.handlePaymentConfirmation(req, state);
       case 'utility_service':
-        // Handle confirmation for Ghana Water or end session for ECG
         return await this.handleUtilityStep8(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
@@ -490,8 +486,23 @@ export class UssdService {
    * Handle TV account display
    */
   private async handleTVAccountDisplay(req: HBussdReq, state: SessionState): Promise<string> {
-    // After account display, proceed to amount input
-    return await this.handleTVAmountInput(req, state);
+    // Handle confirmation after account display
+    if (req.Message === "1") {
+      // User confirmed - proceed to amount input
+      return this.responseBuilder.createDecimalInputResponse(
+        req.SessionId,
+        "Enter Amount",
+        "Enter subscription amount:"
+      );
+    } else if (req.Message === "2") {
+      // User cancelled
+      return this.releaseSession(req.SessionId);
+    } else {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select 1 to confirm or 2 to cancel"
+      );
+    }
   }
 
   private async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {

@@ -73,16 +73,16 @@ export class TVBillsHandler {
       // Log account query
       await this.logInteraction(req, state, 'account_queried');
 
-      // Display account information before proceeding
-      const accountDisplay = this.formatTVAccountInfo(accountInfo);
-      
-      return this.responseBuilder.createResponse(
-        req.SessionId,
-        "Account Found",
-        accountDisplay + "\n\nEnter subscription amount to continue...",
-        "input",
-        "text"
-      );
+          // Display account information before proceeding
+    const accountDisplay = this.formatTVAccountInfo(accountInfo);
+    
+    return this.responseBuilder.createResponse(
+      req.SessionId,
+      "Account Found",
+      accountDisplay + "\n\n1. Confirm\n2. Cancel",
+      "input",
+      "text"
+    );
     } catch (error) {
       console.error("Error querying TV account:", error);
       return this.responseBuilder.createErrorResponse(
@@ -118,13 +118,11 @@ export class TVBillsHandler {
     // Log amount input
     await this.logInteraction(req, state, 'amount_entered');
 
-    // Return simple response - order summary will be handled by USSD service
-    return this.responseBuilder.createResponse(
+    // Show order summary after amount input
+    return this.responseBuilder.createDisplayResponse(
       req.SessionId,
-      "Amount Entered",
-      "Amount received. Processing...",
-      "input",
-      "text"
+      "Order Summary",
+      this.formatTVOrderSummary(state)
     );
   }
 
@@ -144,10 +142,6 @@ export class TVBillsHandler {
       const amount = parseFloat(amountDueData.Value);
       if (amount > 0) {
         info += `Amount Due: GHS${amount.toFixed(2)}\n`;
-      } else if (amount < 0) {
-        info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
-      } else {
-        info += `Balance: GHS0.00\n`;
       }
     }
     

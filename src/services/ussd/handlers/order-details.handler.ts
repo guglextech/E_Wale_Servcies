@@ -116,12 +116,12 @@ export class OrderDetailsHandler {
     const amount = state.amount;
     const accountInfo = state.accountInfo?.[0];
 
-    return `TV Bill Order Summary:\n\n` +
+    return `Bill Payment Summary:\n\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${accountInfo?.Display || 'N/A'}\n` +
-           `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-           `Press 1 to confirm payment`;
+           `Amount: GH${amount?.toFixed(2)}\n\n` +
+           `1. Confirm\n2. Cancel`;
   }
 
   /**

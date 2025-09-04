@@ -49,7 +49,7 @@
     "Mobile": "233262195121",
     "SessionId": "dstv_session_001",
     "ServiceCode": "*714*51",
-    "Message": "any",
+    "Message": "1",
     "Operator": "airtel",
     "Sequence": 5,
     "ClientState": "",
@@ -127,9 +127,9 @@ Step 1: Initiation - User dials *714*51#
 Step 2: Main Menu - User selects "4" (Pay Bills)
 Step 3: TV Provider Selection - User selects "1" (DSTV)
 Step 4: Account Input - User enters "8218010085" (account number)
-Step 5: Account Display - User sees account details and presses any key
+Step 5: Account Display - User sees account details and selects "1" (Confirm)
 Step 6: Amount Input - User enters "190.00" (payment amount)
-Step 7: Order Summary - User sees payment summary and confirms
+Step 7: Order Summary - User sees payment summary and selects "1" (Confirm)
 
 ==================== TESTING NOTES ====================
 - Use different SessionId for each test to avoid conflicts
@@ -151,5 +151,17 @@ Customer: PRINCE AMPONSAH
 Account: 8218010085
 Amount Due: GHS190.00
 
-Enter amount to continue...
+1. Confirm
+2. Cancel
+
+==================== EXPECTED ORDER SUMMARY ====================
+Bill Payment Summary:
+
+Provider: DSTV
+Account: 8218010085
+Customer: PRINCE AMPONSAH
+Amount: GH190.00
+
+1. Confirm
+2. Cancel
 */
