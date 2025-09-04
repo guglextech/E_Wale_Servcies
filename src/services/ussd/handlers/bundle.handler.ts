@@ -432,7 +432,7 @@ export class BundleHandler {
     let menu = `${currentGroup.name}:\n\n`;
     
     pageBundles.forEach((bundle, index) => {
-      menu += `${index + 1}. ${bundle.Display} - GH₵${bundle.Amount}\n`;
+      menu += `${index + 1}. ${bundle.Display} - GH ${bundle.Amount}\n`;
     });
 
     // Add pagination controls
