@@ -310,11 +310,9 @@ export class UssdService {
       case 'data_bundle':
         return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
-        // Airtime payment already triggered in Step 6
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        // Utility payment already triggered in Step 7 (ECG) or Step 8 (Ghana Water)
-        return this.releaseSession(req.SessionId);
+        return await this.handleUtilityStep9(req, state);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -522,12 +520,29 @@ export class UssdService {
   }
 
   /**
-   * Handle utility step 6 (email input for Ghana Water or amount input for ECG)
+   * Handle utility step 6 (confirmation for Ghana Water or amount input for ECG)
    */
   private async handleUtilityStep6(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // For Ghana Water, handle email input
-      return await this.handleGhanaWaterEmailInput(req, state);
+      // For Ghana Water, handle confirmation after account display
+      if (req.Message === "1") {
+        // User confirmed - proceed to email input
+        return this.responseBuilder.createResponse(
+          req.SessionId,
+          "Enter Email",
+          "Enter your email address:",
+          "input",
+          "text"
+        );
+      } else if (req.Message === "2") {
+        // User cancelled
+        return this.releaseSession(req.SessionId);
+      } else {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Please select 1 to confirm or 2 to cancel"
+        );
+      }
     } else {
       // For ECG, handle amount input
       return await this.handleUtilityAmountInput(req, state);
@@ -575,12 +590,12 @@ export class UssdService {
   }
 
   /**
-   * Handle utility step 7 (amount input for Ghana Water or confirmation for ECG)
+   * Handle utility step 7 (email input for Ghana Water or confirmation for ECG)
    */
   private async handleUtilityStep7(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // For Ghana Water, handle amount input
-      return await this.handleUtilityAmountInput(req, state);
+      // For Ghana Water, handle email input
+      return await this.handleGhanaWaterEmailInput(req, state);
     } else {
       // For ECG, handle confirmation
       return await this.handleUtilityConfirmation(req, state);
@@ -588,9 +603,22 @@ export class UssdService {
   }
 
   /**
-   * Handle utility step 8 (confirmation for Ghana Water or end session for ECG)
+   * Handle utility step 8 (amount input for Ghana Water or end session for ECG)
    */
   private async handleUtilityStep8(req: HBussdReq, state: SessionState): Promise<string> {
+    if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
+      // For Ghana Water, handle amount input
+      return await this.handleUtilityAmountInput(req, state);
+    } else {
+      // For ECG, end session (payment already triggered in Step 7)
+      return this.releaseSession(req.SessionId);
+    }
+  }
+
+  /**
+   * Handle utility step 9 (confirmation for Ghana Water)
+   */
+  private async handleUtilityStep9(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
       // For Ghana Water, handle confirmation
       return await this.handleUtilityConfirmation(req, state);

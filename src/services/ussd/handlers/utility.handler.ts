@@ -181,8 +181,8 @@ export class UtilityHandler {
     
     return this.responseBuilder.createResponse(
       req.SessionId,
-      "Account Found",
-      accountInfo + "\n\nEnter email address to continue...",
+      "Account Summary",
+      accountInfo + "\n\n1. Confirm\n2. Cancel",
       "input",
       "text"
     );
