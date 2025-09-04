@@ -190,7 +190,7 @@ export class UssdService {
       case 'result_checker':
         return this.resultCheckerHandler.handleBuyerType(req, state);
       case 'data_bundle':
-        return await this.handleBundleCategorySelection(req, state);
+        return await this.handleBuyForSelection(req, state);
       case 'airtime_topup':
         return this.handleAirtimeMobileNumber(req, state);
       case 'pay_bills':
@@ -214,7 +214,11 @@ export class UssdService {
           return this.resultCheckerHandler.handleMobileNumber(req, state);
         }
       case 'data_bundle':
-        return await this.handleBundleSelection(req, state);
+        if (state.flow === 'other') {
+          return await this.handleOtherMobileNumber(req, state);
+        } else {
+          return await this.handleBundleCategorySelection(req, state);
+        }
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
       case 'pay_bills':
@@ -238,7 +242,7 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        return await this.handlePurchaseTypeSelection(req, state);
+        return await this.handleBundleCategorySelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
         return this.handleTVAmountInput(req, state);
@@ -265,7 +269,7 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        return this.handleBundleMobileNumber(req, state);
+        return await this.handleOrderDetails(req, state);
       case 'pay_bills':
         // For TV bills, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
@@ -458,21 +462,20 @@ export class UssdService {
   }
 
   // Implemented handlers for all services
-  private async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.bundleHandler.handleBundleSelection(req, state);
+  private async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.showOrderSummary(req.SessionId, state);
   }
 
   private async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.bundleHandler.handleBundleCategorySelection(req, state);
   }
 
-  private async handlePurchaseTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.bundleHandler.handlePurchaseTypeSelection(req, state);
+  private async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.handleBuyForSelection(req, state);
   }
 
-  private async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
-    console.log("handleBundleMobileNumber", req, state);
-    return await this.bundleHandler.handleBundleMobileNumber(req, state);
+  private async handleOtherMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.bundleHandler.handleOtherMobileNumber(req, state);
   }
 
   private async handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
@@ -652,10 +655,6 @@ export class UssdService {
         "Please select 1 to confirm or 2 to cancel"
       );
     }
-  }
-
-  private async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.orderDetailsHandler.handleOrderDetails(req, state);
   }
 
   /**

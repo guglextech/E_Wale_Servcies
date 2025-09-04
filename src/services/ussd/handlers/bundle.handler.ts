@@ -54,12 +54,94 @@ export class BundleHandler {
       // Log network selection
       await this.logInteraction(req, state, 'network_selected');
 
-      return this.showBundleCategories(req.SessionId, state);
+      return this.showBuyForOptions(req.SessionId, state);
     } catch (error) {
       console.error('Error in handleNetworkSelection:', error);
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
         "An error occurred while processing your selection. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Show buy for self or other options
+   */
+  private showBuyForOptions(sessionId: string, state: SessionState): string {
+    return this.responseBuilder.createNumberInputResponse(
+      sessionId,
+      "Buy For",
+      "Buy for:\n\n1. My Number\n2. Other Number\n\nSelect option:"
+    );
+  }
+
+  /**
+   * Handle buy for selection (self or other)
+   */
+  async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    try {
+      if (req.Message === "1") {
+        // Buy for self - use current user's number
+        state.flow = 'self';
+        state.mobile = req.Mobile; // Use current user's mobile
+        this.sessionManager.updateSession(req.SessionId, state);
+        
+        await this.logInteraction(req, state, 'buy_for_self');
+        
+        return this.showBundleCategories(req.SessionId, state);
+      } else if (req.Message === "2") {
+        // Buy for other - prompt for mobile number
+        state.flow = 'other';
+        this.sessionManager.updateSession(req.SessionId, state);
+        
+        await this.logInteraction(req, state, 'buy_for_other');
+        
+        return this.responseBuilder.createPhoneInputResponse(
+          req.SessionId,
+          "Enter Mobile Number",
+          "Enter recipient's mobile number:"
+        );
+      } else {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Please select 1 for My Number or 2 for Other Number"
+        );
+      }
+    } catch (error) {
+      console.error('Error in handleBuyForSelection:', error);
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "An error occurred. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Handle mobile number input for other purchase
+   */
+  async handleOtherMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
+    try {
+      const validation = this.validateMobileNumber(req.Message);
+      
+      if (!validation.isValid) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          validation.error || "Invalid mobile number format"
+        );
+      }
+
+      state.mobile = validation.convertedNumber;
+      this.sessionManager.updateSession(req.SessionId, state);
+
+      // Log mobile number input
+      await this.logInteraction(req, state, 'other_mobile_entered');
+
+      return this.showBundleCategories(req.SessionId, state);
+    } catch (error) {
+      console.error('Error in handleOtherMobileNumber:', error);
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "An error occurred. Please try again."
       );
     }
   }
@@ -210,81 +292,13 @@ export class BundleHandler {
     // Log bundle selection
     await this.logInteraction(req, state, 'bundle_selected');
 
-    return this.showPurchaseType(req.SessionId, state);
-  }
-
-  /**
-   * Show purchase type (Self or Other)
-   */
-  private showPurchaseType(sessionId: string, state: SessionState): string {
-    return this.responseBuilder.createResponse(
-      sessionId,
-      "Purchase Type",
-      "Who is this bundle for?\n\n1. Self\n2. Other\n\nSelect option:",
-      "input",
-      "text"
-    );
-  }
-
-  /**
-   * Handle purchase type selection
-   */
-  async handlePurchaseTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (req.Message === "1") {
-      // Self purchase
-      state.flow = 'self';
-      state.mobile = req.Mobile; // Use current user's mobile
-      this.sessionManager.updateSession(req.SessionId, state);
-      
-      await this.logInteraction(req, state, 'purchase_type_self');
-      
-      return this.showOrderSummary(req.SessionId, state);
-    } else if (req.Message === "2") {
-      // Other purchase
-      state.flow = 'other';
-      this.sessionManager.updateSession(req.SessionId, state);
-      
-      await this.logInteraction(req, state, 'purchase_type_other');
-      
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number to purchase bundle (e.g., 0550982043):"
-      );
-    } else {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select 1 for Self or 2 for Other"
-      );
-    }
-  }
-
-  /**
-   * Handle mobile number input for other purchase
-   */
-  async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
-    const validation = this.validateMobileNumber(req.Message);
-    
-    if (!validation.isValid) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        validation.error || "Invalid mobile number format"
-      );
-    }
-
-    state.mobile = validation.convertedNumber;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log mobile number input
-    await this.logInteraction(req, state, 'mobile_entered');
-
     return this.showOrderSummary(req.SessionId, state);
   }
 
   /**
    * Show order summary
    */
-  private showOrderSummary(sessionId: string, state: SessionState): string {
+  async showOrderSummary(sessionId: string, state: SessionState): Promise<string> {
     return this.responseBuilder.createDisplayResponse(
       sessionId,
       "Order Summary",
@@ -432,16 +446,16 @@ export class BundleHandler {
     let menu = `${currentGroup.name}:\n\n`;
     
     pageBundles.forEach((bundle, index) => {
-      menu += `${index + 1}. ${bundle.Display} - GH ${bundle.Amount}\n`;
+      menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
     });
 
     // Add pagination controls
     menu += "\n";
     if (state.currentBundlePage > 0) {
-      menu += "00. Previous Page\n";
+      menu += "00. Back\n";
     }
     if (endIndex < bundles.length) {
-      menu += "0. Next Page\n";
+      menu += "0. Next\n";
     }
     menu += "99. Back to Packages\n";
 
@@ -471,7 +485,7 @@ export class BundleHandler {
       summary += `Mobile: ${mobile} (Other)\n`;
     }
     
-    summary += `Amount: GH₵${bundle?.Amount}\n\n`;
+    summary += `Amount: GH${bundle?.Amount}\n\n`;
     summary += `1. Confirm\n2. Cancel`;
 
     return summary;
@@ -530,7 +544,7 @@ export class BundleHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid Ghanaian mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid mobile number' 
     };
   }
 }
