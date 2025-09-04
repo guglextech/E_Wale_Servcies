@@ -135,7 +135,7 @@ export class UtilityHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Meter Number",
-      "Enter Ghana Water meter number:"
+      "Enter meter number:"
     );
   }
 
@@ -194,7 +194,7 @@ export class UtilityHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Enter Email",
-      "Enter your email address for Ghana Water top-up:",
+      "Enter your email address:",
       "input",
       "text"
     );
@@ -367,7 +367,7 @@ export class UtilityHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid Ghanaian mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid  mobile number (e.g., 0550982034)' 
     };
   }
 

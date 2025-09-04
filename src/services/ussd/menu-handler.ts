@@ -347,7 +347,7 @@ export class MenuHandler {
       return this.responseBuilder.createResponse(
         req.SessionId,
         "Enter Meter Number",
-        "Enter Ghana Water meter number:",
+        "Enter mobile number linked to ECG meter",
         "INPUT",
         "TEXT"
       );
