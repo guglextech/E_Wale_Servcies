@@ -505,7 +505,7 @@ export class BundleHandler {
       totalAmount: state.totalAmount
     });
 
-    let summary = `Bundle Order Summary:\n\n`;
+    let summary = `Bundle Package:\n\n`;
     summary += `Network: ${network || 'N/A'}\n`;
     summary += `Bundle: ${bundle?.Display || 'N/A'}\n`;
     
