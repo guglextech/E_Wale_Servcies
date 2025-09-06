@@ -478,7 +478,7 @@ export class BundleHandler {
     if (endIndex < bundles.length) {
       menu += "0. Next\n";
     }
-    menu += "99. Back to Packages\n";
+    menu += "99. Back\n";
 
     return this.responseBuilder.createNumberInputResponse(
       sessionId,
