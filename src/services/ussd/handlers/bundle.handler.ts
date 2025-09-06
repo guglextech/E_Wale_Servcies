@@ -270,21 +270,8 @@ export class BundleHandler {
       const endIndex = startIndex + this.BUNDLES_PER_PAGE;
       const pageBundles = bundles.slice(startIndex, endIndex);
 
-      // Handle pagination controls first
-      if (req.Message === "0") {
-        // Next page - only if there are more bundles
-        if (endIndex < bundles.length) {
-          state.currentBundlePage++;
-          this.sessionManager.updateSession(req.SessionId, state);
-          return this.showBundlePage(req.SessionId, state);
-        } else {
-          // This should not happen with improved pagination logic, but handle gracefully
-          return this.responseBuilder.createErrorResponse(
-            req.SessionId,
-            "No more bundles to show"
-          );
-        }
-      } else if (req.Message === "99") {
+      // Handle navigation controls first
+      if (req.Message === "99") {
         // Back to category selection
         return this.formatBundleCategories(req.SessionId, state);
       }
@@ -301,7 +288,7 @@ export class BundleHandler {
       }
 
       // Set the selected bundle and amount
-      const selectedBundle = pageBundles[selectedIndex];
+      const selectedBundle = bundles[selectedIndex];
       state.selectedBundle = selectedBundle;
       state.bundleValue = selectedBundle.Value;
       state.amount = selectedBundle.Amount;
@@ -355,9 +342,26 @@ export class BundleHandler {
       groups[category].push(bundle);
     });
 
+    // Split large categories to ensure max 4 bundles per category
+    const finalGroups: { [key: string]: BundleOption[] } = {};
+    
+    Object.entries(groups).forEach(([category, bundleList]) => {
+      if (bundleList.length <= this.BUNDLES_PER_PAGE) {
+        // Category is small enough, keep as is
+        finalGroups[category] = bundleList;
+      } else {
+        // Split large category into smaller ones
+        const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
+        chunks.forEach((chunk, index) => {
+          const categoryName = chunks.length === 1 ? category : `${category} ${index + 1}`;
+          finalGroups[categoryName] = chunk;
+        });
+      }
+    });
+
     // Debug logging
     console.log(`Bundle Grouping Results for ${network}:`);
-    Object.entries(groups).forEach(([category, bundleList]) => {
+    Object.entries(finalGroups).forEach(([category, bundleList]) => {
       console.log(`${category}: ${bundleList.length} bundles`);
       bundleList.slice(0, 3).forEach(bundle => {
         console.log(`  - ${bundle.Display} (${bundle.Value})`);
@@ -367,11 +371,22 @@ export class BundleHandler {
       }
     });
 
-    // Return all bundles without artificial limits - let pagination handle the display
-    return Object.entries(groups).map(([name, bundles]) => ({
+    // Return all bundles with proper grouping
+    return Object.entries(finalGroups).map(([name, bundles]) => ({
       name,
       bundles: bundles
     }));
+  }
+
+  /**
+   * Split array into chunks of specified size
+   */
+  private splitIntoChunks<T>(array: T[], chunkSize: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
   }
 
   /**
@@ -421,23 +436,23 @@ export class BundleHandler {
       }
     }
     
-    // Telecel Network Categories
+    // Telecel Network Categories - More specific patterns
     else if (network === NetworkProvider.TELECEL) {
-      // Night Bundles - bundles with "12am", "5am", "night"
+      // Night Bundles - specific night time patterns
       if (display.includes('12am') || display.includes('5am') || display.includes('night') || value.includes('bnight')) {
         return 'Night Bundles';
       }
-      // Hour Boost - bundles with "1 hour" or "hour"
+      // Hour Boost - specific hour patterns
       else if (display.includes('1 hour') || display.includes('hour') || value.includes('hrboost')) {
         return 'Hour Boost';
       }
-      // No Expiry Bundles - bundles with "no expiry"
+      // No Expiry Bundles - specific no expiry pattern
       else if (display.includes('no expiry') || value.includes('datanv')) {
         return 'No Expiry Bundles';
       }
-      // Time-Based Bundles - bundles with day specifications
+      // Time-Based Bundles - specific day patterns only
       else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
-               display.includes('15 days') || display.includes('30 days') || display.includes('day')) {
+               display.includes('15 days') || display.includes('30 days')) {
         return 'Time-Based Bundles';
       }
     }
@@ -513,40 +528,24 @@ export class BundleHandler {
       }
 
       const bundles = currentGroup.bundles;
-      const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
-      const endIndex = startIndex + this.BUNDLES_PER_PAGE;
-      const pageBundles = bundles.slice(startIndex, endIndex);
-      const totalPages = Math.ceil(bundles.length / this.BUNDLES_PER_PAGE);
-      const currentPage = state.currentBundlePage + 1;
 
       // Debug logging
-      console.log(`Pagination info for ${currentGroup.name}:`, {
+      console.log(`Displaying bundles for ${currentGroup.name}:`, {
         totalBundles: bundles.length,
-        currentPage: currentPage,
-        totalPages: totalPages,
-        startIndex: startIndex,
-        endIndex: endIndex,
-        pageBundles: pageBundles.length,
-        hasNext: endIndex < bundles.length,
-        hasPrev: state.currentBundlePage > 0
+        network: state.network
       });
 
       let menu = `${currentGroup.name} (${state.network}):\n\n`;
       
-      // Display bundles for current page
-      pageBundles.forEach((bundle, index) => {
+      // Display all bundles in the category
+      bundles.forEach((bundle, index) => {
         menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
       });
 
-      // Add pagination controls only if needed
+      // Add navigation controls
       menu += "\n";
       
-      // Next page button (only if there are more bundles)
-      if (endIndex < bundles.length) {
-        menu += "0. Next\n";
-      }
-      
-      // Back to main menu (always available)
+      // Back to category selection (always available)
       menu += "99. Back\n";
 
       return this.responseBuilder.createNumberInputResponse(
