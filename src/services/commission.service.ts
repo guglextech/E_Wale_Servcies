@@ -158,10 +158,7 @@ export class CommissionService {
         return {
           ...basePayload,
           Extradata: {
-            network: request.network,
-            bundleType: request.extraData?.bundleType || 'data',
-            bundleValue: request.extraData?.bundleValue,
-            ...request.extraData
+            bundle: request.extraData?.bundleValue
           }
         };
 
