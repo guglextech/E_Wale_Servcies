@@ -285,12 +285,8 @@ export class BundleHandler {
           );
         }
       } else if (req.Message === "99") {
-        // Back to main menu - release session
-        return this.responseBuilder.createReleaseResponse(
-          req.SessionId,
-          "Back to Main Menu",
-          "Returning to main menu..."
-        );
+        // Back to category selection
+        return this.formatBundleCategories(req.SessionId, state);
       }
 
       // Handle bundle selection
