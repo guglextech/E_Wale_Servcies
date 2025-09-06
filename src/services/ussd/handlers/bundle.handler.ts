@@ -15,7 +15,7 @@ interface BundleGroup {
 @Injectable()
 export class BundleHandler {
   private readonly BUNDLES_PER_PAGE = 4;
-  private readonly BUNDLES_PER_GROUP = 8;
+  // private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
     private readonly responseBuilder: ResponseBuilder,
@@ -388,7 +388,7 @@ export class BundleHandler {
     // Return all bundles without artificial limits - let pagination handle the display
     return Object.entries(groups).map(([name, bundles]) => ({
       name,
-      bundles: bundles // Remove artificial limit - show all bundles
+      bundles: bundles
     }));
   }
 
