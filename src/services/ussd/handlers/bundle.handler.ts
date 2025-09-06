@@ -181,7 +181,7 @@ export class BundleHandler {
       }
 
       // Group bundles by category and store in session state
-      const bundleGroups = this.groupBundlesByCategory(bundleResponse.Data);
+      const bundleGroups = this.groupBundlesByCategory(bundleResponse.Data, state.network);
       state.bundleGroups = bundleGroups;
       state.currentBundlePage = 0;
       state.currentGroupIndex = -1; // Reset group selection
@@ -284,19 +284,6 @@ export class BundleHandler {
             "No more bundles to show"
           );
         }
-      } else if (req.Message === "00") {
-        // Previous page - only if not on first page
-        if (state.currentBundlePage > 0) {
-          state.currentBundlePage--;
-          this.sessionManager.updateSession(req.SessionId, state);
-          return this.showBundlePage(req.SessionId, state);
-        } else {
-          // This should not happen with improved pagination logic, but handle gracefully
-          return this.responseBuilder.createErrorResponse(
-            req.SessionId,
-            "Already on first page"
-          );
-        }
       } else if (req.Message === "99") {
         // Back to main menu - release session
         return this.responseBuilder.createReleaseResponse(
@@ -359,13 +346,13 @@ export class BundleHandler {
   }
 
   /**
-   * Group bundles by category based on their names
+   * Group bundles by category based on their names and network
    */
-  private groupBundlesByCategory(bundles: BundleOption[]): BundleGroup[] {
+  private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
     const groups: { [key: string]: BundleOption[] } = {};
 
     bundles.forEach(bundle => {
-      const category = this.getBundleCategory(bundle);
+      const category = this.getBundleCategory(bundle, network);
       if (!groups[category]) {
         groups[category] = [];
       }
@@ -373,7 +360,7 @@ export class BundleHandler {
     });
 
     // Debug logging
-    console.log('Bundle Grouping Results:');
+    console.log(`Bundle Grouping Results for ${network}:`);
     Object.entries(groups).forEach(([category, bundleList]) => {
       console.log(`${category}: ${bundleList.length} bundles`);
       bundleList.slice(0, 3).forEach(bundle => {
@@ -392,50 +379,75 @@ export class BundleHandler {
   }
 
   /**
-   * Determine bundle category based on bundle name
+   * Determine bundle category based on bundle name and network
    */
-  private getBundleCategory(bundle: BundleOption): string {
+  private getBundleCategory(bundle: BundleOption, network?: NetworkProvider): string {
     const display = bundle.Display.toLowerCase();
     const value = bundle.Value.toLowerCase();
 
-    // AT Network Categories (based on sample data)
-    if (value.includes('bigtime') || display.includes('bigtime') || display.includes('(ghs')) {
-      return 'BigTime Data';
-    } else if (value.includes('fuse') || display.includes('fuse') || display.includes('mins')) {
-      return 'Fuse Bundles';
-    } else if (value.includes('kokoo') || display.includes('kokoo') || display.includes('sika_kokoo')) {
-      return 'Kokoo Bundles';
-    } else if (value.includes('xxl') || display.includes('xxl') || display.includes('family')) {
-      return 'XXL Family Bundles';
+    // AT Network Categories (based on your sample data)
+    if (network === NetworkProvider.AT) {
+      // BigTime Data - bundles with (GHS X) format
+      if (display.includes('(ghs') || value.includes('bigtime')) {
+        return 'BigTime Data';
+      }
+      // Fuse Bundles - bundles with "mins" and "MB" 
+      else if (display.includes('mins') && display.includes('mb')) {
+        return 'Fuse Bundles';
+      }
+      // Kokoo Bundles - bundles with "kokoo" or "sika_kokoo"
+      else if (display.includes('kokoo') || value.includes('kokoo') || value.includes('sika_kokoo')) {
+        return 'Kokoo Bundles';
+      }
+      // XXL Family Pack - bundles with "xxl" or "family"
+      else if (display.includes('xxl') || display.includes('family')) {
+        return 'XXL Family Pack';
+      }
     }
     
-    // Telecel Network Categories (based on sample data)
-    else if (value.includes('bnight') || display.includes('12am') || display.includes('5am') || display.includes('night')) {
-      return 'Night Bundles';
-    } else if (value.includes('hrboost') || display.includes('1 hour') || display.includes('hour')) {
-      return 'Hour Boost';
-    } else if (display.includes('no expiry') || value.includes('datanv')) {
-      return 'No Expiry Bundles';
-    } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
+    // MTN Network Categories
+    else if (network === NetworkProvider.MTN) {
+      // Kokrokoo Bundles - time-based bundles (5am to 8am)
+      if (display.includes('kokrokoo') || display.includes('5am') || display.includes('8am')) {
+        return 'Kokrokoo Bundles';
+      }
+      // Video Bundles - bundles with "video" or video-related terms
+      else if (display.includes('video') || value.includes('video')) {
+        return 'Video Bundles';
+      }
+      // Social Media Bundles - bundles with "social" or social platform names
+      else if (display.includes('social') || value.includes('social')) {
+        return 'Social Media Bundles';
+      }
+      // Flexi Data Bundles - flexible data bundles
+      else if (display.includes('flexi') || value.includes('flexi')) {
+        return 'Flexi Data Bundles';
+      }
+    }
+    
+    // Telecel Network Categories
+    else if (network === NetworkProvider.TELECEL) {
+      // Night Bundles - bundles with "12am", "5am", "night"
+      if (display.includes('12am') || display.includes('5am') || display.includes('night') || value.includes('bnight')) {
+        return 'Night Bundles';
+      }
+      // Hour Boost - bundles with "1 hour" or "hour"
+      else if (display.includes('1 hour') || display.includes('hour') || value.includes('hrboost')) {
+        return 'Hour Boost';
+      }
+      // No Expiry Bundles - bundles with "no expiry"
+      else if (display.includes('no expiry') || value.includes('datanv')) {
+        return 'No Expiry Bundles';
+      }
+      // Time-Based Bundles - bundles with day specifications
+      else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
                display.includes('15 days') || display.includes('30 days') || display.includes('day')) {
-      return 'Time-Based Bundles';
+        return 'Time-Based Bundles';
+      }
     }
     
-    // MTN Network Categories (based on sample data)
-    else if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
-      return 'Kokrokoo Bundles';
-    } else if (display.includes('video') || value.includes('video')) {
-      return 'Video Bundles';
-    } else if (display.includes('social') || value.includes('social')) {
-      return 'Social Media Bundles';
-    } else if (display.includes('flexi') || value.includes('flexi')) {
-      return 'Flexi Data Bundles';
-    }
-    
-    // Default category
-    else {
-      return 'Data Bundles';
-    }
+    // Default category for unmatched bundles
+    return 'Data Bundles';
   }
 
   /**
@@ -533,11 +545,6 @@ export class BundleHandler {
       // Add pagination controls only if needed
       menu += "\n";
       
-      // Previous page button (only if not on first page)
-      if (state.currentBundlePage > 0) {
-        menu += "00. Back\n";
-      }
-      
       // Next page button (only if there are more bundles)
       if (endIndex < bundles.length) {
         menu += "0. Next\n";
@@ -548,7 +555,7 @@ export class BundleHandler {
 
       return this.responseBuilder.createNumberInputResponse(
         sessionId,
-        `Page ${currentPage} of ${totalPages}`,
+        currentGroup.name,
         menu
       );
     } catch (error) {
