@@ -180,8 +180,8 @@ export class BundleHandler {
         );
       }
 
-      // Group bundles by category and store in session state
-      const bundleGroups = this.groupBundlesByCategory(bundleResponse.Data, state.network);
+      // Use API Groups structure directly
+      const bundleGroups = this.processApiGroups(bundleResponse);
       state.bundleGroups = bundleGroups;
       state.currentBundlePage = 0;
       state.currentGroupIndex = -1; // Reset group selection
@@ -205,12 +205,12 @@ export class BundleHandler {
    */
   async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
     try {
-      // Handle back to main menu
+      // Handle back to network selection
       if (req.Message === "99") {
-        return this.responseBuilder.createReleaseResponse(
+        return this.responseBuilder.createNumberInputResponse(
           req.SessionId,
-          "Back to Main Menu",
-          "Returning to main menu..."
+          "Select Network",
+          "Select Network:\n\n1. MTN\n2. Telecel Ghana\n3. AT\n\nSelect option:"
         );
       }
 
@@ -329,8 +329,46 @@ export class BundleHandler {
   }
 
   /**
-   * Group bundles by category based on their names and network
+   * Process API Groups structure directly
    */
+  private processApiGroups(bundleResponse: any): BundleGroup[] {
+    // Check if the response has the Groups structure
+    if (bundleResponse.Groups) {
+      // Use the Groups structure directly
+      const groups: BundleGroup[] = [];
+      
+      Object.entries(bundleResponse.Groups).forEach(([groupName, bundles]) => {
+        const bundleList = bundles as BundleOption[];
+        
+        // Split large groups to ensure max 4 bundles per group
+        if (bundleList.length <= this.BUNDLES_PER_PAGE) {
+          groups.push({
+            name: groupName,
+            bundles: bundleList
+          });
+        } else {
+          // Split large groups into smaller ones
+          const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
+          chunks.forEach((chunk, index) => {
+            const groupNameWithIndex = chunks.length === 1 ? groupName : `${groupName} ${index + 1}`;
+            groups.push({
+              name: groupNameWithIndex,
+              bundles: chunk
+            });
+          });
+        }
+      });
+
+      // Debug logging
+      console.log(`API Groups processed:`, groups.map(g => `${g.name}: ${g.bundles.length} bundles`));
+      
+      return groups;
+    } else {
+      // Fallback to manual grouping if Groups structure is not available
+      console.log('Groups structure not found, falling back to manual grouping');
+      return this.groupBundlesByCategory(bundleResponse.Data, bundleResponse.network);
+    }
+  }
   private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
     const groups: { [key: string]: BundleOption[] } = {};
 
