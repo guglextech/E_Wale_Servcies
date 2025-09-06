@@ -180,14 +180,17 @@ export class BundleHandler {
         );
       }
 
-      // Store all bundles directly in session state (no grouping)
-      state.allBundles = bundleResponse.Data;
+      // Group bundles by category and store in session state
+      const bundleGroups = this.groupBundlesByCategory(bundleResponse.Data);
+      state.bundleGroups = bundleGroups;
       state.currentBundlePage = 0;
+      state.currentGroupIndex = -1; // Reset group selection
       this.sessionManager.updateSession(sessionId, state);
 
       console.log(`Total bundles available: ${bundleResponse.Data.length}`);
+      console.log(`Grouped into ${bundleGroups.length} categories`);
 
-      return this.showBundlePage(sessionId, state);
+      return this.formatBundleCategories(sessionId, state);
     } catch (error) {
       console.error("Error fetching bundles:", error);
       return this.responseBuilder.createErrorResponse(
@@ -243,16 +246,26 @@ export class BundleHandler {
    */
   async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
     try {
-      const bundles = state.allBundles || [];
+      const groups = state.bundleGroups || [];
       
-      // Handle empty bundle list
-      if (!bundles || bundles.length === 0) {
+      // Handle empty bundle groups
+      if (!groups || groups.length === 0) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
           "No bundles available"
         );
       }
 
+      // Get current group bundles
+      const currentGroup = groups[state.currentGroupIndex];
+      if (!currentGroup) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "No bundle group selected"
+        );
+      }
+
+      const bundles = currentGroup.bundles;
       const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
       const endIndex = startIndex + this.BUNDLES_PER_PAGE;
       const pageBundles = bundles.slice(startIndex, endIndex);
@@ -472,16 +485,26 @@ export class BundleHandler {
    */
   private showBundlePage(sessionId: string, state: SessionState): string {
     try {
-      const bundles = state.allBundles || [];
+      const groups = state.bundleGroups || [];
       
-      // Handle empty bundle list
-      if (!bundles || bundles.length === 0) {
+      // Handle empty bundle groups
+      if (!groups || groups.length === 0) {
         return this.responseBuilder.createErrorResponse(
           sessionId,
           "No bundles available"
         );
       }
 
+      // Get current group bundles
+      const currentGroup = groups[state.currentGroupIndex];
+      if (!currentGroup) {
+        return this.responseBuilder.createErrorResponse(
+          sessionId,
+          "No bundle group selected"
+        );
+      }
+
+      const bundles = currentGroup.bundles;
       const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
       const endIndex = startIndex + this.BUNDLES_PER_PAGE;
       const pageBundles = bundles.slice(startIndex, endIndex);
@@ -489,7 +512,7 @@ export class BundleHandler {
       const currentPage = state.currentBundlePage + 1;
 
       // Debug logging
-      console.log(`Pagination info:`, {
+      console.log(`Pagination info for ${currentGroup.name}:`, {
         totalBundles: bundles.length,
         currentPage: currentPage,
         totalPages: totalPages,
@@ -500,7 +523,7 @@ export class BundleHandler {
         hasPrev: state.currentBundlePage > 0
       });
 
-      let menu = `Data Bundles (${state.network}):\n\n`;
+      let menu = `${currentGroup.name} (${state.network}):\n\n`;
       
       // Display bundles for current page
       pageBundles.forEach((bundle, index) => {
