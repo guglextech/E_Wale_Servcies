@@ -284,19 +284,6 @@ export class BundleHandler {
             "No more bundles to show"
           );
         }
-      } else if (req.Message === "00") {
-        // Previous page - only if not on first page
-        if (state.currentBundlePage > 0) {
-          state.currentBundlePage--;
-          this.sessionManager.updateSession(req.SessionId, state);
-          return this.showBundlePage(req.SessionId, state);
-        } else {
-          // This should not happen with improved pagination logic, but handle gracefully
-          return this.responseBuilder.createErrorResponse(
-            req.SessionId,
-            "Already on first page"
-          );
-        }
       } else if (req.Message === "99") {
         // Back to main menu - release session
         return this.responseBuilder.createReleaseResponse(
@@ -557,11 +544,6 @@ export class BundleHandler {
 
       // Add pagination controls only if needed
       menu += "\n";
-      
-      // Previous page button (only if not on first page)
-      if (state.currentBundlePage > 0) {
-        menu += "00. Back\n";
-      }
       
       // Next page button (only if there are more bundles)
       if (endIndex < bundles.length) {
