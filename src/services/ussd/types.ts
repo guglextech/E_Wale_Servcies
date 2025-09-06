@@ -17,6 +17,7 @@ export interface SessionState {
   amount?: number;
   // Bundle specific fields
   bundles?: BundleOption[];
+  allBundles?: BundleOption[];
   bundleGroups?: Array<{ name: string; bundles: BundleOption[] }>;
   currentBundlePage?: number;
   currentGroupIndex?: number;
