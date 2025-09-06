@@ -217,8 +217,8 @@ export class UssdService {
         if (state.flow === 'other') {
           return await this.handleOtherMobileNumber(req, state);
         } else {
-          // Skip category selection - go directly to bundle selection
-          return await this.handleBundleSelection(req, state);
+          // Handle category selection
+          return await this.handleBundleCategorySelection(req, state);
         }
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
@@ -243,8 +243,8 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        // Skip category selection - go directly to bundle selection
-        return await this.handleBundleSelection(req, state);
+        // Handle category selection for "other" flow
+        return await this.handleBundleCategorySelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
         return this.handleTVAmountInput(req, state);
@@ -271,6 +271,7 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Handle bundle selection within selected category
         return await this.handleBundleSelection(req, state);
       case 'pay_bills':
         // For TV bills, trigger payment confirmation directly after order summary
