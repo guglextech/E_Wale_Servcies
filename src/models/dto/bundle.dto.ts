@@ -25,6 +25,7 @@ export interface BundleQueryResponse {
   Message: string;
   Label: string;
   Data: BundleOption[];
+  Groups?: { [key: string]: BundleOption[] };
 }
 
 export class BundleQueryDto {
