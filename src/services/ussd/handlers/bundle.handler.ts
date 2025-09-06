@@ -258,30 +258,41 @@ export class BundleHandler {
       }
 
       const bundles = currentGroup.bundles;
+      
+      // Handle empty bundle group
+      if (!bundles || bundles.length === 0) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "No bundles available in this category"
+        );
+      }
+
       const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
       const endIndex = startIndex + this.BUNDLES_PER_PAGE;
       const pageBundles = bundles.slice(startIndex, endIndex);
 
       // Handle pagination controls first
       if (req.Message === "0") {
-        // Next page
+        // Next page - only if there are more bundles
         if (endIndex < bundles.length) {
           state.currentBundlePage++;
           this.sessionManager.updateSession(req.SessionId, state);
           return this.showBundlePage(req.SessionId, state);
         } else {
+          // This should not happen with improved pagination logic, but handle gracefully
           return this.responseBuilder.createErrorResponse(
             req.SessionId,
             "No more bundles to show"
           );
         }
       } else if (req.Message === "00") {
-        // Previous page
+        // Previous page - only if not on first page
         if (state.currentBundlePage > 0) {
           state.currentBundlePage--;
           this.sessionManager.updateSession(req.SessionId, state);
           return this.showBundlePage(req.SessionId, state);
         } else {
+          // This should not happen with improved pagination logic, but handle gracefully
           return this.responseBuilder.createErrorResponse(
             req.SessionId,
             "Already on first page"
@@ -299,6 +310,7 @@ export class BundleHandler {
       // Handle bundle selection
       const selectedIndex = parseInt(req.Message) - 1;
 
+      // Validate selection is within current page bounds
       if (selectedIndex < 0 || selectedIndex >= pageBundles.length) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
@@ -373,9 +385,10 @@ export class BundleHandler {
       }
     });
 
+    // Return all bundles without artificial limits - let pagination handle the display
     return Object.entries(groups).map(([name, bundles]) => ({
       name,
-      bundles: bundles.slice(0, this.BUNDLES_PER_GROUP) // Limit bundles per group
+      bundles: bundles // Remove artificial limit - show all bundles
     }));
   }
 
@@ -386,36 +399,38 @@ export class BundleHandler {
     const display = bundle.Display.toLowerCase();
     const value = bundle.Value.toLowerCase();
 
-    // AT Network Categories
-    if (value.includes('bigtime') || display.includes('bigtime')) {
+    // AT Network Categories (based on sample data)
+    if (value.includes('bigtime') || display.includes('bigtime') || display.includes('(ghs')) {
       return 'BigTime Data';
-    } else if (value.includes('fuse') || display.includes('fuse')) {
+    } else if (value.includes('fuse') || display.includes('fuse') || display.includes('mins')) {
       return 'Fuse Bundles';
-    } else if (value.includes('kokoo') || display.includes('kokoo')) {
+    } else if (value.includes('kokoo') || display.includes('kokoo') || display.includes('sika_kokoo')) {
       return 'Kokoo Bundles';
-    } else if (value.includes('xxl') || display.includes('xxl')) {
+    } else if (value.includes('xxl') || display.includes('xxl') || display.includes('family')) {
       return 'XXL Family Bundles';
     }
     
-    // Telecel Network Categories
-    else if (value.includes('bnight') || display.includes('12am') || display.includes('5am')) {
+    // Telecel Network Categories (based on sample data)
+    else if (value.includes('bnight') || display.includes('12am') || display.includes('5am') || display.includes('night')) {
       return 'Night Bundles';
-    } else if (value.includes('hrboost') || display.includes('1 hour')) {
+    } else if (value.includes('hrboost') || display.includes('1 hour') || display.includes('hour')) {
       return 'Hour Boost';
-    } else if (display.includes('no expiry')) {
+    } else if (display.includes('no expiry') || value.includes('datanv')) {
       return 'No Expiry Bundles';
     } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
-               display.includes('15 days') || display.includes('30 days')) {
+               display.includes('15 days') || display.includes('30 days') || display.includes('day')) {
       return 'Time-Based Bundles';
     }
     
-    // MTN Network Categories
+    // MTN Network Categories (based on sample data)
     else if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
       return 'Kokrokoo Bundles';
     } else if (display.includes('video') || value.includes('video')) {
       return 'Video Bundles';
     } else if (display.includes('social') || value.includes('social')) {
       return 'Social Media Bundles';
+    } else if (display.includes('flexi') || value.includes('flexi')) {
+      return 'Flexi Data Bundles';
     }
     
     // Default category
@@ -470,43 +485,80 @@ export class BundleHandler {
    * Show bundle page with pagination
    */
   private showBundlePage(sessionId: string, state: SessionState): string {
-    const groups = state.bundleGroups || [];
-    const currentGroup = groups[state.currentGroupIndex];
-    
-    if (!currentGroup) {
+    try {
+      const groups = state.bundleGroups || [];
+      const currentGroup = groups[state.currentGroupIndex];
+      
+      if (!currentGroup) {
+        return this.responseBuilder.createErrorResponse(
+          sessionId,
+          "No bundles available in this package"
+        );
+      }
+
+      const bundles = currentGroup.bundles;
+      
+      // Handle empty bundle group
+      if (!bundles || bundles.length === 0) {
+        return this.responseBuilder.createErrorResponse(
+          sessionId,
+          "No bundles available in this category"
+        );
+      }
+
+      const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
+      const endIndex = startIndex + this.BUNDLES_PER_PAGE;
+      const pageBundles = bundles.slice(startIndex, endIndex);
+      const totalPages = Math.ceil(bundles.length / this.BUNDLES_PER_PAGE);
+      const currentPage = state.currentBundlePage + 1;
+
+      // Debug logging
+      console.log(`Pagination info:`, {
+        totalBundles: bundles.length,
+        currentPage: currentPage,
+        totalPages: totalPages,
+        startIndex: startIndex,
+        endIndex: endIndex,
+        pageBundles: pageBundles.length,
+        hasNext: endIndex < bundles.length,
+        hasPrev: state.currentBundlePage > 0
+      });
+
+      let menu = `${currentGroup.name}:\n\n`;
+      
+      // Display bundles for current page
+      pageBundles.forEach((bundle, index) => {
+        menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
+      });
+
+      // Add pagination controls only if needed
+      menu += "\n";
+      
+      // Previous page button (only if not on first page)
+      if (state.currentBundlePage > 0) {
+        menu += "00. Back\n";
+      }
+      
+      // Next page button (only if there are more bundles)
+      if (endIndex < bundles.length) {
+        menu += "0. Next\n";
+      }
+      
+      // Back to main menu (always available)
+      menu += "99. Back\n";
+
+      return this.responseBuilder.createNumberInputResponse(
+        sessionId,
+        `Page ${currentPage} of ${totalPages}`,
+        menu
+      );
+    } catch (error) {
+      console.error('Error in showBundlePage:', error);
       return this.responseBuilder.createErrorResponse(
         sessionId,
-        "No bundles available in this package"
+        "Error displaying bundles. Please try again."
       );
     }
-
-    const bundles = currentGroup.bundles;
-    const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
-    const endIndex = startIndex + this.BUNDLES_PER_PAGE;
-    const pageBundles = bundles.slice(startIndex, endIndex);
-    const totalPages = Math.ceil(bundles.length / this.BUNDLES_PER_PAGE);
-
-    let menu = `${currentGroup.name}:\n\n`;
-    
-    pageBundles.forEach((bundle, index) => {
-      menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
-    });
-
-    // Add pagination controls
-    menu += "\n";
-    if (state.currentBundlePage > 0) {
-      menu += "00. Back\n";
-    }
-    if (endIndex < bundles.length) {
-      menu += "0. Next\n";
-    }
-    menu += "99. Back\n";
-
-    return this.responseBuilder.createNumberInputResponse(
-      sessionId,
-      `Page ${state.currentBundlePage + 1} of ${totalPages}`,
-      menu
-    );
   }
 
   /**
