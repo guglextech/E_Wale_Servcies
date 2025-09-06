@@ -205,24 +205,41 @@ export class BundleHandler {
    * Handle bundle category selection
    */
   async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
-    const groups = state.bundleGroups || [];
-    const selectedIndex = parseInt(req.Message) - 1;
+    try {
+      // Handle back to main menu
+      if (req.Message === "99") {
+        return this.responseBuilder.createReleaseResponse(
+          req.SessionId,
+          "Back to Main Menu",
+          "Returning to main menu..."
+        );
+      }
 
-    if (selectedIndex < 0 || selectedIndex >= groups.length) {
+      const groups = state.bundleGroups || [];
+      const selectedIndex = parseInt(req.Message) - 1;
+
+      if (selectedIndex < 0 || selectedIndex >= groups.length) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Please select a valid category"
+        );
+      }
+
+      state.currentGroupIndex = selectedIndex;
+      state.currentBundlePage = 0;
+      this.sessionManager.updateSession(req.SessionId, state);
+
+      // Log category selection
+      await this.logInteraction(req, state, 'category_selected');
+
+      return this.showBundlePage(req.SessionId, state);
+    } catch (error) {
+      console.error('Error in handleBundleCategorySelection:', error);
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "Please select a valid category"
+        "An error occurred. Please try again."
       );
     }
-
-    state.currentGroupIndex = selectedIndex;
-    state.currentBundlePage = 0;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log category selection
-    await this.logInteraction(req, state, 'category_selected');
-
-    return this.showBundlePage(req.SessionId, state);
   }
 
   /**
@@ -245,8 +262,7 @@ export class BundleHandler {
       const endIndex = startIndex + this.BUNDLES_PER_PAGE;
       const pageBundles = bundles.slice(startIndex, endIndex);
 
-      const selectedIndex = parseInt(req.Message) - 1;
-
+      // Handle pagination controls first
       if (req.Message === "0") {
         // Next page
         if (endIndex < bundles.length) {
@@ -272,12 +288,16 @@ export class BundleHandler {
           );
         }
       } else if (req.Message === "99") {
-        // Back to categories
-        state.currentGroupIndex = 0;
-        state.currentBundlePage = 0;
-        this.sessionManager.updateSession(req.SessionId, state);
-        return this.formatBundleCategories(req.SessionId, state);
+        // Back to main menu - release session
+        return this.responseBuilder.createReleaseResponse(
+          req.SessionId,
+          "Back to Main Menu",
+          "Returning to main menu..."
+        );
       }
+
+      // Handle bundle selection
+      const selectedIndex = parseInt(req.Message) - 1;
 
       if (selectedIndex < 0 || selectedIndex >= pageBundles.length) {
         return this.responseBuilder.createErrorResponse(
@@ -428,6 +448,8 @@ export class BundleHandler {
         menu += `${index + 1}. ${group.name}\n`;
       });
 
+      menu += "\n99. Back\n";
+
       console.log(`Generated menu: ${menu}`);
 
       return this.responseBuilder.createNumberInputResponse(
@@ -478,7 +500,7 @@ export class BundleHandler {
     if (endIndex < bundles.length) {
       menu += "0. Next\n";
     }
-    menu += "99. Back to Packages\n";
+    menu += "99. Back\n";
 
     return this.responseBuilder.createNumberInputResponse(
       sessionId,
@@ -505,7 +527,7 @@ export class BundleHandler {
       totalAmount: state.totalAmount
     });
 
-    let summary = `Bundle Order Summary:\n\n`;
+    let summary = `Bundle Package:\n\n`;
     summary += `Network: ${network || 'N/A'}\n`;
     summary += `Bundle: ${bundle?.Display || 'N/A'}\n`;
     
