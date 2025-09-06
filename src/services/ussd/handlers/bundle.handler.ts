@@ -180,18 +180,14 @@ export class BundleHandler {
         );
       }
 
-      // Group bundles by category
-      const groupedBundles = this.groupBundlesByCategory(bundleResponse.Data);
-      
-      console.log(`Grouped bundles:`, groupedBundles);
-      
-      // Store grouped bundles in session state
-      state.bundleGroups = groupedBundles;
-      state.currentGroupIndex = 0;
+      // Store all bundles directly in session state (no grouping)
+      state.allBundles = bundleResponse.Data;
       state.currentBundlePage = 0;
       this.sessionManager.updateSession(sessionId, state);
 
-      return this.formatBundleCategories(sessionId, state);
+      console.log(`Total bundles available: ${bundleResponse.Data.length}`);
+
+      return this.showBundlePage(sessionId, state);
     } catch (error) {
       console.error("Error fetching bundles:", error);
       return this.responseBuilder.createErrorResponse(
@@ -247,23 +243,13 @@ export class BundleHandler {
    */
   async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
     try {
-      const groups = state.bundleGroups || [];
-      const currentGroup = groups[state.currentGroupIndex];
+      const bundles = state.allBundles || [];
       
-      if (!currentGroup) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "No bundles available in this category"
-        );
-      }
-
-      const bundles = currentGroup.bundles;
-      
-      // Handle empty bundle group
+      // Handle empty bundle list
       if (!bundles || bundles.length === 0) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
-          "No bundles available in this category"
+          "No bundles available"
         );
       }
 
@@ -486,23 +472,13 @@ export class BundleHandler {
    */
   private showBundlePage(sessionId: string, state: SessionState): string {
     try {
-      const groups = state.bundleGroups || [];
-      const currentGroup = groups[state.currentGroupIndex];
+      const bundles = state.allBundles || [];
       
-      if (!currentGroup) {
-        return this.responseBuilder.createErrorResponse(
-          sessionId,
-          "No bundles available in this package"
-        );
-      }
-
-      const bundles = currentGroup.bundles;
-      
-      // Handle empty bundle group
+      // Handle empty bundle list
       if (!bundles || bundles.length === 0) {
         return this.responseBuilder.createErrorResponse(
           sessionId,
-          "No bundles available in this category"
+          "No bundles available"
         );
       }
 
@@ -524,7 +500,7 @@ export class BundleHandler {
         hasPrev: state.currentBundlePage > 0
       });
 
-      let menu = `${currentGroup.name}:\n\n`;
+      let menu = `Data Bundles (${state.network}):\n\n`;
       
       // Display bundles for current page
       pageBundles.forEach((bundle, index) => {

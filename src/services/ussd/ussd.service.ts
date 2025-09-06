@@ -217,7 +217,8 @@ export class UssdService {
         if (state.flow === 'other') {
           return await this.handleOtherMobileNumber(req, state);
         } else {
-          return await this.handleBundleCategorySelection(req, state);
+          // Skip category selection - go directly to bundle selection
+          return await this.handleBundleSelection(req, state);
         }
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
@@ -242,7 +243,8 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        return await this.handleBundleCategorySelection(req, state);
+        // Skip category selection - go directly to bundle selection
+        return await this.handleBundleSelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
         return this.handleTVAmountInput(req, state);
