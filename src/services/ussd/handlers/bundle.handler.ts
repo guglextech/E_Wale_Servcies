@@ -434,10 +434,10 @@ export class BundleHandler {
     const display = bundle.Display.toLowerCase();
     const value = bundle.Value.toLowerCase();
 
-    // AT Network Categories (based on your sample data)
+    // AT Network Categories
     if (network === NetworkProvider.AT) {
-      // BigTime Data - bundles with (GHS X) format
-      if (display.includes('(ghs') || value.includes('bigtime')) {
+      // BigTime Data - bundles with (GHS X) format or specific patterns
+      if (display.includes('(ghs') || value.includes('bigtime') || value.includes('data1') || value.includes('data2') || value.includes('data5') || value.includes('data10') || value.includes('data20') || value.includes('data50')) {
         return 'BigTime Data';
       }
       // Fuse Bundles - bundles with "mins" and "MB" 
@@ -452,6 +452,8 @@ export class BundleHandler {
       else if (display.includes('xxl') || display.includes('family')) {
         return 'XXL Family Pack';
       }
+      // Default for AT
+      return 'BigTime Data';
     }
     
     // MTN Network Categories
@@ -472,9 +474,11 @@ export class BundleHandler {
       else if (display.includes('flexi') || value.includes('flexi')) {
         return 'Flexi Data Bundles';
       }
+      // Default for MTN
+      return 'Kokrokoo Bundles';
     }
     
-    // Telecel Network Categories - More specific patterns
+    // Telecel Network Categories
     else if (network === NetworkProvider.TELECEL) {
       // Night Bundles - specific night time patterns
       if (display.includes('12am') || display.includes('5am') || display.includes('night') || value.includes('bnight')) {
@@ -493,6 +497,8 @@ export class BundleHandler {
                display.includes('15 days') || display.includes('30 days')) {
         return 'Time-Based Bundles';
       }
+      // Default for Telecel
+      return 'No Expiry Bundles';
     }
     
     // Default category for unmatched bundles
