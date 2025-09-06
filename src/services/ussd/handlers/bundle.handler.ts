@@ -164,7 +164,7 @@ export class BundleHandler {
       }
 
       // Process bundles into groups
-      const bundleGroups = this.processBundleGroups(bundleResponse);
+      const bundleGroups = this.processBundleGroups(bundleResponse, state.network);
       state.bundleGroups = bundleGroups;
       state.currentBundlePage = 0;
       state.currentGroupIndex = -1;
@@ -183,7 +183,7 @@ export class BundleHandler {
   /**
    * Process bundle groups from API response
    */
-  private processBundleGroups(bundleResponse: any): BundleGroup[] {
+  private processBundleGroups(bundleResponse: any, network: NetworkProvider): BundleGroup[] {
     // If API has Groups structure, use it directly
     if (bundleResponse.Groups) {
       const groups: BundleGroup[] = [];
@@ -212,46 +212,46 @@ export class BundleHandler {
       return groups;
     } else {
       // Fallback: manually group bundles
-      return this.groupBundlesManually(bundleResponse.Data);
+      return this.groupBundlesManually(bundleResponse.Data, network);
     }
   }
 
-  /**
-   * Manually group bundles when API doesn't provide Groups
-   */
-  private groupBundlesManually(bundles: BundleOption[]): BundleGroup[] {
-    const groups: { [key: string]: BundleOption[] } = {};
+   /**
+    * Manually group bundles when API doesn't provide Groups
+    */
+   private groupBundlesManually(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
+     const groups: { [key: string]: BundleOption[] } = {};
 
-    bundles.forEach(bundle => {
-      const category = this.getBundleCategory(bundle);
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-      groups[category].push(bundle);
-    });
+     bundles.forEach(bundle => {
+       const category = this.getBundleCategory(bundle, network);
+       if (!groups[category]) {
+         groups[category] = [];
+       }
+       groups[category].push(bundle);
+     });
 
-    // Split large categories
-    const finalGroups: BundleGroup[] = [];
-    Object.entries(groups).forEach(([category, bundleList]) => {
-      if (bundleList.length <= this.BUNDLES_PER_PAGE) {
-        finalGroups.push({
-          name: category,
-          bundles: bundleList
-        });
-      } else {
-        const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
-        chunks.forEach((chunk, index) => {
-          const categoryName = chunks.length === 1 ? category : `${category} ${index + 1}`;
-          finalGroups.push({
-            name: categoryName,
-            bundles: chunk
-          });
-        });
-      }
-    });
+     // Split large categories
+     const finalGroups: BundleGroup[] = [];
+     Object.entries(groups).forEach(([category, bundleList]) => {
+       if (bundleList.length <= this.BUNDLES_PER_PAGE) {
+         finalGroups.push({
+           name: category,
+           bundles: bundleList
+         });
+       } else {
+         const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
+         chunks.forEach((chunk, index) => {
+           const categoryName = chunks.length === 1 ? category : `${category} ${index + 1}`;
+           finalGroups.push({
+             name: categoryName,
+             bundles: chunk
+           });
+         });
+       }
+     });
 
-    return finalGroups;
-  }
+     return finalGroups;
+   }
 
   /**
    * Split array into chunks
@@ -264,61 +264,87 @@ export class BundleHandler {
     return chunks;
   }
 
-  /**
-   * Determine bundle category based on bundle name
-   */
-  private getBundleCategory(bundle: BundleOption): string {
-    const display = bundle.Display.toLowerCase();
-    const value = bundle.Value.toLowerCase();
+   /**
+    * Determine bundle category based on bundle name and network
+    */
+   private getBundleCategory(bundle: BundleOption, network: NetworkProvider): string {
+     const display = bundle.Display.toLowerCase();
+     const value = bundle.Value.toLowerCase();
 
-    // AT Network Categories
-    if (value.includes('bigtime') || value.includes('data1') || value.includes('data2') || 
-        value.includes('data5') || value.includes('data10') || value.includes('data20') || 
-        value.includes('data50')) {
-      return 'BigTime Data';
-    }
-    else if (value.includes('fuse')) {
-      return 'Fuse Bundles';
-    }
-    else if (value.includes('kokoo') || value.includes('sika_kokoo')) {
-      return 'Kokoo Bundles';
-    }
-    else if (value.includes('xxl') || value.includes('family')) {
-      return 'XXL Family Pack';
-    }
-    
-    // MTN Network Categories
-    else if (value.includes('kokrokoo') || display.includes('kokrokoo')) {
-      return 'Kokrokoo Bundles';
-    }
-    else if (value.includes('video')) {
-      return 'Video Bundles';
-    }
-    else if (value.includes('social')) {
-      return 'Social Media Bundles';
-    }
-    else if (value.includes('flexi')) {
-      return 'Flexi Data Bundles';
-    }
-    
-    // Telecel Network Categories
-    else if (value.includes('datanv') || display.includes('no expiry')) {
-      return 'No Expiry Bundles';
-    }
-    else if (value.includes('bnight') || display.includes('12am') || display.includes('5am')) {
-      return 'Night Bundles';
-    }
-    else if (value.includes('hrboost') || display.includes('hour')) {
-      return 'Hour Boost';
-    }
-    else if (value.includes('databund') || value.includes('btboss') || 
-             display.includes('day') || display.includes('days')) {
-      return 'Time-Based Bundles';
-    }
-    
-    // Default category
-    return 'Data Bundles';
-  }
+     // AT Network Categories
+     if (network === NetworkProvider.AT) {
+       // BigTime Data - bundles with (GHS X) format or specific patterns
+       if (display.includes('(ghs') || value.includes('bigtime') || value.includes('data1') || 
+           value.includes('data2') || value.includes('data5') || value.includes('data10') || 
+           value.includes('data20') || value.includes('data50')) {
+         return 'BigTime Data';
+       }
+       // Fuse Bundles - bundles with "mins" and "MB" 
+       else if (display.includes('mins') && display.includes('mb') || value.includes('fuse')) {
+         return 'Fuse Bundles';
+       }
+       // Kokoo Bundles - bundles with "kokoo" or "sika_kokoo"
+       else if (display.includes('kokoo') || value.includes('kokoo') || value.includes('sika_kokoo')) {
+         return 'Kokoo Bundles';
+       }
+       // XXL Family Pack - bundles with "xxl" or "family"
+       else if (display.includes('xxl') || display.includes('family')) {
+         return 'XXL Family Pack';
+       }
+       // Default for AT
+       return 'BigTime Data';
+     }
+     
+     // MTN Network Categories
+     else if (network === NetworkProvider.MTN) {
+       // Kokrokoo Bundles - time-based bundles (5am to 8am)
+       if (display.includes('kokrokoo') || display.includes('5am') || display.includes('8am')) {
+         return 'Kokrokoo Bundles';
+       }
+       // Video Bundles - bundles with "video" or video-related terms
+       else if (display.includes('video') || value.includes('video')) {
+         return 'Video Bundles';
+       }
+       // Social Media Bundles - bundles with "social" or social platform names
+       else if (display.includes('social') || value.includes('social')) {
+         return 'Social Media Bundles';
+       }
+       // Flexi Data Bundles - flexible data bundles
+       else if (display.includes('flexi') || value.includes('flexi')) {
+         return 'Flexi Data Bundles';
+       }
+       // Default for MTN
+       return 'Kokrokoo Bundles';
+     }
+     
+     // Telecel Network Categories
+     else if (network === NetworkProvider.TELECEL) {
+       // Night Bundles - specific night time patterns
+       if (display.includes('12am') || display.includes('5am') || display.includes('night') || 
+           value.includes('bnight')) {
+         return 'Night Bundles';
+       }
+       // Hour Boost - specific hour patterns
+       else if (display.includes('1 hour') || display.includes('hour') || value.includes('hrboost')) {
+         return 'Hour Boost';
+       }
+       // No Expiry Bundles - specific no expiry pattern
+       else if (display.includes('no expiry') || value.includes('datanv')) {
+         return 'No Expiry Bundles';
+       }
+       // Time-Based Bundles - specific day patterns only
+       else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
+                display.includes('15 days') || display.includes('30 days') || value.includes('databund') || 
+                value.includes('btboss')) {
+         return 'Time-Based Bundles';
+       }
+       // Default for Telecel
+       return 'No Expiry Bundles';
+     }
+     
+     // Default category for unmatched bundles
+     return 'Data Bundles';
+   }
 
   /**
    * Format bundle categories menu
