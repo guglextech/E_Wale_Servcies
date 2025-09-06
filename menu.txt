@@ -1,0 +1,37 @@
+
+ The should be the correct menu grouping for the various netowk at all times for the various network. It should be dynamic
+ Then the right packages would be displayed under them. Well paginated.
+ 
+ Telecel Network
+ 
+1. BigTime Data
+2. Fuse Bundles
+3. Kokoo Bundles
+4. XXL Family Pack
+
+99. Back
+ 
+ 
+ AT Network
+ 
+Select Bundle Package:
+1. BigTime Data
+2. Fuse Bundles
+3. Kokoo Bundles
+4. XXL Family Pack
+
+
+
+
+
+Telecel Network
+
+Select Bundle Package:
+
+1. Night Bundles
+2. Hour Boost
+3. No Expiry Bundles
+4. Time-Based Bundles
+
+99. Back
+
