@@ -163,14 +163,7 @@ export class CommissionService {
         };
 
       case 'tv_bill':
-        return {
-          ...basePayload,
-          Extradata: {
-            provider: request.tvProvider,
-            accountNumber: request.extraData?.accountNumber,
-            ...request.extraData
-          }
-        };
+        return basePayload;
 
       case 'utility':
         if (request.utilityProvider === UtilityProvider.ECG) {
@@ -207,7 +200,9 @@ export class CommissionService {
     try {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
 
-      const { ClientReference, ResponseCode, Message, TransactionId, Commission } = callbackData;
+      const { ClientReference, ResponseCode, Message, Data } = callbackData;
+      const TransactionId = Data?.TransactionId;
+      const Commission = Data?.Meta?.Commission;
 
       // Update transaction status
       await this.transactionModel.findOneAndUpdate(
@@ -216,7 +211,7 @@ export class CommissionService {
           $set: {
             status: ResponseCode === '0000' ? 'success' : 'failed',
             transactionId: TransactionId,
-            finalAmount: callbackData.Amount,
+            finalAmount: Data?.Amount,
             commission: Commission,
             callbackReceived: true,
             callbackDate: new Date(),

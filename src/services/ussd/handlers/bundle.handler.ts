@@ -181,7 +181,7 @@ export class BundleHandler {
       }
 
       // Use API Groups structure directly
-      const bundleGroups = this.processApiGroups(bundleResponse);
+      const bundleGroups = this.processApiGroups(bundleResponse, state.network);
       state.bundleGroups = bundleGroups;
       state.currentBundlePage = 0;
       state.currentGroupIndex = -1; // Reset group selection
@@ -288,7 +288,7 @@ export class BundleHandler {
       }
 
       // Set the selected bundle and amount
-      const selectedBundle = bundles[selectedIndex];
+      const selectedBundle = pageBundles[selectedIndex];
       state.selectedBundle = selectedBundle;
       state.bundleValue = selectedBundle.Value;
       state.amount = selectedBundle.Amount;
@@ -331,7 +331,7 @@ export class BundleHandler {
   /**
    * Process API Groups structure directly
    */
-  private processApiGroups(bundleResponse: any): BundleGroup[] {
+  private processApiGroups(bundleResponse: any, network: NetworkProvider): BundleGroup[] {
     // Check if the response has the Groups structure
     if (bundleResponse.Groups) {
       // Use the Groups structure directly
@@ -366,14 +366,17 @@ export class BundleHandler {
     } else {
       // Fallback to manual grouping if Groups structure is not available
       console.log('Groups structure not found, falling back to manual grouping');
-      return this.groupBundlesByCategory(bundleResponse.Data, bundleResponse.network);
+      return this.groupBundlesByCategory(bundleResponse.Data, network);
     }
   }
   private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
     const groups: { [key: string]: BundleOption[] } = {};
 
+    console.log(`Grouping ${bundles.length} bundles for network: ${network}`);
+    
     bundles.forEach(bundle => {
       const category = this.getBundleCategory(bundle, network);
+      console.log(`Bundle "${bundle.Display}" -> Category: "${category}"`);
       if (!groups[category]) {
         groups[category] = [];
       }
