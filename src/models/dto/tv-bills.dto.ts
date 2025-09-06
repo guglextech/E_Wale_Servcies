@@ -38,7 +38,8 @@ export class TVBillPaymentDto {
   amount: number;
 
   @IsString()
-  callbackUrl: string;
+  @IsOptional()
+  callbackUrl?: string;
 
   @IsString()
   clientReference: string;

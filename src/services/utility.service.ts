@@ -85,7 +85,7 @@ export class UtilityService {
       const requestPayload: ECGTopUpPayload = {
         Destination: mobileNumber,
         Amount: ecgTopUpDto.amount,
-        CallbackUrl: this.getRequiredEnvVar('HB_CALLBACK_URL'),
+        CallbackUrl: ecgTopUpDto.callbackUrl || this.getRequiredEnvVar('HB_CALLBACK_URL'),
         ClientReference: `ECG_${ecgTopUpDto.clientReference}_${Date.now()}`,
         Extradata: {
           bundle: ecgTopUpDto.meterNumber
@@ -136,7 +136,7 @@ export class UtilityService {
           Email: ghanaWaterTopUpDto.email,
           SessionId: ghanaWaterTopUpDto.sessionId
         },
-        CallbackUrl: this.getRequiredEnvVar('HB_CALLBACK_URL'),
+        CallbackUrl: ghanaWaterTopUpDto.callbackUrl || this.getRequiredEnvVar('HB_CALLBACK_URL'),
         ClientReference: `GHANAWATER_${ghanaWaterTopUpDto.clientReference}_${Date.now()}`
       };
 
@@ -250,21 +250,26 @@ export class UtilityService {
    */
   async handleUtilityCallback(callbackData: any): Promise<void> {
     try {
+      const { ClientReference, ResponseCode, Data } = callbackData;
+      const TransactionId = Data?.TransactionId;
+      const Commission = Data?.Meta?.Commission;
+      const Amount = Data?.Amount;
+
       await this.transactionModel.findOneAndUpdate(
-        { clientReference: callbackData.ClientReference },
+        { clientReference: ClientReference },
         {
           $set: {
-            status: callbackData.ResponseCode === '0000' ? 'success' : 'failed',
-            transactionId: callbackData.TransactionId,
-            finalAmount: callbackData.Amount,
-            commission: callbackData.Commission,
+            status: ResponseCode === '0000' ? 'success' : 'failed',
+            transactionId: TransactionId,
+            finalAmount: Amount,
+            commission: Commission,
             callbackReceived: true,
             callbackDate: new Date()
           }
         }
       );
 
-      this.logger.log(`Utility callback processed for ${callbackData.ClientReference}`);
+      this.logger.log(`Utility callback processed for ${ClientReference}`);
     } catch (error) {
       this.logger.error(`Error processing utility callback: ${error.message}`);
       throw error;

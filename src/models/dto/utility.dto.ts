@@ -42,7 +42,8 @@ export class ECGTopUpDto {
   amount: number;
 
   @IsString()
-  callbackUrl: string;
+  @IsOptional()
+  callbackUrl?: string;
 
   @IsString()
   clientReference: string;
@@ -62,7 +63,8 @@ export class GhanaWaterTopUpDto {
   amount: number;
 
   @IsString()
-  callbackUrl: string;
+  @IsOptional()
+  callbackUrl?: string;
 
   @IsString()
   clientReference: string;

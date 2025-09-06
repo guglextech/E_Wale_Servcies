@@ -68,7 +68,7 @@ export class TVBillsService {
       const requestPayload: TVBillPaymentPayload = {
         Destination: tvBillDto.accountNumber,
         Amount: tvBillDto.amount,
-        CallbackUrl: this.getRequiredEnvVar('HB_CALLBACK_URL'),
+        CallbackUrl: tvBillDto.callbackUrl || this.getRequiredEnvVar('HB_CALLBACK_URL'),
         ClientReference: `TVBILL_${tvBillDto.clientReference}_${Date.now()}`
       };
 
@@ -132,21 +132,26 @@ export class TVBillsService {
    */
   async handleTVBillCallback(callbackData: any): Promise<void> {
     try {
+      const { ClientReference, ResponseCode, Data } = callbackData;
+      const TransactionId = Data?.TransactionId;
+      const Commission = Data?.Meta?.Commission;
+      const Amount = Data?.Amount;
+
       await this.transactionModel.findOneAndUpdate(
-        { clientReference: callbackData.ClientReference },
+        { clientReference: ClientReference },
         {
           $set: {
-            status: callbackData.ResponseCode === '0000' ? 'success' : 'failed',
-            transactionId: callbackData.TransactionId,
-            finalAmount: callbackData.Amount,
-            commission: callbackData.Commission,
+            status: ResponseCode === '0000' ? 'success' : 'failed',
+            transactionId: TransactionId,
+            finalAmount: Amount,
+            commission: Commission,
             callbackReceived: true,
             callbackDate: new Date()
           }
         }
       );
 
-      this.logger.log(`TV bill callback processed for ${callbackData.ClientReference}`);
+      this.logger.log(`TV bill callback processed for ${ClientReference}`);
     } catch (error) {
       this.logger.error(`Error processing TV bill callback: ${error.message}`);
       throw error;
