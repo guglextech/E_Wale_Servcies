@@ -184,7 +184,7 @@ export class BundleHandler {
    * Process bundle groups from API response
    */
   private processBundleGroups(bundleResponse: any, network: NetworkProvider): BundleGroup[] {
-    // Check if API has Groups structure
+    // If API has Groups structure, use it directly
     if (bundleResponse.Groups) {
       const groups: BundleGroup[] = [];
       
@@ -211,94 +211,47 @@ export class BundleHandler {
 
       return groups;
     } else {
-      // Use manual grouping when API doesn't provide Groups
+      // Fallback: manually group bundles
       return this.groupBundlesManually(bundleResponse.Data, network);
     }
   }
 
-  /**
-   * Manually group bundles when API doesn't provide Groups
-   */
-  private groupBundlesManually(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
-    const groups: { [key: string]: BundleOption[] } = {};
+   /**
+    * Manually group bundles when API doesn't provide Groups
+    */
+   private groupBundlesManually(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
+     const groups: { [key: string]: BundleOption[] } = {};
 
-    bundles.forEach(bundle => {
-      const category = this.getBundleCategory(bundle, network);
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-      groups[category].push(bundle);
-    });
+     bundles.forEach(bundle => {
+       const category = this.getBundleCategory(bundle, network);
+       if (!groups[category]) {
+         groups[category] = [];
+       }
+       groups[category].push(bundle);
+     });
 
-    // Convert to final groups with pagination
-    const finalGroups: BundleGroup[] = [];
-    const categoryOrder = this.getCategoryOrder(network);
+     // Split large categories
+     const finalGroups: BundleGroup[] = [];
+     Object.entries(groups).forEach(([category, bundleList]) => {
+       if (bundleList.length <= this.BUNDLES_PER_PAGE) {
+         finalGroups.push({
+           name: category,
+           bundles: bundleList
+         });
+       } else {
+         const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
+         chunks.forEach((chunk, index) => {
+           const categoryName = chunks.length === 1 ? category : `${category} ${index + 1}`;
+           finalGroups.push({
+             name: categoryName,
+             bundles: chunk
+           });
+         });
+       }
+     });
 
-    // Process categories in order
-    categoryOrder.forEach(categoryName => {
-      const bundleList = groups[categoryName] || [];
-      if (bundleList.length > 0) {
-        if (bundleList.length <= this.BUNDLES_PER_PAGE) {
-          finalGroups.push({
-            name: categoryName,
-            bundles: bundleList
-          });
-        } else {
-          // Split large categories into pages
-          const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
-          chunks.forEach((chunk, index) => {
-            const categoryNameWithPage = chunks.length === 1 ? categoryName : `${categoryName} (${index + 1})`;
-            finalGroups.push({
-              name: categoryNameWithPage,
-              bundles: chunk
-            });
-          });
-        }
-      }
-    });
-
-    // Add any remaining categories not in the predefined order
-    Object.entries(groups).forEach(([categoryName, bundleList]) => {
-      if (!categoryOrder.includes(categoryName) && bundleList.length > 0) {
-        if (bundleList.length <= this.BUNDLES_PER_PAGE) {
-          finalGroups.push({
-            name: categoryName,
-            bundles: bundleList
-          });
-        } else {
-          const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
-          chunks.forEach((chunk, index) => {
-            const categoryNameWithPage = chunks.length === 1 ? categoryName : `${categoryName} (${index + 1})`;
-            finalGroups.push({
-              name: categoryNameWithPage,
-              bundles: chunk
-            });
-          });
-        }
-      }
-    });
-
-    return finalGroups;
-  }
-
-  /**
-   * Get category order for each network
-   */
-  private getCategoryOrder(network: NetworkProvider): string[] {
-    switch (network) {
-      case NetworkProvider.MTN:
-        return ['Kokrokoo Bundles', 'Flexi Data Bundles', 'Video Bundles', 'Social Media Bundles'];
-      
-      case NetworkProvider.AT:
-        return ['BigTime Data', 'Fuse Bundles', 'Kokoo Bundles', 'XXL Family Pack'];
-      
-      case NetworkProvider.TELECEL:
-        return ['No Expiry Bundles', 'Night Bundles', 'Hour Boost', 'Time-Based Bundles'];
-      
-      default:
-        return [];
-    }
-  }
+     return finalGroups;
+   }
 
   /**
    * Split array into chunks
@@ -311,91 +264,87 @@ export class BundleHandler {
     return chunks;
   }
 
-  /**
-   * Determine bundle category based on bundle name and network
-   */
-  private getBundleCategory(bundle: BundleOption, network: NetworkProvider): string {
-    const display = bundle.Display.toLowerCase();
-    const value = bundle.Value.toLowerCase();
+   /**
+    * Determine bundle category based on bundle name and network
+    */
+   private getBundleCategory(bundle: BundleOption, network: NetworkProvider): string {
+     const display = bundle.Display.toLowerCase();
+     const value = bundle.Value.toLowerCase();
 
-    // MTN Network Categories
-    if (network === NetworkProvider.MTN) {
-      // Kokrokoo Bundles - time-based bundles (5am to 8am)
-      if (display.includes('kokrokoo') || display.includes('5am') || display.includes('8am') || 
-          value.includes('kokrokoo')) {
-        return 'Kokrokoo Bundles';
-      }
-      // Video Bundles - bundles with "video" or video-related terms
-      else if (display.includes('video') || value.includes('video')) {
-        return 'Video Bundles';
-      }
-      // Social Media Bundles - bundles with "social" or social platform names
-      else if (display.includes('social') || value.includes('social')) {
-        return 'Social Media Bundles';
-      }
-      // Flexi Data Bundles - flexible data bundles or general data bundles
-      else if (display.includes('flexi') || value.includes('flexi') || 
-               value.includes('data_bundle')) {
-        return 'Flexi Data Bundles';
-      }
-      // Default for MTN
-      return 'Flexi Data Bundles';
-    }
-    
-    // AT Network Categories
-    else if (network === NetworkProvider.AT) {
-      // BigTime Data - bundles with (GHS X) format or specific patterns
-      if (display.includes('(ghs') || value.includes('bigtime') || value.includes('data1') || 
-          value.includes('data2') || value.includes('data5') || value.includes('data10') || 
-          value.includes('data20') || value.includes('data50') || !display.includes('mins')) {
-        return 'BigTime Data';
-      }
-      // Fuse Bundles - bundles with "mins" and "MB/GB" 
-      else if ((display.includes('mins') && (display.includes('mb') || display.includes('gb'))) || 
-               value.includes('fuse')) {
-        return 'Fuse Bundles';
-      }
-      // Kokoo Bundles - bundles with "kokoo" or "sika_kokoo"
-      else if (display.includes('kokoo') || value.includes('kokoo') || value.includes('sika_kokoo')) {
-        return 'Kokoo Bundles';
-      }
-      // XXL Family Pack - bundles with "xxl" or "family"
-      else if (display.includes('xxl') || display.includes('family') || value.includes('xxl') || 
-               value.includes('family')) {
-        return 'XXL Family Pack';
-      }
-      // Default for AT
-      return 'BigTime Data';
-    }
-    
-    // Telecel Network Categories
-    else if (network === NetworkProvider.TELECEL) {
-      // No Expiry Bundles - specific no expiry patterns
-      if (display.includes('no expiry') && !display.includes('12am') && !display.includes('5am') || 
-          value.includes('datanv')) {
-        return 'No Expiry Bundles';
-      }
-      // Night Bundles - specific night time patterns
-      else if ((display.includes('12am') || display.includes('5am') || display.includes('night')) || 
-               value.includes('bnight')) {
-        return 'Night Bundles';
-      }
-      // Hour Boost - specific hour patterns
-      else if (display.includes('hour') || value.includes('hrboost')) {
-        return 'Hour Boost';
-      }
-      // Time-Based Bundles - specific day patterns
-      else if (display.includes('day') || display.includes('days') || 
-               value.includes('databund') || value.includes('btboss')) {
-        return 'Time-Based Bundles';
-      }
-      // Default for Telecel
-      return 'No Expiry Bundles';
-    }
-    
-    // Default category for unmatched bundles
-    return 'Data Bundles';
-  }
+     // AT Network Categories
+     if (network === NetworkProvider.AT) {
+       // BigTime Data - bundles with (GHS X) format or specific patterns
+       if (display.includes('(ghs') || value.includes('bigtime') || value.includes('data1') || 
+           value.includes('data2') || value.includes('data5') || value.includes('data10') || 
+           value.includes('data20') || value.includes('data50')) {
+         return 'BigTime Data';
+       }
+       // Fuse Bundles - bundles with "mins" and "MB" 
+       else if (display.includes('mins') && display.includes('mb') || value.includes('fuse')) {
+         return 'Fuse Bundles';
+       }
+       // Kokoo Bundles - bundles with "kokoo" or "sika_kokoo"
+       else if (display.includes('kokoo') || value.includes('kokoo') || value.includes('sika_kokoo')) {
+         return 'Kokoo Bundles';
+       }
+       // XXL Family Pack - bundles with "xxl" or "family"
+       else if (display.includes('xxl') || display.includes('family')) {
+         return 'XXL Family Pack';
+       }
+       // Default for AT
+       return 'BigTime Data';
+     }
+     
+     // MTN Network Categories
+     else if (network === NetworkProvider.MTN) {
+       // Kokrokoo Bundles - time-based bundles (5am to 8am)
+       if (display.includes('kokrokoo') || display.includes('5am') || display.includes('8am')) {
+         return 'Kokrokoo Bundles';
+       }
+       // Video Bundles - bundles with "video" or video-related terms
+       else if (display.includes('video') || value.includes('video')) {
+         return 'Video Bundles';
+       }
+       // Social Media Bundles - bundles with "social" or social platform names
+       else if (display.includes('social') || value.includes('social')) {
+         return 'Social Media Bundles';
+       }
+       // Flexi Data Bundles - flexible data bundles
+       else if (display.includes('flexi') || value.includes('flexi')) {
+         return 'Flexi Data Bundles';
+       }
+       // Default for MTN
+       return 'Kokrokoo Bundles';
+     }
+     
+     // Telecel Network Categories
+     else if (network === NetworkProvider.TELECEL) {
+       // Night Bundles - specific night time patterns
+       if (display.includes('12am') || display.includes('5am') || display.includes('night') || 
+           value.includes('bnight')) {
+         return 'Night Bundles';
+       }
+       // Hour Boost - specific hour patterns
+       else if (display.includes('1 hour') || display.includes('hour') || value.includes('hrboost')) {
+         return 'Hour Boost';
+       }
+       // No Expiry Bundles - specific no expiry pattern
+       else if (display.includes('no expiry') || value.includes('datanv')) {
+         return 'No Expiry Bundles';
+       }
+       // Time-Based Bundles - specific day patterns only
+       else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
+                display.includes('15 days') || display.includes('30 days') || value.includes('databund') || 
+                value.includes('btboss')) {
+         return 'Time-Based Bundles';
+       }
+       // Default for Telecel
+       return 'No Expiry Bundles';
+     }
+     
+     // Default category for unmatched bundles
+     return 'Data Bundles';
+   }
 
   /**
    * Format bundle categories menu
@@ -411,8 +360,7 @@ export class BundleHandler {
         );
       }
       
-      const networkName = this.getNetworkDisplayName(state.network);
-      let menu = `${networkName}\n\nSelect Bundle Package:\n\n`;
+      let menu = "Select Bundle Package:\n\n";
       
       groups.forEach((group, index) => {
         menu += `${index + 1}. ${group.name}\n`;
@@ -435,22 +383,6 @@ export class BundleHandler {
   }
 
   /**
-   * Get network display name
-   */
-  private getNetworkDisplayName(network: NetworkProvider): string {
-    switch (network) {
-      case NetworkProvider.MTN:
-        return 'MTN Network';
-      case NetworkProvider.TELECEL:
-        return 'Telecel Network';
-      case NetworkProvider.AT:
-        return 'AT Network';
-      default:
-        return 'Network';
-    }
-  }
-
-  /**
    * Handle bundle category selection
    */
   async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
@@ -467,7 +399,7 @@ export class BundleHandler {
       const groups = state.bundleGroups || [];
       const selectedIndex = parseInt(req.Message) - 1;
 
-      if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= groups.length) {
+      if (selectedIndex < 0 || selectedIndex >= groups.length) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
           "Please select a valid category"
@@ -513,12 +445,11 @@ export class BundleHandler {
       }
 
       const bundles = currentGroup.bundles;
-      const networkName = this.getNetworkDisplayName(state.network);
 
-      let menu = `${networkName}\n${currentGroup.name}:\n\n`;
+      let menu = `${currentGroup.name} (${state.network}):\n\n`;
       
       bundles.forEach((bundle, index) => {
-        menu += `${index + 1}. ${bundle.Display} - GH¢${bundle.Amount}\n`;
+        menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
       });
 
       menu += "\n99. Back\n";
@@ -569,7 +500,7 @@ export class BundleHandler {
       // Handle bundle selection
       const selectedIndex = parseInt(req.Message) - 1;
 
-      if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= bundles.length) {
+      if (selectedIndex < 0 || selectedIndex >= bundles.length) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
           "Please select a valid bundle option"
@@ -628,7 +559,7 @@ export class BundleHandler {
     }
     
     const amount = bundle?.Amount || state.amount || 'N/A';
-    summary += `Amount: GH¢${amount}\n\n`;
+    summary += `Amount: GH${amount}\n\n`;
     summary += `1. Confirm\n2. Cancel`;
 
     return summary;
@@ -638,38 +569,33 @@ export class BundleHandler {
    * Log USSD interaction
    */
   private async logInteraction(req: HBussdReq, state: SessionState, status: string): Promise<void> {
-    try {
-      await this.loggingService.logUssdInteraction({
-        mobileNumber: req.Mobile,
-        sessionId: req.SessionId,
-        sequence: req.Sequence,
-        message: req.Message,
-        serviceType: state.serviceType,
-        service: state.service,
-        flow: state.flow,
-        network: state.network,
-        amount: state.amount,
-        totalAmount: state.totalAmount,
-        quantity: state.quantity,
-        recipientName: state.name,
-        recipientMobile: state.mobile,
-        tvProvider: state.tvProvider,
-        accountNumber: state.accountNumber,
-        utilityProvider: state.utilityProvider,
-        meterNumber: state.meterNumber,
-        bundleValue: state.bundleValue,
-        selectedBundle: state.selectedBundle,
-        accountInfo: state.accountInfo,
-        meterInfo: state.meterInfo,
-        status,
-        userAgent: 'USSD',
-        deviceInfo: 'Mobile USSD',
-        location: 'Ghana'
-      });
-    } catch (error) {
-      console.error('Error logging interaction:', error);
-      // Don't throw error to avoid breaking the flow
-    }
+    await this.loggingService.logUssdInteraction({
+      mobileNumber: req.Mobile,
+      sessionId: req.SessionId,
+      sequence: req.Sequence,
+      message: req.Message,
+      serviceType: state.serviceType,
+      service: state.service,
+      flow: state.flow,
+      network: state.network,
+      amount: state.amount,
+      totalAmount: state.totalAmount,
+      quantity: state.quantity,
+      recipientName: state.name,
+      recipientMobile: state.mobile,
+      tvProvider: state.tvProvider,
+      accountNumber: state.accountNumber,
+      utilityProvider: state.utilityProvider,
+      meterNumber: state.meterNumber,
+      bundleValue: state.bundleValue,
+      selectedBundle: state.selectedBundle,
+      accountInfo: state.accountInfo,
+      meterInfo: state.meterInfo,
+      status,
+      userAgent: 'USSD',
+      deviceInfo: 'Mobile USSD',
+      location: 'Ghana'
+    });
   }
 
   /**
