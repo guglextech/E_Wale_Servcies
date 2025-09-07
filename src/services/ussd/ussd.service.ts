@@ -495,11 +495,7 @@ export class UssdService {
   }
 
   private async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    // If this is the first time showing buy for options, show the menu
-    if (!state.flow) {
-      return this.bundleHandler.showBuyForOptions(req.SessionId, state);
-    }
-    // Otherwise handle the selection
+    // Always handle the selection since we're in step 6
     return await this.bundleHandler.handleBuyForSelection(req, state);
   }
 
