@@ -56,7 +56,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile || '233550123456', // Use default for query
+        destination: state.mobile || '233550982043', 
         network: state.network,
         bundleType: 'data'
       });
@@ -64,7 +64,7 @@ export class BundleHandler {
       if (!bundleResponse || !bundleResponse.Data || bundleResponse.Data.length === 0) {
         return this.responseBuilder.createErrorResponse(
           sessionId,
-          "No bundles available for this network. Please try another network."
+          "No bundles available for this network."
         );
       }
 
@@ -179,21 +179,10 @@ export class BundleHandler {
     // Log bundle selection
     await this.logInteraction(req, state, 'bundle_selected');
 
-    return this.showPurchaseType(req.SessionId, state);
+    return this.handlePurchaseTypeSelection(req, state);
   }
 
-  /**
-   * Show purchase type (Self or Other)
-   */
-  private showPurchaseType(sessionId: string, state: SessionState): string {
-    return this.responseBuilder.createResponse(
-      sessionId,
-      "Purchase Type",
-      "Who is this bundle for?\n\n1. Self\n2. Other\n\nSelect option:",
-      "input",
-      "text"
-    );
-  }
+   
 
   /**
    * Handle purchase type selection
