@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HBussdReq } from '../../../models/dto/hubtel/hb-ussd.dto';
-import { NetworkProvider, BundleOption } from '../../../models/dto/bundle.dto';
+import { NetworkProvider, BundleType, BundleOption } from '../../../models/dto/bundle.dto';
 import { SessionState } from '../types';
 import { ResponseBuilder } from '../response-builder';
 import { BundleService } from '../../bundle.service';
@@ -14,7 +14,8 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 4;
+  private readonly BUNDLES_PER_PAGE = 3;
+  private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
     private readonly responseBuilder: ResponseBuilder,
@@ -27,131 +28,35 @@ export class BundleHandler {
    * Handle network selection for bundle service
    */
   async handleNetworkSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    try {
-      if (!["1", "2", "3"].includes(req.Message)) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "Please select 1, 2, or 3"
-        );
-      }
-
-      const networkMap = {
-        "1": NetworkProvider.MTN,
-        "2": NetworkProvider.TELECEL,
-        "3": NetworkProvider.AT
-      };
-
-      state.network = networkMap[req.Message];
-      state.mobile = req.Mobile;
-      this.sessionManager.updateSession(req.SessionId, state);
-
-      await this.logInteraction(req, state, 'network_selected');
-
-      return this.showBuyForOptions(req.SessionId, state);
-    } catch (error) {
-      console.error('Error in handleNetworkSelection:', error);
+    if (!["1", "2", "3"].includes(req.Message)) {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "An error occurred while processing your selection. Please try again."
+        "Please select 1, 2, or 3"
       );
     }
+
+    const networkMap = {
+      "1": NetworkProvider.MTN,
+      "2": NetworkProvider.TELECEL,
+      "3": NetworkProvider.AT
+    };
+
+    state.network = networkMap[req.Message];
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log network selection
+    await this.logInteraction(req, state, 'network_selected');
+
+    return this.showBundleCategories(req.SessionId, state);
   }
 
   /**
-   * Show buy for self or other options
-   */
-  private showBuyForOptions(sessionId: string, state: SessionState): string {
-    return this.responseBuilder.createNumberInputResponse(
-      sessionId,
-      "Buy For",
-      "Buy for:\n\n1. My Number\n2. Other Number\n\nSelect option:"
-    );
-  }
-
-  /**
-   * Handle buy for selection (self or other)
-   */
-  async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    try {
-      if (req.Message === "1") {
-        state.flow = 'self';
-        state.mobile = req.Mobile;
-        this.sessionManager.updateSession(req.SessionId, state);
-        
-        await this.logInteraction(req, state, 'buy_for_self');
-        
-        return this.showBundleCategories(req.SessionId, state);
-      } else if (req.Message === "2") {
-        state.flow = 'other';
-        this.sessionManager.updateSession(req.SessionId, state);
-        
-        await this.logInteraction(req, state, 'buy_for_other');
-        
-        return this.responseBuilder.createPhoneInputResponse(
-          req.SessionId,
-          "Enter Mobile Number",
-          "Enter recipient's mobile number:"
-        );
-      } else {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "Please select 1 for My Number or 2 for Other Number"
-        );
-      }
-    } catch (error) {
-      console.error('Error in handleBuyForSelection:', error);
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "An error occurred. Please try again."
-      );
-    }
-  }
-
-  /**
-   * Handle mobile number input for other purchase
-   */
-  async handleOtherMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
-    try {
-      const validation = this.validateMobileNumber(req.Message);
-      
-      if (!validation.isValid) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          validation.error || "Invalid mobile number format"
-        );
-      }
-
-      state.mobile = validation.convertedNumber;
-      this.sessionManager.updateSession(req.SessionId, state);
-
-      await this.logInteraction(req, state, 'other_mobile_entered');
-
-      return this.showBundleCategories(req.SessionId, state);
-    } catch (error) {
-      console.error('Error in handleOtherMobileNumber:', error);
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "An error occurred. Please try again."
-      );
-    }
-  }
-
-  /**
-   * Show bundle categories
+   * Show bundle categories (Data Bundles, Kokrokoo Bundles, etc.)
    */
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
-      const destination = state.mobile || '233550982043';
-      
-      if (!state.network) {
-        return this.responseBuilder.createErrorResponse(
-          sessionId,
-          "Network not selected. Please try again."
-        );
-      }
-      
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: destination,
+        destination: state.mobile || '233550123456', // Use default for query
         network: state.network,
         bundleType: 'data'
       });
@@ -163,11 +68,13 @@ export class BundleHandler {
         );
       }
 
-      // Process bundles into groups
-      const bundleGroups = this.processBundleGroups(bundleResponse, state.network);
-      state.bundleGroups = bundleGroups;
+      // Group bundles by category
+      const groupedBundles = this.groupBundlesByCategory(bundleResponse.Data);
+      
+      // Store grouped bundles in session state
+      state.bundleGroups = groupedBundles;
+      state.currentGroupIndex = 0;
       state.currentBundlePage = 0;
-      state.currentGroupIndex = -1;
       this.sessionManager.updateSession(sessionId, state);
 
       return this.formatBundleCategories(sessionId, state);
@@ -181,430 +88,313 @@ export class BundleHandler {
   }
 
   /**
-   * Process bundle groups from API response
+   * Handle bundle category selection
    */
-  private processBundleGroups(bundleResponse: any, network: NetworkProvider): BundleGroup[] {
-    // Check if API has Groups structure
-    if (bundleResponse.Groups) {
-      const groups: BundleGroup[] = [];
-      
-      Object.entries(bundleResponse.Groups).forEach(([groupName, bundles]) => {
-        const bundleList = bundles as BundleOption[];
-        
-        // Split large groups into smaller ones (max 4 bundles per group)
-        if (bundleList.length <= this.BUNDLES_PER_PAGE) {
-          groups.push({
-            name: groupName,
-            bundles: bundleList
-          });
-        } else {
-          const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
-          chunks.forEach((chunk, index) => {
-            const groupNameWithIndex = chunks.length === 1 ? groupName : `${groupName} ${index + 1}`;
-            groups.push({
-              name: groupNameWithIndex,
-              bundles: chunk
-            });
-          });
-        }
-      });
+  async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
+    const groups = state.bundleGroups || [];
+    const selectedIndex = parseInt(req.Message) - 1;
 
-      return groups;
+    if (selectedIndex < 0 || selectedIndex >= groups.length) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select a valid category"
+      );
+    }
+
+    state.currentGroupIndex = selectedIndex;
+    state.currentBundlePage = 0;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log category selection
+    await this.logInteraction(req, state, 'category_selected');
+
+    return this.showBundlePage(req.SessionId, state);
+  }
+
+  /**
+   * Handle bundle selection with pagination
+   */
+  async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    const groups = state.bundleGroups || [];
+    const currentGroup = groups[state.currentGroupIndex];
+    
+    if (!currentGroup) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "No bundles available in this category"
+      );
+    }
+
+    const bundles = currentGroup.bundles;
+    const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
+    const endIndex = startIndex + this.BUNDLES_PER_PAGE;
+    const pageBundles = bundles.slice(startIndex, endIndex);
+
+    const selectedIndex = parseInt(req.Message) - 1;
+
+    if (req.Message === "0") {
+      // Next page
+      if (endIndex < bundles.length) {
+        state.currentBundlePage++;
+        this.sessionManager.updateSession(req.SessionId, state);
+        return this.showBundlePage(req.SessionId, state);
+      } else {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "No more bundles to show"
+        );
+      }
+    } else if (req.Message === "00") {
+      // Previous page
+      if (state.currentBundlePage > 0) {
+        state.currentBundlePage--;
+        this.sessionManager.updateSession(req.SessionId, state);
+        return this.showBundlePage(req.SessionId, state);
+      } else {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Already on first page"
+        );
+      }
+    } else if (req.Message === "99") {
+      // Back to categories
+      state.currentGroupIndex = 0;
+      state.currentBundlePage = 0;
+      this.sessionManager.updateSession(req.SessionId, state);
+      return this.formatBundleCategories(req.SessionId, state);
+    }
+
+    if (selectedIndex < 0 || selectedIndex >= pageBundles.length) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select a valid bundle option"
+      );
+    }
+
+    state.selectedBundle = pageBundles[selectedIndex];
+    state.bundleValue = pageBundles[selectedIndex].Value;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log bundle selection
+    await this.logInteraction(req, state, 'bundle_selected');
+
+    return this.showPurchaseType(req.SessionId, state);
+  }
+
+  /**
+   * Show purchase type (Self or Other)
+   */
+  private showPurchaseType(sessionId: string, state: SessionState): string {
+    return this.responseBuilder.createResponse(
+      sessionId,
+      "Purchase Type",
+      "Who is this bundle for?\n\n1. Self\n2. Other\n\nSelect option:",
+      "input",
+      "text"
+    );
+  }
+
+  /**
+   * Handle purchase type selection
+   */
+  async handlePurchaseTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    if (req.Message === "1") {
+      // Self purchase
+      state.flow = 'self';
+      state.mobile = req.Mobile; // Use current user's mobile
+      this.sessionManager.updateSession(req.SessionId, state);
+      
+      await this.logInteraction(req, state, 'purchase_type_self');
+      
+      return this.showOrderSummary(req.SessionId, state);
+    } else if (req.Message === "2") {
+      // Other purchase
+      state.flow = 'other';
+      this.sessionManager.updateSession(req.SessionId, state);
+      
+      await this.logInteraction(req, state, 'purchase_type_other');
+      
+      return this.responseBuilder.createPhoneInputResponse(
+        req.SessionId,
+        "Enter Mobile Number",
+        "Enter mobile number to purchase bundle (e.g., 0550982043):"
+      );
     } else {
-      // Use manual grouping when API doesn't provide Groups
-      return this.groupBundlesManually(bundleResponse.Data, network);
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select 1 for Self or 2 for Other"
+      );
     }
   }
 
   /**
-   * Manually group bundles when API doesn't provide Groups
+   * Handle mobile number input for other purchase
    */
-  private groupBundlesManually(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
+  async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
+    const validation = this.validateMobileNumber(req.Message);
+    
+    if (!validation.isValid) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        validation.error || "Invalid mobile number format"
+      );
+    }
+
+    state.mobile = validation.convertedNumber;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log mobile number input
+    await this.logInteraction(req, state, 'mobile_entered');
+
+    return this.showOrderSummary(req.SessionId, state);
+  }
+
+  /**
+   * Show order summary
+   */
+  public showOrderSummary(sessionId: string, state: SessionState): string {
+    return this.responseBuilder.createDisplayResponse(
+      sessionId,
+      "Order Summary",
+      this.formatBundleOrderSummary(state)
+    );
+  }
+
+  /**
+   * Group bundles by category based on their names
+   */
+  private groupBundlesByCategory(bundles: BundleOption[]): BundleGroup[] {
     const groups: { [key: string]: BundleOption[] } = {};
 
     bundles.forEach(bundle => {
-      const category = this.getBundleCategory(bundle, network);
+      const category = this.getBundleCategory(bundle);
       if (!groups[category]) {
         groups[category] = [];
       }
       groups[category].push(bundle);
     });
 
-    // Convert to final groups with pagination
-    const finalGroups: BundleGroup[] = [];
-    const categoryOrder = this.getCategoryOrder(network);
-
-    // Process categories in order
-    categoryOrder.forEach(categoryName => {
-      const bundleList = groups[categoryName] || [];
-      if (bundleList.length > 0) {
-        if (bundleList.length <= this.BUNDLES_PER_PAGE) {
-          finalGroups.push({
-            name: categoryName,
-            bundles: bundleList
-          });
-        } else {
-          // Split large categories into pages
-          const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
-          chunks.forEach((chunk, index) => {
-            const categoryNameWithPage = chunks.length === 1 ? categoryName : `${categoryName} (${index + 1})`;
-            finalGroups.push({
-              name: categoryNameWithPage,
-              bundles: chunk
-            });
-          });
-        }
+    // Debug logging
+    console.log('Bundle Grouping Results:');
+    Object.entries(groups).forEach(([category, bundleList]) => {
+      console.log(`${category}: ${bundleList.length} bundles`);
+      bundleList.slice(0, 3).forEach(bundle => {
+        // console.log(`  - ${bundle.Display} (${bundle.Value})`);
+      });
+      if (bundleList.length > 3) {
+        // console.log(`  ... and ${bundleList.length - 3} more`);
       }
     });
 
-    // Add any remaining categories not in the predefined order
-    Object.entries(groups).forEach(([categoryName, bundleList]) => {
-      if (!categoryOrder.includes(categoryName) && bundleList.length > 0) {
-        if (bundleList.length <= this.BUNDLES_PER_PAGE) {
-          finalGroups.push({
-            name: categoryName,
-            bundles: bundleList
-          });
-        } else {
-          const chunks = this.splitIntoChunks(bundleList, this.BUNDLES_PER_PAGE);
-          chunks.forEach((chunk, index) => {
-            const categoryNameWithPage = chunks.length === 1 ? categoryName : `${categoryName} (${index + 1})`;
-            finalGroups.push({
-              name: categoryNameWithPage,
-              bundles: chunk
-            });
-          });
-        }
-      }
-    });
-
-    return finalGroups;
+    return Object.entries(groups).map(([name, bundles]) => ({
+      name,
+      bundles: bundles.slice(0, this.BUNDLES_PER_GROUP)
+    }));
   }
 
   /**
-   * Get category order for each network
+   * Determine bundle category based on bundle name
    */
-  private getCategoryOrder(network: NetworkProvider): string[] {
-    switch (network) {
-      case NetworkProvider.MTN:
-        return ['Kokrokoo Bundles', 'Flexi Data Bundles', 'Video Bundles', 'Social Media Bundles'];
-      
-      case NetworkProvider.AT:
-        return ['BigTime Data', 'Fuse Bundles', 'Kokoo Bundles', 'XXL Family Pack'];
-      
-      case NetworkProvider.TELECEL:
-        return ['No Expiry Bundles', 'Night Bundles', 'Hour Boost', 'Time-Based Bundles'];
-      
-      default:
-        return [];
-    }
-  }
-
-  /**
-   * Split array into chunks
-   */
-  private splitIntoChunks<T>(array: T[], chunkSize: number): T[][] {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += chunkSize) {
-      chunks.push(array.slice(i, i + chunkSize));
-    }
-    return chunks;
-  }
-
-  /**
-   * Determine bundle category based on bundle name and network
-   */
-  private getBundleCategory(bundle: BundleOption, network: NetworkProvider): string {
+  private getBundleCategory(bundle: BundleOption): string {
     const display = bundle.Display.toLowerCase();
     const value = bundle.Value.toLowerCase();
 
-    // MTN Network Categories
-    if (network === NetworkProvider.MTN) {
-      // Kokrokoo Bundles - time-based bundles (5am to 8am)
-      if (display.includes('kokrokoo') || display.includes('5am') || display.includes('8am') || 
-          value.includes('kokrokoo')) {
-        return 'Kokrokoo Bundles';
-      }
-      // Video Bundles - bundles with "video" or video-related terms
-      else if (display.includes('video') || value.includes('video')) {
-        return 'Video Bundles';
-      }
-      // Social Media Bundles - bundles with "social" or social platform names
-      else if (display.includes('social') || value.includes('social')) {
-        return 'Social Media Bundles';
-      }
-      // Flexi Data Bundles - flexible data bundles or general data bundles
-      else if (display.includes('flexi') || value.includes('flexi') || 
-               value.includes('data_bundle')) {
-        return 'Flexi Data Bundles';
-      }
-      // Default for MTN
-      return 'Flexi Data Bundles';
-    }
-    
     // AT Network Categories
-    else if (network === NetworkProvider.AT) {
-      // BigTime Data - bundles with (GHS X) format or specific patterns
-      if (display.includes('(ghs') || value.includes('bigtime') || value.includes('data1') || 
-          value.includes('data2') || value.includes('data5') || value.includes('data10') || 
-          value.includes('data20') || value.includes('data50') || !display.includes('mins')) {
-        return 'BigTime Data';
-      }
-      // Fuse Bundles - bundles with "mins" and "MB/GB" 
-      else if ((display.includes('mins') && (display.includes('mb') || display.includes('gb'))) || 
-               value.includes('fuse')) {
-        return 'Fuse Bundles';
-      }
-      // Kokoo Bundles - bundles with "kokoo" or "sika_kokoo"
-      else if (display.includes('kokoo') || value.includes('kokoo') || value.includes('sika_kokoo')) {
-        return 'Kokoo Bundles';
-      }
-      // XXL Family Pack - bundles with "xxl" or "family"
-      else if (display.includes('xxl') || display.includes('family') || value.includes('xxl') || 
-               value.includes('family')) {
-        return 'XXL Family Pack';
-      }
-      // Default for AT
+    if (value.includes('bigtime') || display.includes('bigtime')) {
       return 'BigTime Data';
+    } else if (value.includes('fuse') || display.includes('fuse')) {
+      return 'Fuse Bundles';
+    } else if (value.includes('kokoo') || display.includes('kokoo')) {
+      return 'Kokoo Bundles';
+    } else if (value.includes('xxl') || display.includes('xxl')) {
+      return 'XXL Family Bundles';
     }
     
     // Telecel Network Categories
-    else if (network === NetworkProvider.TELECEL) {
-      // No Expiry Bundles - specific no expiry patterns
-      if (display.includes('no expiry') && !display.includes('12am') && !display.includes('5am') || 
-          value.includes('datanv')) {
-        return 'No Expiry Bundles';
-      }
-      // Night Bundles - specific night time patterns
-      else if ((display.includes('12am') || display.includes('5am') || display.includes('night')) || 
-               value.includes('bnight')) {
-        return 'Night Bundles';
-      }
-      // Hour Boost - specific hour patterns
-      else if (display.includes('hour') || value.includes('hrboost')) {
-        return 'Hour Boost';
-      }
-      // Time-Based Bundles - specific day patterns
-      else if (display.includes('day') || display.includes('days') || 
-               value.includes('databund') || value.includes('btboss')) {
-        return 'Time-Based Bundles';
-      }
-      // Default for Telecel
+    else if (value.includes('bnight') || display.includes('12am') || display.includes('5am')) {
+      return 'Night Bundles';
+    } else if (value.includes('hrboost') || display.includes('1 hour')) {
+      return 'Hour Boost';
+    } else if (display.includes('no expiry')) {
       return 'No Expiry Bundles';
+    } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
+               display.includes('15 days') || display.includes('30 days')) {
+      return 'Time-Based Bundles';
     }
     
-    // Default category for unmatched bundles
-    return 'Data Bundles';
+    // MTN Network Categories
+    else if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
+      return 'Kokrokoo Bundles';
+    } else if (display.includes('video') || value.includes('video')) {
+      return 'Video Bundles';
+    } else if (display.includes('social') || value.includes('social')) {
+      return 'Social Media Bundles';
+    }
+    
+    // Default category
+    else {
+      return 'Data Bundles';
+    }
   }
 
   /**
    * Format bundle categories menu
    */
   private formatBundleCategories(sessionId: string, state: SessionState): string {
-    try {
-      const groups = state.bundleGroups || [];
-      
-      if (groups.length === 0) {
-        return this.responseBuilder.createErrorResponse(
-          sessionId,
-          "No bundle packages available. Please try another network."
-        );
-      }
-      
-      const networkName = this.getNetworkDisplayName(state.network);
-      let menu = `${networkName}\n\nSelect Bundle Package:\n\n`;
-      
-      groups.forEach((group, index) => {
-        menu += `${index + 1}. ${group.name}\n`;
-      });
+    const groups = state.bundleGroups || [];
+    let menu = "Select Bundle Package:\n\n";
+    
+    groups.forEach((group, index) => {
+      menu += `${index + 1}. ${group.name}\n`;
+    });
 
-      menu += "\n99. Back\n";
-
-      return this.responseBuilder.createNumberInputResponse(
-        sessionId,
-        "Bundle Packages",
-        menu
-      );
-    } catch (error) {
-      console.error('Error formatting bundle categories:', error);
-      return this.responseBuilder.createErrorResponse(
-        sessionId,
-        "Error displaying bundle packages. Please try again."
-      );
-    }
+    return this.responseBuilder.createNumberInputResponse(
+      sessionId,
+      "Bundle Packages",
+      menu
+    );
   }
 
   /**
-   * Get network display name
-   */
-  private getNetworkDisplayName(network: NetworkProvider): string {
-    switch (network) {
-      case NetworkProvider.MTN:
-        return 'MTN Network';
-      case NetworkProvider.TELECEL:
-        return 'Telecel Network';
-      case NetworkProvider.AT:
-        return 'AT Network';
-      default:
-        return 'Network';
-    }
-  }
-
-  /**
-   * Handle bundle category selection
-   */
-  async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
-    try {
-      // Handle back to network selection
-      if (req.Message === "99") {
-        return this.responseBuilder.createNumberInputResponse(
-          req.SessionId,
-          "Select Network",
-          "Select Network:\n\n1. MTN\n2. Telecel Ghana\n3. AT\n\nSelect option:"
-        );
-      }
-
-      const groups = state.bundleGroups || [];
-      const selectedIndex = parseInt(req.Message) - 1;
-
-      if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= groups.length) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "Please select a valid category"
-        );
-      }
-
-      state.currentGroupIndex = selectedIndex;
-      state.currentBundlePage = 0;
-      this.sessionManager.updateSession(req.SessionId, state);
-
-      await this.logInteraction(req, state, 'category_selected');
-
-      return this.showBundlePage(req.SessionId, state);
-    } catch (error) {
-      console.error('Error in handleBundleCategorySelection:', error);
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "An error occurred. Please try again."
-      );
-    }
-  }
-
-  /**
-   * Show bundle page
+   * Show bundle page with pagination
    */
   private showBundlePage(sessionId: string, state: SessionState): string {
-    try {
-      const groups = state.bundleGroups || [];
-      
-      if (!groups || groups.length === 0) {
-        return this.responseBuilder.createErrorResponse(
-          sessionId,
-          "No bundles available"
-        );
-      }
-
-      const currentGroup = groups[state.currentGroupIndex];
-      if (!currentGroup) {
-        return this.responseBuilder.createErrorResponse(
-          sessionId,
-          "No bundle group selected"
-        );
-      }
-
-      const bundles = currentGroup.bundles;
-      const networkName = this.getNetworkDisplayName(state.network);
-
-      let menu = `${networkName}\n${currentGroup.name}:\n\n`;
-      
-      bundles.forEach((bundle, index) => {
-        menu += `${index + 1}. ${bundle.Display} - GH¢${bundle.Amount}\n`;
-      });
-
-      menu += "\n99. Back\n";
-
-      return this.responseBuilder.createNumberInputResponse(
-        sessionId,
-        currentGroup.name,
-        menu
-      );
-    } catch (error) {
-      console.error('Error in showBundlePage:', error);
+    const groups = state.bundleGroups || [];
+    const currentGroup = groups[state.currentGroupIndex];
+    
+    if (!currentGroup) {
       return this.responseBuilder.createErrorResponse(
         sessionId,
-        "Error displaying bundles. Please try again."
+        "No bundles available in this package"
       );
     }
-  }
 
-  /**
-   * Handle bundle selection
-   */
-  async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    try {
-      const groups = state.bundleGroups || [];
-      
-      if (!groups || groups.length === 0) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "No bundles available"
-        );
-      }
+    const bundles = currentGroup.bundles;
+    const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
+    const endIndex = startIndex + this.BUNDLES_PER_PAGE;
+    const pageBundles = bundles.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(bundles.length / this.BUNDLES_PER_PAGE);
 
-      const currentGroup = groups[state.currentGroupIndex];
-      if (!currentGroup) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "No bundle group selected"
-        );
-      }
+    let menu = `${currentGroup.name}:\n\n`;
+    
+    pageBundles.forEach((bundle, index) => {
+      menu += `${index + 1}. ${bundle.Display} - GH₵${bundle.Amount}\n`;
+    });
 
-      const bundles = currentGroup.bundles;
-
-      // Handle back to category selection
-      if (req.Message === "99") {
-        return this.formatBundleCategories(req.SessionId, state);
-      }
-
-      // Handle bundle selection
-      const selectedIndex = parseInt(req.Message) - 1;
-
-      if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= bundles.length) {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "Please select a valid bundle option"
-        );
-      }
-
-      // Set the selected bundle
-      const selectedBundle = bundles[selectedIndex];
-      state.selectedBundle = selectedBundle;
-      state.bundleValue = selectedBundle.Value;
-      state.amount = selectedBundle.Amount;
-      state.totalAmount = selectedBundle.Amount;
-      
-      this.sessionManager.updateSession(req.SessionId, state);
-
-      await this.logInteraction(req, state, 'bundle_selected');
-
-      return this.showOrderSummary(req.SessionId, state);
-    } catch (error) {
-      console.error('Error in handleBundleSelection:', error);
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "An error occurred while selecting bundle. Please try again."
-      );
+    // Add pagination controls
+    menu += "\n";
+    if (state.currentBundlePage > 0) {
+      menu += "00. Previous Page\n";
     }
-  }
+    if (endIndex < bundles.length) {
+      menu += "0. Next Page\n";
+    }
+    menu += "99. Back to Packages\n";
 
-  /**
-   * Show order summary
-   */
-  async showOrderSummary(sessionId: string, state: SessionState): Promise<string> {
-    return this.responseBuilder.createDisplayResponse(
+    return this.responseBuilder.createNumberInputResponse(
       sessionId,
-      "Order Summary",
-      this.formatBundleOrderSummary(state)
+      `Page ${state.currentBundlePage + 1} of ${totalPages}`,
+      menu
     );
   }
 
@@ -617,68 +407,65 @@ export class BundleHandler {
     const network = state.network;
     const flow = state.flow;
 
-    let summary = `Bundle Package:\n\n`;
-    summary += `Network: ${network || 'N/A'}\n`;
-    summary += `Bundle: ${bundle?.Display || 'N/A'}\n`;
+    let summary = `Bundle Order Summary:\n\n`;
+    summary += `Network: ${network}\n`;
+    summary += `Bundle: ${bundle?.Display}\n`;
     
     if (flow === 'self') {
-      summary += `Mobile: ${mobile || 'N/A'} (Self)\n`;
+      summary += `Mobile: ${mobile} (Self)\n`;
     } else {
-      summary += `Mobile: ${mobile || 'N/A'} (Other)\n`;
+      summary += `Mobile: ${mobile} (Other)\n`;
     }
     
-    const amount = bundle?.Amount || state.amount || 'N/A';
-    summary += `Amount: GH¢${amount}\n\n`;
+    summary += `Amount: GH₵${bundle?.Amount}\n\n`;
     summary += `1. Confirm\n2. Cancel`;
 
     return summary;
   }
 
   /**
-   * Log USSD interaction
+   * Log USSD interaction with proper data structure
    */
   private async logInteraction(req: HBussdReq, state: SessionState, status: string): Promise<void> {
-    try {
-      await this.loggingService.logUssdInteraction({
-        mobileNumber: req.Mobile,
-        sessionId: req.SessionId,
-        sequence: req.Sequence,
-        message: req.Message,
-        serviceType: state.serviceType,
-        service: state.service,
-        flow: state.flow,
-        network: state.network,
-        amount: state.amount,
-        totalAmount: state.totalAmount,
-        quantity: state.quantity,
-        recipientName: state.name,
-        recipientMobile: state.mobile,
-        tvProvider: state.tvProvider,
-        accountNumber: state.accountNumber,
-        utilityProvider: state.utilityProvider,
-        meterNumber: state.meterNumber,
-        bundleValue: state.bundleValue,
-        selectedBundle: state.selectedBundle,
-        accountInfo: state.accountInfo,
-        meterInfo: state.meterInfo,
-        status,
-        userAgent: 'USSD',
-        deviceInfo: 'Mobile USSD',
-        location: 'Ghana'
-      });
-    } catch (error) {
-      console.error('Error logging interaction:', error);
-      // Don't throw error to avoid breaking the flow
-    }
+    await this.loggingService.logUssdInteraction({
+      mobileNumber: req.Mobile,
+      sessionId: req.SessionId,
+      sequence: req.Sequence,
+      message: req.Message,
+      serviceType: state.serviceType,
+      service: state.service,
+      flow: state.flow,
+      network: state.network,
+      amount: state.amount,
+      totalAmount: state.totalAmount,
+      quantity: state.quantity,
+      recipientName: state.name,
+      recipientMobile: state.mobile,
+      tvProvider: state.tvProvider,
+      accountNumber: state.accountNumber,
+      utilityProvider: state.utilityProvider,
+      meterNumber: state.meterNumber,
+      bundleValue: state.bundleValue,
+      selectedBundle: state.selectedBundle,
+      accountInfo: state.accountInfo,
+      meterInfo: state.meterInfo,
+      status,
+      userAgent: 'USSD',
+      deviceInfo: 'Mobile USSD',
+      location: 'Ghana'
+    });
   }
 
   /**
    * Validate mobile number format
    */
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
+    // Remove any non-digit characters
     const cleaned = mobile.replace(/\D/g, '');
     
+    // Check if it's a valid Ghanaian mobile number
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
+      // Convert to international format
       const converted = '233' + cleaned.substring(1);
       return { isValid: true, convertedNumber: converted };
     }
@@ -689,7 +476,7 @@ export class BundleHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid mobile number' 
+      error: 'Must be a valid Ghanaian mobile number (e.g., 0550982034)' 
     };
   }
 }

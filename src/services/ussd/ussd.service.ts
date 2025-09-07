@@ -490,11 +490,11 @@ export class UssdService {
   }
 
   private async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.bundleHandler.handleBuyForSelection(req, state);
+    return await this.bundleHandler.handleBundleSelection(req, state);
   }
 
   private async handleOtherMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.bundleHandler.handleOtherMobileNumber(req, state);
+    return await this.bundleHandler.handleBundleMobileNumber(req, state);
   }
 
   private async handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
