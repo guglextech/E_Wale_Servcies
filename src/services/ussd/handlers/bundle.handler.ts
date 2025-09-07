@@ -43,6 +43,8 @@ export class BundleHandler {
     if (req.Message === "1") {
       state.flow = 'self';
       state.mobile = req.Mobile;
+      // Debug: Log mobile number setting
+      console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_self');
       return this.showBundleCategories(req.SessionId, state);
@@ -70,6 +72,11 @@ export class BundleHandler {
 
     state.currentGroupIndex = selectedIndex;
     state.currentBundlePage = 0;
+    // Clear previous bundle selection when selecting a new category
+    state.selectedBundle = undefined;
+    state.bundleValue = undefined;
+    state.amount = undefined;
+    state.totalAmount = undefined;
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'category_selected');
     
@@ -97,9 +104,8 @@ export class BundleHandler {
 
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
-    await this.logInteraction(req, state, 'bundle_selected');
-      
-      return this.showOrderSummary(req.SessionId, state);
+    await this.logInteraction(req, state, 'bundle_selected');  
+    return this.showOrderSummary(req.SessionId, state, req);
   }
 
   async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
@@ -110,10 +116,11 @@ export class BundleHandler {
     }
 
     state.mobile = validation.convertedNumber;
+    // Debug: Log mobile number setting for other flow
+    console.log('Setting mobile for other flow:', req.Message, 'Converted:', validation.convertedNumber, 'State mobile:', state.mobile);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'mobile_entered');
-
-    return this.showOrderSummary(req.SessionId, state);
+    return this.showOrderSummary(req.SessionId, state, req);
   }
 
   // Display methods
@@ -123,9 +130,17 @@ export class BundleHandler {
     );
   }
 
-  public showOrderSummary(sessionId: string, state: SessionState): string {
+  public showOrderSummary(sessionId: string, state: SessionState, req?: HBussdReq): string {
+    // Validate that a bundle is selected before showing order summary
+    if (!state.selectedBundle) {
+      return this.responseBuilder.createErrorResponse(
+        sessionId, 
+        "No bundle selected. Please select a bundle first."
+      );
+    }
+    
     return this.responseBuilder.createDisplayResponse(
-      sessionId, "Bundle", this.formatOrderSummary(state)
+      sessionId, "Bundle", this.formatOrderSummary(state, req)
     );
   }
 
@@ -183,16 +198,30 @@ export class BundleHandler {
 
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
-    const menu = "Select Bundle Package:\n\n" + 
+    const menu = "Select Bundle:\n\n" + 
       groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n');
 
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
   }
 
-  private formatOrderSummary(state: SessionState): string {
+  private formatOrderSummary(state: SessionState, req?: HBussdReq): string {
     const bundle = state.selectedBundle;
     const flow = state.flow === 'self' ? '(Self)' : '(Other)';
-    const mobileDisplay = state.mobile || 'Not specified';
+    
+    // Debug: Log state information
+    console.log('Order Summary - State mobile:', state.mobile, 'Flow:', state.flow, 'Bundle:', bundle?.Display);
+    
+    // Ensure mobile number is always available
+    let mobileDisplay = state.mobile;
+    if (!mobileDisplay && req) {
+      // Fallback to request mobile number if state mobile is not set
+      mobileDisplay = req.Mobile;
+      console.log('Using fallback mobile from request:', mobileDisplay);
+    }
+    if (!mobileDisplay) {
+      // This should not happen in normal flow, but we'll handle it gracefully
+      mobileDisplay = 'Mobile number not set';
+    }
     
     return `Bundle Order Summary:\n\n` +
       `Network: ${state.network}\n` +
@@ -229,6 +258,11 @@ export class BundleHandler {
   private handleBackToCategories(req: HBussdReq, state: SessionState): string {
     state.currentGroupIndex = 0;
     state.currentBundlePage = 0;
+    // Clear previous bundle selection when going back to categories
+    state.selectedBundle = undefined;
+    state.bundleValue = undefined;
+    state.amount = undefined;
+    state.totalAmount = undefined;
     this.updateSession(req.SessionId, state);
     return this.formatBundleCategories(req.SessionId, state);
   }
