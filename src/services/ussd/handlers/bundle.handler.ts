@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 6;
+  private readonly BUNDLES_PER_PAGE = 4;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -169,8 +169,8 @@ export class BundleHandler {
     });
 
     menu += "\n";
-    if (state.currentBundlePage > 0) menu += "00. Previous Page\n";
-    if (this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1).length > 0) menu += "0. Next Page\n";
+    if (state.currentBundlePage > 0) menu += "00. Previous\n";
+    if (this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1).length > 0) menu += "0. Next\n";
     menu += "99. Back to Packages\n";
 
     return this.responseBuilder.createNumberInputResponse(
