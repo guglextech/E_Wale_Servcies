@@ -68,8 +68,8 @@ export class BundleHandler {
         );
       }
 
-      // Group bundles by category
-      const groupedBundles = this.groupBundlesByCategory(bundleResponse.Data);
+      // Group bundles by category with network context
+      const groupedBundles = this.groupBundlesByCategory(bundleResponse.Data, state.network);
       
       // Store grouped bundles in session state
       state.bundleGroups = groupedBundles;
@@ -107,7 +107,6 @@ export class BundleHandler {
 
     // Log category selection
     await this.logInteraction(req, state, 'category_selected');
-
     return this.showBundlePage(req.SessionId, state);
   }
 
@@ -121,7 +120,7 @@ export class BundleHandler {
     if (!currentGroup) {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "No bundles available in this category"
+        "No bundles available"
       );
     }
 
@@ -173,6 +172,8 @@ export class BundleHandler {
 
     state.selectedBundle = pageBundles[selectedIndex];
     state.bundleValue = pageBundles[selectedIndex].Value;
+    state.amount = pageBundles[selectedIndex].Amount;
+    state.totalAmount = pageBundles[selectedIndex].Amount;
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log bundle selection
@@ -261,13 +262,13 @@ export class BundleHandler {
   }
 
   /**
-   * Group bundles by category based on their names
+   * Group bundles by category based on network context
    */
-  private groupBundlesByCategory(bundles: BundleOption[]): BundleGroup[] {
+  private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
     const groups: { [key: string]: BundleOption[] } = {};
 
     bundles.forEach(bundle => {
-      const category = this.getBundleCategory(bundle);
+      const category = this.getBundleCategory(bundle, network);
       if (!groups[category]) {
         groups[category] = [];
       }
@@ -275,7 +276,7 @@ export class BundleHandler {
     });
 
     // Debug logging
-    console.log('Bundle Grouping Results:');
+    console.log(`Bundle Grouping Results for ${network}:`);
     Object.entries(groups).forEach(([category, bundleList]) => {
       console.log(`${category}: ${bundleList.length} bundles`);
       bundleList.slice(0, 3).forEach(bundle => {
@@ -293,48 +294,55 @@ export class BundleHandler {
   }
 
   /**
-   * Determine bundle category based on bundle name
+   * Determine bundle category based on bundle name and network context
    */
-  private getBundleCategory(bundle: BundleOption): string {
+  private getBundleCategory(bundle: BundleOption, network: NetworkProvider): string {
     const display = bundle.Display.toLowerCase();
     const value = bundle.Value.toLowerCase();
 
-    // AT Network Categories
-    if (value.includes('bigtime') || display.includes('bigtime')) {
-      return 'BigTime Data';
-    } else if (value.includes('fuse') || display.includes('fuse')) {
-      return 'Fuse Bundles';
-    } else if (value.includes('kokoo') || display.includes('kokoo')) {
-      return 'Kokoo Bundles';
-    } else if (value.includes('xxl') || display.includes('xxl')) {
-      return 'XXL Family Bundles';
+    // Network-specific categorization to prevent mixing
+    if (network === NetworkProvider.AT) {
+      // AT Network Categories
+      if (value.includes('bigtime') || display.includes('bigtime')) {
+        return 'BigTime Data';
+      } else if (value.includes('fuse') || display.includes('fuse')) {
+        return 'Fuse Bundles';
+      } else if (value.includes('kokoo') || display.includes('kokoo')) {
+        return 'Kokoo Bundles';
+      } else if (value.includes('xxl') || display.includes('xxl')) {
+        return 'XXL Family Bundles';
+      } else {
+        return 'Data Bundles';
+      }
+    } else if (network === NetworkProvider.TELECEL) {
+      // Telecel Network Categories
+      if (value.includes('bnight') || display.includes('12am') || display.includes('5am')) {
+        return 'Night Bundles';
+      } else if (value.includes('hrboost') || display.includes('1 hour')) {
+        return 'Hour Boost';
+      } else if (display.includes('no expiry')) {
+        return 'No Expiry Bundles';
+      } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
+                 display.includes('15 days') || display.includes('30 days')) {
+        return 'Time-Based Bundles';
+      } else {
+        return 'Data Bundles';
+      }
+    } else if (network === NetworkProvider.MTN) {
+      // MTN Network Categories
+      if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
+        return 'Kokrokoo Bundles';
+      } else if (display.includes('video') || value.includes('video')) {
+        return 'Video Bundles';
+      } else if (display.includes('social') || value.includes('social')) {
+        return 'Social Media Bundles';
+      } else {
+        return 'Data Bundles';
+      }
     }
     
-    // Telecel Network Categories
-    else if (value.includes('bnight') || display.includes('12am') || display.includes('5am')) {
-      return 'Night Bundles';
-    } else if (value.includes('hrboost') || display.includes('1 hour')) {
-      return 'Hour Boost';
-    } else if (display.includes('no expiry')) {
-      return 'No Expiry Bundles';
-    } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
-               display.includes('15 days') || display.includes('30 days')) {
-      return 'Time-Based Bundles';
-    }
-    
-    // MTN Network Categories
-    else if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
-      return 'Kokrokoo Bundles';
-    } else if (display.includes('video') || value.includes('video')) {
-      return 'Video Bundles';
-    } else if (display.includes('social') || value.includes('social')) {
-      return 'Social Media Bundles';
-    }
-    
-    // Default category
-    else {
-      return 'Data Bundles';
-    }
+    // Default category for unknown networks
+    return 'Data Bundles';
   }
 
   /**
@@ -417,7 +425,7 @@ export class BundleHandler {
       summary += `Mobile: ${mobile} (Other)\n`;
     }
     
-    summary += `Amount: GH${bundle?.Amount}\n\n`;
+    summary += `Amount: GHS${bundle?.Amount || state.amount || 0}\n\n`;
     summary += `1. Confirm\n2. Cancel`;
 
     return summary;
