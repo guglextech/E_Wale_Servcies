@@ -191,7 +191,7 @@ export class BundleHandler {
     menu += "\n";
     if (state.currentBundlePage > 0) menu += "00. Previous\n";
     if (this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1).length > 0) menu += "0. Next\n";
-    menu += "99. Back to Categories\n";
+    menu += "99. Back to Packages\n";
 
     return this.responseBuilder.createNumberInputResponse(
       sessionId, `Page ${state.currentBundlePage + 1} of ${totalPages}`, menu
