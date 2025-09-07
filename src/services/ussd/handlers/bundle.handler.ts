@@ -50,7 +50,7 @@ export class BundleHandler {
       console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_self');
-      // Show order summary directly
+      // Let the USSD service handle the next step (order summary)
       return this.showOrderSummary(req.SessionId, state, req);
     }
     
@@ -58,7 +58,7 @@ export class BundleHandler {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_other');
-      // Show mobile number input for "other" flow
+      // Let the USSD service handle the mobile number input in the next step
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
       );
@@ -151,8 +151,8 @@ export class BundleHandler {
       );
     }
     
-    return this.responseBuilder.createDisplayResponse(
-      sessionId, "Bundle", this.formatOrderSummary(state, req)
+    return this.responseBuilder.createNumberInputResponse(
+      sessionId, "Bundle Order Summary", this.formatOrderSummary(state, req)
     );
   }
 
