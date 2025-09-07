@@ -208,7 +208,7 @@ export class BundleHandler {
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
     const menu = "Select Bundle Package:\n\n" + 
-      groups.map((group, index) => `${index + 1}. ${group.name} (${group.bundles.length} bundles)`).join('\n') +
+      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') +
       "\n\n99. Back";
 
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
