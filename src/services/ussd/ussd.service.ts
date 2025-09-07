@@ -233,7 +233,10 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        // Handle buy for selection (Self/Other)
+        // Handle buy for selection (Self/Other) or bundle selection if no bundle selected yet
+        if (!state.selectedBundle) {
+          return await this.handleBundleSelection(req, state);
+        }
         return await this.handleBuyForSelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
@@ -261,6 +264,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Handle bundle selection if no bundle selected yet
+        if (!state.selectedBundle) {
+          return await this.handleBundleSelection(req, state);
+        }
         if (state.flow === 'other') {
           // Handle mobile number input for "other" flow
           return await this.handleOtherMobileNumber(req, state);
@@ -300,6 +307,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Handle bundle selection if no bundle selected yet
+        if (!state.selectedBundle) {
+          return await this.handleBundleSelection(req, state);
+        }
         if (state.flow === 'other') {
           // Handle order summary confirmation for "other" flow
           if (req.Message === "1") {
