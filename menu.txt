@@ -34,3 +34,17 @@ Select Bundle Package:
 
 99. Back
 
+
+
+
+
+1 .Mobile number appears undefind in the summary for other purchas
+2. Under select the package - display the associated data bundles.
+ They are all displaying the same package as Big Data. When i selected for Kokrokoo.
+
+
+ Data Bundles - data bundles 
+ Fuse Bundles - Fuses 
+
+ In that order for all individual and unique networks (MTN, Telecel, Vodafone)
+
