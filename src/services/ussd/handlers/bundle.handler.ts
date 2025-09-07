@@ -40,6 +40,9 @@ export class BundleHandler {
   }
 
   async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    // Debug: Log buy for selection details
+    console.log(`Buy For Selection Debug - Message: ${req.Message}, Flow: ${state.flow}, Selected Bundle: ${state.selectedBundle?.Display}`);
+    
     if (req.Message === "1") {
       state.flow = 'self';
       state.mobile = req.Mobile;
@@ -104,6 +107,12 @@ export class BundleHandler {
       return this.responseBuilder.createErrorResponse(req.SessionId, "Please select a valid bundle option");
     }
 
+    // Debug: Log bundle selection details
+    console.log(`Bundle Selection Debug - Page: ${state.currentBundlePage}, Selected Index: ${selectedIndex}, Bundle: ${pageBundles[selectedIndex]?.Display}, Flow: ${state.flow}`);
+
+    // Reset flow state when selecting a new bundle
+    state.flow = undefined;
+    
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'bundle_selected');  
@@ -119,8 +128,6 @@ export class BundleHandler {
     }
 
     state.mobile = validation.convertedNumber;
-    // Debug: Log mobile number setting for other flow
-    console.log('Setting mobile for other flow:', req.Message, 'Converted:', validation.convertedNumber, 'State mobile:', state.mobile);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'mobile_entered');
 
@@ -162,17 +169,12 @@ export class BundleHandler {
         return this.responseBuilder.createErrorResponse(sessionId, "No bundles available for this network.");
       }
 
-      // Debug: Log bundle data to understand structure
-      console.log(`Bundle data for ${state.network}:`, bundleResponse.Data.slice(0, 5)); // Log first 5 bundles
-      
       state.bundleGroups = this.groupBundlesByCategory(bundleResponse.Data, state.network);
       state.currentGroupIndex = 0;
       state.currentBundlePage = 0;
       this.updateSession(sessionId, state);
-
       return this.formatBundleCategories(sessionId, state);
     } catch (error) {
-      console.error("Error fetching bundles:", error);
       return this.responseBuilder.createErrorResponse(sessionId, "Unable to fetch bundles. Please try again.");
     }
   }
@@ -190,7 +192,6 @@ export class BundleHandler {
     pageBundles.forEach((bundle, index) => {
       // Format amount consistently
       const amount = bundle.Amount % 1 === 0 ? bundle.Amount.toString() : bundle.Amount.toFixed(2);
-      // Extract just the data size from Display (remove price info if present)
       const displayText = this.cleanBundleDisplay(bundle.Display);
       menu += `${index + 1}. ${displayText} - GH${amount}\n`;
     });
@@ -218,10 +219,6 @@ export class BundleHandler {
     const bundle = state.selectedBundle;
     const flow = state.flow === 'self' ? '(Self)' : '(Other)';
     
-    // Debug: Log state information
-    console.log('Order Summary - State mobile:', state.mobile, 'Flow:', state.flow, 'Bundle:', bundle?.Display);
-    
-    // Ensure mobile number is always available
     let mobileDisplay = state.mobile;
     if (!mobileDisplay && req) {
       // Fallback to request mobile number if state mobile is not set
@@ -233,7 +230,7 @@ export class BundleHandler {
       mobileDisplay = 'Mobile number not set';
     }
     
-    return `Bundle Order Summary:\n\n` +
+    return `Bundle:\n\n` +
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +
@@ -268,7 +265,6 @@ export class BundleHandler {
   private handleBackToCategories(req: HBussdReq, state: SessionState): string {
     state.currentGroupIndex = 0;
     state.currentBundlePage = 0;
-    // Clear previous bundle selection when going back to categories
     state.selectedBundle = undefined;
     state.bundleValue = undefined;
     state.amount = undefined;
@@ -313,16 +309,11 @@ export class BundleHandler {
       groups[category].sort((a, b) => a.Amount - b.Amount);
     });
 
-    // Debug: Log categorization results
-    console.log(`Categorized bundles for ${network}:`, Object.keys(groups));
-    Object.entries(groups).forEach(([category, bundles]) => {
-      console.log(`${category}: ${bundles.length} bundles`);
-    });
-
-    // Return all bundles for each category (no limit, pagination will handle display)
+  
+    Object.entries(groups).forEach(([category, bundles]) => {});
     return Object.entries(groups).map(([name, bundles]) => ({
       name,
-      bundles: bundles // Remove the slice limit to show all bundles
+      bundles: bundles 
     }));
   }
 
@@ -377,13 +368,7 @@ export class BundleHandler {
   }
 
   private cleanBundleDisplay(display: string): string {
-    // Remove price information from display text to avoid duplication
-    // Examples:
-    // "4.4GB(GHS 50)" -> "4.4GB"
-    // "50MB(GHS 1)" -> "50MB"
-    // "Video 156.01MB" -> "Video 156.01MB"
-    // "No Expiry - 22MB (GHs 0.5)" -> "No Expiry - 22MB"
-    
+
     return display
       .replace(/\(GHS?\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GHS 50) or (GH 50)
       .replace(/\(GHs?\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GHs 0.5) or (GH 0.5)
