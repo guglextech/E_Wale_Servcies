@@ -40,6 +40,9 @@ export class BundleHandler {
   }
 
   async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    // Debug: Log buy for selection details
+    console.log(`Buy For Selection Debug - Message: ${req.Message}, Flow: ${state.flow}, Selected Bundle: ${state.selectedBundle?.Display}`);
+    
     if (req.Message === "1") {
       state.flow = 'self';
       state.mobile = req.Mobile;
@@ -104,6 +107,12 @@ export class BundleHandler {
       return this.responseBuilder.createErrorResponse(req.SessionId, "Please select a valid bundle option");
     }
 
+    // Debug: Log bundle selection details
+    console.log(`Bundle Selection Debug - Page: ${state.currentBundlePage}, Selected Index: ${selectedIndex}, Bundle: ${pageBundles[selectedIndex]?.Display}, Flow: ${state.flow}`);
+
+    // Reset flow state when selecting a new bundle
+    state.flow = undefined;
+    
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'bundle_selected');  
