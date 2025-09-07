@@ -190,7 +190,8 @@ export class UssdService {
       case 'result_checker':
         return this.resultCheckerHandler.handleBuyerType(req, state);
       case 'data_bundle':
-        return await this.handleBuyForSelection(req, state);
+        // Handle bundle selection
+        return await this.handleBundleSelection(req, state);
       case 'airtime_topup':
         return this.handleAirtimeMobileNumber(req, state);
       case 'pay_bills':
@@ -214,12 +215,8 @@ export class UssdService {
           return this.resultCheckerHandler.handleMobileNumber(req, state);
         }
       case 'data_bundle':
-        if (state.flow === 'other') {
-          return await this.handleOtherMobileNumber(req, state);
-        } else {
-          // Handle category selection
-          return await this.handleBundleCategorySelection(req, state);
-        }
+        // Handle buy for selection (Self/Other)
+        return await this.handleBuyForSelection(req, state);
       case 'airtime_topup':
         return this.handleAmountInput(req, state);
       case 'pay_bills':
@@ -244,11 +241,20 @@ export class UssdService {
         }
       case 'data_bundle':
         if (state.flow === 'other') {
-          // Handle category selection for "other" flow after mobile number entry
-          return await this.handleBundleCategorySelection(req, state);
+          // Handle mobile number input for "other" flow
+          return await this.handleOtherMobileNumber(req, state);
         } else {
-          // Handle bundle selection within selected category for "self" flow
-          return await this.handleBundleSelection(req, state);
+          // Handle order summary confirmation (1 for confirm, 2 for cancel)
+          if (req.Message === "1") {
+            return await this.handlePaymentConfirmation(req, state);
+          } else if (req.Message === "2") {
+            return this.releaseSession(req.SessionId);
+          } else {
+            return this.responseBuilder.createErrorResponse(
+              req.SessionId,
+              "Please select 1 to confirm or 2 to cancel"
+            );
+          }
         }
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
@@ -276,8 +282,22 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        // Handle bundle selection within selected category
-        return await this.handleBundleSelection(req, state);
+        if (state.flow === 'other') {
+          // Handle order summary confirmation for "other" flow
+          if (req.Message === "1") {
+            return await this.handlePaymentConfirmation(req, state);
+          } else if (req.Message === "2") {
+            return this.releaseSession(req.SessionId);
+          } else {
+            return this.responseBuilder.createErrorResponse(
+              req.SessionId,
+              "Please select 1 to confirm or 2 to cancel"
+            );
+          }
+        } else {
+          // Bundle flow ends at step 6 for "self" flow
+          return this.releaseSession(req.SessionId);
+        }
       case 'pay_bills':
         // For TV bills, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
@@ -302,17 +322,8 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        // Handle order summary confirmation (1 for confirm, 2 for cancel)
-        if (req.Message === "1") {
-          return await this.handlePaymentConfirmation(req, state);
-        } else if (req.Message === "2") {
-          return this.releaseSession(req.SessionId);
-        } else {
-          return this.responseBuilder.createErrorResponse(
-            req.SessionId,
-            "Please select 1 to confirm or 2 to cancel"
-          );
-        }
+        // Bundle flow ends at step 6, this should not be reached
+        return this.releaseSession(req.SessionId);
       case 'airtime_topup':
       case 'pay_bills':
         return this.releaseSession(req.SessionId);
@@ -331,7 +342,7 @@ export class UssdService {
       case 'result_checker':
         return await this.handlePaymentConfirmation(req, state);
       case 'data_bundle':
-        // Payment confirmation already handled in step 8
+        // Bundle flow ends at step 6, this should not be reached
         return this.releaseSession(req.SessionId);
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
@@ -503,6 +514,7 @@ export class UssdService {
   private async handleOtherMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.bundleHandler.handleBundleMobileNumber(req, state);
   }
+
 
   private async handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.airtimeHandler.handleAirtimeMobileNumber(req, state);

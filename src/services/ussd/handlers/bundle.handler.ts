@@ -47,13 +47,15 @@ export class BundleHandler {
       console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_self');
-      return this.showBundleCategories(req.SessionId, state);
+      // Show order summary directly
+      return this.showOrderSummary(req.SessionId, state, req);
     }
     
     if (req.Message === "2") {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_other');
+      // Show mobile number input for "other" flow
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
       );
@@ -108,6 +110,7 @@ export class BundleHandler {
     return this.showOrderSummary(req.SessionId, state, req);
   }
 
+
   async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
     const validation = this.validateMobileNumber(req.Message);
     
@@ -120,6 +123,8 @@ export class BundleHandler {
     console.log('Setting mobile for other flow:', req.Message, 'Converted:', validation.convertedNumber, 'State mobile:', state.mobile);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'mobile_entered');
+
+    // Show order summary after mobile number input
     return this.showOrderSummary(req.SessionId, state, req);
   }
 
@@ -181,11 +186,13 @@ export class BundleHandler {
     const pageBundles = this.getPageBundles(currentGroup.bundles, state.currentBundlePage);
     const totalPages = Math.ceil(currentGroup.bundles.length / this.BUNDLES_PER_PAGE);
 
-    let menu = `${currentGroup.name}:\n\n`;
+    let menu = `${currentGroup.name}:\n`;
     pageBundles.forEach((bundle, index) => {
       // Format amount consistently
       const amount = bundle.Amount % 1 === 0 ? bundle.Amount.toString() : bundle.Amount.toFixed(2);
-      menu += `${index + 1}. ${bundle.Display} - GH₵${amount}\n`;
+      // Extract just the data size from Display (remove price info if present)
+      const displayText = this.cleanBundleDisplay(bundle.Display);
+      menu += `${index + 1}. ${displayText} - GH${amount}\n`;
     });
 
     menu += "\n";
@@ -367,6 +374,24 @@ export class BundleHandler {
     }
     
     return 'Data Bundles';
+  }
+
+  private cleanBundleDisplay(display: string): string {
+    // Remove price information from display text to avoid duplication
+    // Examples:
+    // "4.4GB(GHS 50)" -> "4.4GB"
+    // "50MB(GHS 1)" -> "50MB"
+    // "Video 156.01MB" -> "Video 156.01MB"
+    // "No Expiry - 22MB (GHs 0.5)" -> "No Expiry - 22MB"
+    
+    return display
+      .replace(/\(GHS?\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GHS 50) or (GH 50)
+      .replace(/\(GHs?\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GHs 0.5) or (GH 0.5)
+      .replace(/\(GH₵\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GH₵ 50)
+      .replace(/\s*-\s*GHs?\s*\d+(?:\.\d+)?/gi, '') // Remove - GHs 0.5
+      .replace(/\s*-\s*GHS?\s*\d+(?:\.\d+)?/gi, '') // Remove - GHS 50
+      .replace(/\s*-\s*GH₵\s*\d+(?:\.\d+)?/gi, '') // Remove - GH₵ 50
+      .trim(); // Remove extra spaces
   }
 
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
