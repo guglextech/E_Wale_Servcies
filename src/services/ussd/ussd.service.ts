@@ -19,14 +19,8 @@ import { BundleHandler } from "./handlers/bundle.handler";
 import { AirtimeHandler } from "./handlers/airtime.handler";
 import { TVBillsHandler } from "./handlers/tv-bills.handler";
 import { UtilityHandler } from "./handlers/utility.handler";
-import { OrderDetailsHandler } from "./handlers/order-details.handler";
 
 // Import business services
-import { VouchersService } from "../vouchers.service";
-import { AirtimeService } from "../airtime.service";
-import { BundleService } from "../bundle.service";
-import { TVBillsService } from "../tv-bills.service";
-import { UtilityService } from "../utility.service";
 import { TransactionStatusService } from "../transaction-status.service";
 import { CommissionService } from "../commission.service";
 
@@ -52,7 +46,6 @@ export class UssdService {
     private readonly airtimeHandler: AirtimeHandler,
     private readonly tvBillsHandler: TVBillsHandler,
     private readonly utilityHandler: UtilityHandler,
-    private readonly orderDetailsHandler: OrderDetailsHandler,
     
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
@@ -322,7 +315,7 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        // Bundle flow ends at step 6, this should not be reached
+        // Bundle flow ends at step 7, this should not be reached
         return this.releaseSession(req.SessionId);
       case 'airtime_topup':
       case 'pay_bills':
@@ -342,7 +335,7 @@ export class UssdService {
       case 'result_checker':
         return await this.handlePaymentConfirmation(req, state);
       case 'data_bundle':
-        // Bundle flow ends at step 6, this should not be reached
+        // Bundle flow ends at step 7, this should not be reached
         return this.releaseSession(req.SessionId);
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
