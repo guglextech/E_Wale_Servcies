@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 3;
+  private readonly BUNDLES_PER_PAGE = 6;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -212,7 +212,7 @@ export class BundleHandler {
     } else {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "Please select 1 for Self or 2 for Other"
+        "1. Self\n2. Other"
       );
     }
   }
@@ -245,7 +245,7 @@ export class BundleHandler {
   public showOrderSummary(sessionId: string, state: SessionState): string {
     return this.responseBuilder.createDisplayResponse(
       sessionId,
-      "Order Summary",
+      "Bundle",
       this.formatBundleOrderSummary(state)
     );
   }
@@ -262,18 +262,6 @@ export class BundleHandler {
         groups[category] = [];
       }
       groups[category].push(bundle);
-    });
-
-    // Debug logging
-    console.log(`Bundle Grouping Results for ${network}:`);
-    Object.entries(groups).forEach(([category, bundleList]) => {
-      console.log(`${category}: ${bundleList.length} bundles`);
-      bundleList.slice(0, 3).forEach(bundle => {
-        // console.log(`  - ${bundle.Display} (${bundle.Value})`);
-      });
-      if (bundleList.length > 3) {
-        // console.log(`  ... and ${bundleList.length - 3} more`);
-      }
     });
 
     return Object.entries(groups).map(([name, bundles]) => ({
