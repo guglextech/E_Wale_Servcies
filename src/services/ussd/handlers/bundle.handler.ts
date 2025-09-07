@@ -233,7 +233,7 @@ export class BundleHandler {
       mobileDisplay = 'Mobile number not set';
     }
     
-    return `Bundle Order Summary:\n\n` +
+    return `Bundle:\n\n` +
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +
