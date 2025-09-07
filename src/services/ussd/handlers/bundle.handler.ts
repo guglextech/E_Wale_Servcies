@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 4;
+  private readonly BUNDLES_PER_PAGE = 6;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
