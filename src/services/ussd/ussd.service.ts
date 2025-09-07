@@ -278,7 +278,6 @@ export class UssdService {
           }
         }
       case 'pay_bills':
-        // For TV bills, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
