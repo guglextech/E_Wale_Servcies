@@ -245,6 +245,8 @@ export class BundleHandler {
     
     if (nextPageBundles.length > 0) {
       state.currentBundlePage++;
+      // Clear any previous selection state when navigating pages
+      this.clearSelectionState(state);
       this.updateSession(req.SessionId, state);
       return this.showBundlePage(req.SessionId, state);
     }
@@ -255,6 +257,8 @@ export class BundleHandler {
   private handlePrevPage(req: HBussdReq, state: SessionState): string {
     if (state.currentBundlePage > 0) {
       state.currentBundlePage--;
+      // Clear any previous selection state when navigating pages
+      this.clearSelectionState(state);
       this.updateSession(req.SessionId, state);
       return this.showBundlePage(req.SessionId, state);
     }
@@ -293,6 +297,16 @@ export class BundleHandler {
 
   private updateSession(sessionId: string, state: SessionState): void {
     this.sessionManager.updateSession(sessionId, state);
+  }
+
+  private clearSelectionState(state: SessionState): void {
+    // Clear any previous bundle selection and flow state when navigating pages
+    state.selectedBundle = undefined;
+    state.bundleValue = undefined;
+    state.amount = undefined;
+    state.totalAmount = undefined;
+    state.flow = undefined;
+    state.mobile = undefined;
   }
 
   private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
