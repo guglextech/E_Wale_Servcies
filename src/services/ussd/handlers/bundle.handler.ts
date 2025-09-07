@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HBussdReq } from '../../../models/dto/hubtel/hb-ussd.dto';
-import { NetworkProvider, BundleType, BundleOption } from '../../../models/dto/bundle.dto';
+import { NetworkProvider, BundleOption } from '../../../models/dto/bundle.dto';
 import { SessionState } from '../types';
 import { ResponseBuilder } from '../response-builder';
 import { BundleService } from '../../bundle.service';
@@ -24,243 +24,239 @@ export class BundleHandler {
     private readonly loggingService: UssdLoggingService,
   ) {}
 
-  /**
-   * Handle network selection for bundle service
-   */
+  // Main flow methods
   async handleNetworkSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (!["1", "2", "3"].includes(req.Message)) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select 1, 2, or 3"
-      );
+    const networkMap = { "1": NetworkProvider.MTN, "2": NetworkProvider.TELECEL, "3": NetworkProvider.AT };
+    
+    if (!networkMap[req.Message]) {
+      return this.responseBuilder.createErrorResponse(req.SessionId, "Please select 1, 2, or 3");
     }
 
-    const networkMap = {
-      "1": NetworkProvider.MTN,
-      "2": NetworkProvider.TELECEL,
-      "3": NetworkProvider.AT
-    };
-
     state.network = networkMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log network selection
+    this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'network_selected');
-
+    
     return this.showBundleCategories(req.SessionId, state);
   }
 
-  /**
-   * Show bundle categories (Data Bundles, Kokrokoo Bundles, etc.)
-   */
-  private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
-    try {
-      const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile || '233550982043', 
-        network: state.network,
-        bundleType: 'data'
-      });
-
-      if (!bundleResponse || !bundleResponse.Data || bundleResponse.Data.length === 0) {
-        return this.responseBuilder.createErrorResponse(
-          sessionId,
-          "No bundles available for this network."
-        );
-      }
-
-      // Group bundles by category with network context
-      const groupedBundles = this.groupBundlesByCategory(bundleResponse.Data, state.network);
-      
-      // Store grouped bundles in session state
-      state.bundleGroups = groupedBundles;
-      state.currentGroupIndex = 0;
-      state.currentBundlePage = 0;
-      this.sessionManager.updateSession(sessionId, state);
-
-      return this.formatBundleCategories(sessionId, state);
-    } catch (error) {
-      console.error("Error fetching bundles:", error);
-      return this.responseBuilder.createErrorResponse(
-        sessionId,
-        "Unable to fetch bundles. Please try again."
+  async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    if (req.Message === "1") {
+      state.flow = 'self';
+      state.mobile = req.Mobile;
+      this.updateSession(req.SessionId, state);
+      await this.logInteraction(req, state, 'buy_for_self');
+      return this.showBundleCategories(req.SessionId, state);
+    }
+    
+    if (req.Message === "2") {
+      state.flow = 'other';
+      this.updateSession(req.SessionId, state);
+      await this.logInteraction(req, state, 'buy_for_other');
+      return this.responseBuilder.createPhoneInputResponse(
+        req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
       );
     }
+    
+    return this.responseBuilder.createErrorResponse(req.SessionId, "Please select 1 for My Number or 2 for Other Number");
   }
 
-  /**
-   * Handle bundle category selection
-   */
   async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
     const groups = state.bundleGroups || [];
     const selectedIndex = parseInt(req.Message) - 1;
 
     if (selectedIndex < 0 || selectedIndex >= groups.length) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select a valid category"
-      );
+      return this.responseBuilder.createErrorResponse(req.SessionId, "Please select a valid category");
     }
 
     state.currentGroupIndex = selectedIndex;
     state.currentBundlePage = 0;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log category selection
+    this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'category_selected');
+    
     return this.showBundlePage(req.SessionId, state);
   }
 
-  /**
-   * Handle bundle selection with pagination
-   */
   async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    const groups = state.bundleGroups || [];
-    const currentGroup = groups[state.currentGroupIndex];
-    
+    const currentGroup = this.getCurrentGroup(state);
     if (!currentGroup) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "No bundles available"
-      );
+      return this.responseBuilder.createErrorResponse(req.SessionId, "No bundles available");
     }
 
-    const bundles = currentGroup.bundles;
-    const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
-    const endIndex = startIndex + this.BUNDLES_PER_PAGE;
-    const pageBundles = bundles.slice(startIndex, endIndex);
+    // Handle pagination
+    if (req.Message === "0") return this.handleNextPage(req, state);
+    if (req.Message === "00") return this.handlePrevPage(req, state);
+    if (req.Message === "99") return this.handleBackToCategories(req, state);
 
+    // Handle bundle selection
+    const pageBundles = this.getPageBundles(currentGroup.bundles, state.currentBundlePage);
     const selectedIndex = parseInt(req.Message) - 1;
 
-    if (req.Message === "0") {
-      // Next page
-      if (endIndex < bundles.length) {
-        state.currentBundlePage++;
-        this.sessionManager.updateSession(req.SessionId, state);
-        return this.showBundlePage(req.SessionId, state);
-      } else {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "No more bundles to show"
-        );
-      }
-    } else if (req.Message === "00") {
-      // Previous page
-      if (state.currentBundlePage > 0) {
-        state.currentBundlePage--;
-        this.sessionManager.updateSession(req.SessionId, state);
-        return this.showBundlePage(req.SessionId, state);
-      } else {
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "Already on first page"
-        );
-      }
-    } else if (req.Message === "99") {
-      // Back to categories
-      state.currentGroupIndex = 0;
-      state.currentBundlePage = 0;
-      this.sessionManager.updateSession(req.SessionId, state);
-      return this.formatBundleCategories(req.SessionId, state);
-    }
-
     if (selectedIndex < 0 || selectedIndex >= pageBundles.length) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select a valid bundle option"
-      );
+      return this.responseBuilder.createErrorResponse(req.SessionId, "Please select a valid bundle option");
     }
 
-    state.selectedBundle = pageBundles[selectedIndex];
-    state.bundleValue = pageBundles[selectedIndex].Value;
-    state.amount = pageBundles[selectedIndex].Amount;
-    state.totalAmount = pageBundles[selectedIndex].Amount;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log bundle selection
+    this.selectBundle(state, pageBundles[selectedIndex]);
+    this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'bundle_selected');
 
-    return this.handlePurchaseTypeSelection(req, state);
+    return this.showOrderSummary(req.SessionId, state);
   }
 
-   
-
-  /**
-   * Handle purchase type selection
-   */
-  async handlePurchaseTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (req.Message === "1") {
-      // Self purchase
-      state.flow = 'self';
-      state.mobile = req.Mobile; // Use current user's mobile
-      this.sessionManager.updateSession(req.SessionId, state);
-      
-      await this.logInteraction(req, state, 'purchase_type_self');
-      
-      return this.showOrderSummary(req.SessionId, state);
-    } else if (req.Message === "2") {
-      // Other purchase
-      state.flow = 'other';
-      this.sessionManager.updateSession(req.SessionId, state);
-      
-      await this.logInteraction(req, state, 'purchase_type_other');
-      
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number to purchase bundle (e.g., 0550982043):"
-      );
-    } else {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "1. Self\n2. Other"
-      );
-    }
-  }
-
-  /**
-   * Handle mobile number input for other purchase
-   */
   async handleBundleMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
     const validation = this.validateMobileNumber(req.Message);
     
     if (!validation.isValid) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        validation.error || "Invalid mobile number format"
-      );
+      return this.responseBuilder.createErrorResponse(req.SessionId, validation.error || "Invalid mobile number format");
     }
 
     state.mobile = validation.convertedNumber;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log mobile number input
+    this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'mobile_entered');
 
     return this.showOrderSummary(req.SessionId, state);
   }
 
-  /**
-   * Show order summary
-   */
-  public showOrderSummary(sessionId: string, state: SessionState): string {
-    return this.responseBuilder.createDisplayResponse(
-      sessionId,
-      "Bundle",
-      this.formatBundleOrderSummary(state)
+  // Display methods
+  public showBuyForOptions(sessionId: string, state: SessionState): string {
+    return this.responseBuilder.createNumberInputResponse(
+      sessionId, "Who are you buying for?", "1. My Number\n2. Other Number\n\nSelect option:"
     );
   }
 
-  /**
-   * Group bundles by category based on network context
-   */
+  public showOrderSummary(sessionId: string, state: SessionState): string {
+    return this.responseBuilder.createDisplayResponse(
+      sessionId, "Bundle", this.formatOrderSummary(state)
+    );
+  }
+
+  // Private helper methods
+  private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
+    try {
+      const bundleResponse = await this.bundleService.queryBundles({
+        destination: state.mobile || '233550982043',
+        network: state.network,
+        bundleType: 'data'
+      });
+
+      if (!bundleResponse?.Data?.length) {
+        return this.responseBuilder.createErrorResponse(sessionId, "No bundles available for this network.");
+      }
+
+      state.bundleGroups = this.groupBundlesByCategory(bundleResponse.Data, state.network);
+      state.currentGroupIndex = 0;
+      state.currentBundlePage = 0;
+      this.updateSession(sessionId, state);
+
+      return this.formatBundleCategories(sessionId, state);
+    } catch (error) {
+      console.error("Error fetching bundles:", error);
+      return this.responseBuilder.createErrorResponse(sessionId, "Unable to fetch bundles. Please try again.");
+    }
+  }
+
+  private showBundlePage(sessionId: string, state: SessionState): string {
+    const currentGroup = this.getCurrentGroup(state);
+    if (!currentGroup) {
+      return this.responseBuilder.createErrorResponse(sessionId, "No bundles available in this package");
+    }
+
+    const pageBundles = this.getPageBundles(currentGroup.bundles, state.currentBundlePage);
+    const totalPages = Math.ceil(currentGroup.bundles.length / this.BUNDLES_PER_PAGE);
+
+    let menu = `${currentGroup.name}:\n\n`;
+    pageBundles.forEach((bundle, index) => {
+      menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
+    });
+
+    menu += "\n";
+    if (state.currentBundlePage > 0) menu += "00. Previous Page\n";
+    if (this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1).length > 0) menu += "0. Next Page\n";
+    menu += "99. Back to Packages\n";
+
+    return this.responseBuilder.createNumberInputResponse(
+      sessionId, `Page ${state.currentBundlePage + 1} of ${totalPages}`, menu
+    );
+  }
+
+  private formatBundleCategories(sessionId: string, state: SessionState): string {
+    const groups = state.bundleGroups || [];
+    const menu = "Select Bundle Package:\n\n" + 
+      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n');
+
+    return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
+  }
+
+  private formatOrderSummary(state: SessionState): string {
+    const bundle = state.selectedBundle;
+    const flow = state.flow === 'self' ? '(Self)' : '(Other)';
+    
+    return `Bundle Order Summary:\n\n` +
+      `Network: ${state.network}\n` +
+      `Bundle: ${bundle?.Display}\n` +
+      `Mobile: ${state.mobile} ${flow}\n` +
+      `Amount: GHS${bundle?.Amount || state.amount || 0}\n\n` +
+      `1. Confirm\n2. Cancel`;
+  }
+
+  // Pagination handlers
+  private handleNextPage(req: HBussdReq, state: SessionState): string {
+    const currentGroup = this.getCurrentGroup(state);
+    const nextPageBundles = this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1);
+    
+    if (nextPageBundles.length > 0) {
+      state.currentBundlePage++;
+      this.updateSession(req.SessionId, state);
+      return this.showBundlePage(req.SessionId, state);
+    }
+    
+    return this.responseBuilder.createErrorResponse(req.SessionId, "No more bundles to show");
+  }
+
+  private handlePrevPage(req: HBussdReq, state: SessionState): string {
+    if (state.currentBundlePage > 0) {
+      state.currentBundlePage--;
+      this.updateSession(req.SessionId, state);
+      return this.showBundlePage(req.SessionId, state);
+    }
+    
+    return this.responseBuilder.createErrorResponse(req.SessionId, "Already on first page");
+  }
+
+  private handleBackToCategories(req: HBussdReq, state: SessionState): string {
+    state.currentGroupIndex = 0;
+    state.currentBundlePage = 0;
+    this.updateSession(req.SessionId, state);
+    return this.formatBundleCategories(req.SessionId, state);
+  }
+
+  // Utility methods
+  private getCurrentGroup(state: SessionState): BundleGroup | null {
+    const groups = state.bundleGroups || [];
+    return groups[state.currentGroupIndex] || null;
+  }
+
+  private getPageBundles(bundles: BundleOption[], page: number): BundleOption[] {
+    const startIndex = page * this.BUNDLES_PER_PAGE;
+    return bundles.slice(startIndex, startIndex + this.BUNDLES_PER_PAGE);
+  }
+
+  private selectBundle(state: SessionState, bundle: BundleOption): void {
+    state.selectedBundle = bundle;
+    state.bundleValue = bundle.Value;
+    state.amount = bundle.Amount;
+    state.totalAmount = bundle.Amount;
+  }
+
+  private updateSession(sessionId: string, state: SessionState): void {
+    this.sessionManager.updateSession(sessionId, state);
+  }
+
   private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
     const groups: { [key: string]: BundleOption[] } = {};
 
     bundles.forEach(bundle => {
       const category = this.getBundleCategory(bundle, network);
-      if (!groups[category]) {
-        groups[category] = [];
-      }
+      groups[category] = groups[category] || [];
       groups[category].push(bundle);
     });
 
@@ -270,147 +266,55 @@ export class BundleHandler {
     }));
   }
 
-  /**
-   * Determine bundle category based on bundle name and network context
-   */
   private getBundleCategory(bundle: BundleOption, network: NetworkProvider): string {
     const display = bundle.Display.toLowerCase();
     const value = bundle.Value.toLowerCase();
 
-    // Network-specific categorization to prevent mixing
-    if (network === NetworkProvider.AT) {
-      // AT Network Categories
-      if (value.includes('bigtime') || display.includes('bigtime')) {
-        return 'BigTime Data';
-      } else if (value.includes('fuse') || display.includes('fuse')) {
-        return 'Fuse Bundles';
-      } else if (value.includes('kokoo') || display.includes('kokoo')) {
-        return 'Kokoo Bundles';
-      } else if (value.includes('xxl') || display.includes('xxl')) {
-        return 'XXL Family Bundles';
-      } else {
-        return 'Data Bundles';
+    const categoryMap = {
+      [NetworkProvider.AT]: {
+        'bigtime': 'BigTime Data',
+        'fuse': 'Fuse Bundles',
+        'kokoo': 'Kokoo Bundles',
+        'xxl': 'XXL Family Bundles'
+      },
+      [NetworkProvider.TELECEL]: {
+        'bnight': 'Night Bundles',
+        'hrboost': 'Hour Boost',
+        'no expiry': 'No Expiry Bundles',
+        'time-based': 'Time-Based Bundles'
+      },
+      [NetworkProvider.MTN]: {
+        'kokrokoo': 'Kokrokoo Bundles',
+        'video': 'Video Bundles',
+        'social': 'Social Media Bundles'
       }
-    } else if (network === NetworkProvider.TELECEL) {
-      // Telecel Network Categories
-      if (value.includes('bnight') || display.includes('12am') || display.includes('5am')) {
-        return 'Night Bundles';
-      } else if (value.includes('hrboost') || display.includes('1 hour')) {
-        return 'Hour Boost';
-      } else if (display.includes('no expiry')) {
-        return 'No Expiry Bundles';
-      } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
-                 display.includes('15 days') || display.includes('30 days')) {
-        return 'Time-Based Bundles';
-      } else {
-        return 'Data Bundles';
-      }
-    } else if (network === NetworkProvider.MTN) {
-      // MTN Network Categories
-      if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
-        return 'Kokrokoo Bundles';
-      } else if (display.includes('video') || value.includes('video')) {
-        return 'Video Bundles';
-      } else if (display.includes('social') || value.includes('social')) {
-        return 'Social Media Bundles';
-      } else {
-        return 'Data Bundles';
+    };
+
+    const networkCategories = categoryMap[network] || {};
+    
+    for (const [keyword, category] of Object.entries(networkCategories)) {
+      if (value.includes(keyword) || display.includes(keyword)) {
+        return category as string;
       }
     }
-    
-    // Default category for unknown networks
+
     return 'Data Bundles';
   }
 
-  /**
-   * Format bundle categories menu
-   */
-  private formatBundleCategories(sessionId: string, state: SessionState): string {
-    const groups = state.bundleGroups || [];
-    let menu = "Select Bundle Package:\n\n";
+  private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
+    const cleaned = mobile.replace(/\D/g, '');
     
-    groups.forEach((group, index) => {
-      menu += `${index + 1}. ${group.name}\n`;
-    });
-
-    return this.responseBuilder.createNumberInputResponse(
-      sessionId,
-      "Bundle Packages",
-      menu
-    );
+    if (cleaned.length === 10 && cleaned.startsWith('0')) {
+      return { isValid: true, convertedNumber: '233' + cleaned.substring(1) };
+    }
+    
+    if (cleaned.length === 12 && cleaned.startsWith('233')) {
+      return { isValid: true, convertedNumber: cleaned };
+    }
+    
+    return { isValid: false, error: 'Must be a valid mobile number (e.g 0550982034)' };
   }
 
-  /**
-   * Show bundle page with pagination
-   */
-  private showBundlePage(sessionId: string, state: SessionState): string {
-    const groups = state.bundleGroups || [];
-    const currentGroup = groups[state.currentGroupIndex];
-    
-    if (!currentGroup) {
-      return this.responseBuilder.createErrorResponse(
-        sessionId,
-        "No bundles available in this package"
-      );
-    }
-
-    const bundles = currentGroup.bundles;
-    const startIndex = state.currentBundlePage * this.BUNDLES_PER_PAGE;
-    const endIndex = startIndex + this.BUNDLES_PER_PAGE;
-    const pageBundles = bundles.slice(startIndex, endIndex);
-    const totalPages = Math.ceil(bundles.length / this.BUNDLES_PER_PAGE);
-
-    let menu = `${currentGroup.name}:\n\n`;
-    
-    pageBundles.forEach((bundle, index) => {
-      menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
-    });
-
-    // Add pagination controls
-    menu += "\n";
-    if (state.currentBundlePage > 0) {
-      menu += "00. Previous Page\n";
-    }
-    if (endIndex < bundles.length) {
-      menu += "0. Next Page\n";
-    }
-    menu += "99. Back to Packages\n";
-
-    return this.responseBuilder.createNumberInputResponse(
-      sessionId,
-      `Page ${state.currentBundlePage + 1} of ${totalPages}`,
-      menu
-    );
-  }
-
-  /**
-   * Format bundle order summary
-   */
-  private formatBundleOrderSummary(state: SessionState): string {
-    const bundle = state.selectedBundle;
-    const mobile = state.mobile;
-    const network = state.network;
-    const flow = state.flow;
-
-    let summary = `Bundle Order Summary:\n\n`;
-    summary += `Network: ${network}\n`;
-    summary += `Bundle: ${bundle?.Display}\n`;
-    
-    if (flow === 'self') {
-      summary += `Mobile: ${mobile} (Self)\n`;
-    } else {
-      summary += `Mobile: ${mobile} (Other)\n`;
-    }
-    
-    summary += `Amount: GHS${bundle?.Amount || state.amount || 0}\n\n`;
-    summary += `1. Confirm\n2. Cancel`;
-
-    return summary;
-  }
-
-  /**
-   * Log USSD interaction with proper data structure
-   */
   private async logInteraction(req: HBussdReq, state: SessionState, status: string): Promise<void> {
     await this.loggingService.logUssdInteraction({
       mobileNumber: req.Mobile,
@@ -439,29 +343,5 @@ export class BundleHandler {
       deviceInfo: 'Mobile USSD',
       location: 'Ghana'
     });
-  }
-
-  /**
-   * Validate mobile number format
-   */
-  private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
-    // Remove any non-digit characters
-    const cleaned = mobile.replace(/\D/g, '');
-    
-    // Check if it's a valid Ghanaian mobile number
-    if (cleaned.length === 10 && cleaned.startsWith('0')) {
-      // Convert to international format
-      const converted = '233' + cleaned.substring(1);
-      return { isValid: true, convertedNumber: converted };
-    }
-    
-    if (cleaned.length === 12 && cleaned.startsWith('233')) {
-      return { isValid: true, convertedNumber: cleaned };
-    }
-    
-    return { 
-      isValid: false, 
-      error: 'Must be a valid mobile number (e.g 0550982034)' 
-    };
   }
 }

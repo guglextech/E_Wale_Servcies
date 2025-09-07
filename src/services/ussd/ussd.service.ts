@@ -243,8 +243,13 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        // Handle category selection for "other" flow
-        return await this.handleBundleCategorySelection(req, state);
+        if (state.flow === 'other') {
+          // Handle category selection for "other" flow after mobile number entry
+          return await this.handleBundleCategorySelection(req, state);
+        } else {
+          // Handle bundle selection within selected category for "self" flow
+          return await this.handleBundleSelection(req, state);
+        }
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
         return this.handleTVAmountInput(req, state);
@@ -481,16 +486,18 @@ export class UssdService {
     return await this.bundleHandler.handleBundleSelection(req, state);
   }
 
-  private async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.bundleHandler.showOrderSummary(req.SessionId, state);
-  }
 
   private async handleBundleCategorySelection(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.bundleHandler.handleBundleCategorySelection(req, state);
   }
 
   private async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.bundleHandler.handleBundleSelection(req, state);
+    // If this is the first time showing buy for options, show the menu
+    if (!state.flow) {
+      return this.bundleHandler.showBuyForOptions(req.SessionId, state);
+    }
+    // Otherwise handle the selection
+    return await this.bundleHandler.handleBuyForSelection(req, state);
   }
 
   private async handleOtherMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
