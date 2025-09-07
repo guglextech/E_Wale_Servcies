@@ -107,7 +107,7 @@ export class BundleHandler {
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'bundle_selected');  
-    return this.showOrderSummary(req.SessionId, state, req);
+    return this.showBuyForOptions(req.SessionId, state);
   }
 
 
