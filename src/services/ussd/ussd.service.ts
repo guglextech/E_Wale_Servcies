@@ -237,6 +237,18 @@ export class UssdService {
         if (!state.selectedBundle) {
           return await this.handleBundleSelection(req, state);
         }
+        // If flow is not set yet, handle buy for selection
+        if (!state.flow) {
+          return await this.handleBuyForSelection(req, state);
+        }
+        // If flow is set, handle the next step based on flow
+        if (state.flow === 'self') {
+          return this.bundleHandler.showOrderSummary(req.SessionId, state, req);
+        } else if (state.flow === 'other') {
+          return this.responseBuilder.createPhoneInputResponse(
+            req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
+          );
+        }
         return await this.handleBuyForSelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
