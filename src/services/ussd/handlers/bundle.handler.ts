@@ -183,13 +183,15 @@ export class BundleHandler {
 
     let menu = `${currentGroup.name}:\n\n`;
     pageBundles.forEach((bundle, index) => {
-      menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
+      // Format amount consistently
+      const amount = bundle.Amount % 1 === 0 ? bundle.Amount.toString() : bundle.Amount.toFixed(2);
+      menu += `${index + 1}. ${bundle.Display} - GH₵${amount}\n`;
     });
 
     menu += "\n";
-    if (state.currentBundlePage > 0) menu += "00. Back\n";
+    if (state.currentBundlePage > 0) menu += "00. Previous\n";
     if (this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1).length > 0) menu += "0. Next\n";
-    menu += "99. Back\n";
+    menu += "99. Back to Packages\n";
 
     return this.responseBuilder.createNumberInputResponse(
       sessionId, `Page ${state.currentBundlePage + 1} of ${totalPages}`, menu
@@ -198,8 +200,9 @@ export class BundleHandler {
 
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
-    const menu = "Select Bundle:\n\n" + 
-      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n');
+    const menu = "Select Bundle Package:\n\n" + 
+      groups.map((group, index) => `${index + 1}. ${group.name} (${group.bundles.length} bundles)`).join('\n') +
+      "\n\n99. Back";
 
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
   }
@@ -227,7 +230,7 @@ export class BundleHandler {
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +
-      `Amount: GHS${bundle?.Amount || state.amount || 0}\n\n` +
+      `Amount: GH${bundle?.Amount || state.amount || 0}\n\n` +
       `1. Confirm\n2. Cancel`;
   }
 
@@ -298,15 +301,21 @@ export class BundleHandler {
       groups[category].push(bundle);
     });
 
+    // Sort bundles within each category by amount (ascending)
+    Object.keys(groups).forEach(category => {
+      groups[category].sort((a, b) => a.Amount - b.Amount);
+    });
+
     // Debug: Log categorization results
     console.log(`Categorized bundles for ${network}:`, Object.keys(groups));
     Object.entries(groups).forEach(([category, bundles]) => {
       console.log(`${category}: ${bundles.length} bundles`);
     });
 
+    // Return all bundles for each category (no limit, pagination will handle display)
     return Object.entries(groups).map(([name, bundles]) => ({
       name,
-      bundles: bundles.slice(0, this.BUNDLES_PER_GROUP)
+      bundles: bundles // Remove the slice limit to show all bundles
     }));
   }
 
@@ -316,7 +325,7 @@ export class BundleHandler {
 
     // Network-specific categorization based on actual API data
     if (network === NetworkProvider.MTN) {
-      // MTN Network Categories based on actual data
+      // MTN Network Categories based on actual API data
       if (display.includes('kokrokoo') || value.includes('kokrokoo')) {
         return 'Kokrokoo Bundles';
       } else if (display.includes('video') || value.includes('video')) {
@@ -329,12 +338,12 @@ export class BundleHandler {
         return 'Data Bundles';
       }
     } else if (network === NetworkProvider.TELECEL) {
-      // Telecel Network Categories based on actual data
-      if (display.includes('no expiry') && display.includes('12am') && display.includes('5am')) {
+      // Telecel Network Categories based on actual API data
+      if (display.includes('no expiry') && (display.includes('12am') || display.includes('5am'))) {
         return 'Night Bundles';
       } else if (display.includes('1 hour') || value.includes('hrboost')) {
         return 'Hour Boost';
-      } else if (display.includes('no expiry') && !display.includes('12am')) {
+      } else if (display.includes('no expiry') && !display.includes('12am') && !display.includes('5am')) {
         return 'No Expiry Bundles';
       } else if (display.includes('1 day') || display.includes('3 days') || display.includes('5 days') || 
                  display.includes('15 days') || display.includes('30 days')) {
@@ -343,7 +352,7 @@ export class BundleHandler {
         return 'Data Bundles';
       }
     } else if (network === NetworkProvider.AT) {
-      // AT Network Categories based on actual data
+      // AT Network Categories based on actual API data
       if (display.includes('bigtime') || value.includes('bigtime')) {
         return 'BigTime Data';
       } else if (display.includes('fuse') || value.includes('fuse')) {
