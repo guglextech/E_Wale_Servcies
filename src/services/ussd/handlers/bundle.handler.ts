@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 3;
+  private readonly BUNDLES_PER_PAGE = 6;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -56,7 +56,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile || '233550123456', // Use default for query
+        destination: state.mobile || '233550982043', 
         network: state.network,
         bundleType: 'data'
       });
@@ -64,7 +64,7 @@ export class BundleHandler {
       if (!bundleResponse || !bundleResponse.Data || bundleResponse.Data.length === 0) {
         return this.responseBuilder.createErrorResponse(
           sessionId,
-          "No bundles available for this network. Please try another network."
+          "No bundles available for this network."
         );
       }
 
@@ -179,21 +179,10 @@ export class BundleHandler {
     // Log bundle selection
     await this.logInteraction(req, state, 'bundle_selected');
 
-    return this.showPurchaseType(req.SessionId, state);
+    return this.handlePurchaseTypeSelection(req, state);
   }
 
-  /**
-   * Show purchase type (Self or Other)
-   */
-  private showPurchaseType(sessionId: string, state: SessionState): string {
-    return this.responseBuilder.createResponse(
-      sessionId,
-      "Purchase Type",
-      "Who is this bundle for?\n\n1. Self\n2. Other\n\nSelect option:",
-      "input",
-      "text"
-    );
-  }
+   
 
   /**
    * Handle purchase type selection
@@ -223,7 +212,7 @@ export class BundleHandler {
     } else {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        "Please select 1 for Self or 2 for Other"
+        "1. Self\n2. Other"
       );
     }
   }
@@ -256,7 +245,7 @@ export class BundleHandler {
   public showOrderSummary(sessionId: string, state: SessionState): string {
     return this.responseBuilder.createDisplayResponse(
       sessionId,
-      "Order Summary",
+      "Bundle",
       this.formatBundleOrderSummary(state)
     );
   }
@@ -273,18 +262,6 @@ export class BundleHandler {
         groups[category] = [];
       }
       groups[category].push(bundle);
-    });
-
-    // Debug logging
-    console.log(`Bundle Grouping Results for ${network}:`);
-    Object.entries(groups).forEach(([category, bundleList]) => {
-      console.log(`${category}: ${bundleList.length} bundles`);
-      bundleList.slice(0, 3).forEach(bundle => {
-        // console.log(`  - ${bundle.Display} (${bundle.Value})`);
-      });
-      if (bundleList.length > 3) {
-        // console.log(`  ... and ${bundleList.length - 3} more`);
-      }
     });
 
     return Object.entries(groups).map(([name, bundles]) => ({
