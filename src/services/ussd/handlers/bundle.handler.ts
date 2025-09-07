@@ -378,7 +378,7 @@ export class BundleHandler {
     let menu = `${currentGroup.name}:\n\n`;
     
     pageBundles.forEach((bundle, index) => {
-      menu += `${index + 1}. ${bundle.Display} - GH₵${bundle.Amount}\n`;
+      menu += `${index + 1}. ${bundle.Display} - GH${bundle.Amount}\n`;
     });
 
     // Add pagination controls
@@ -417,7 +417,7 @@ export class BundleHandler {
       summary += `Mobile: ${mobile} (Other)\n`;
     }
     
-    summary += `Amount: GH₵${bundle?.Amount}\n\n`;
+    summary += `Amount: GH${bundle?.Amount}\n\n`;
     summary += `1. Confirm\n2. Cancel`;
 
     return summary;
@@ -476,7 +476,7 @@ export class BundleHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid Ghanaian mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid mobile number (e.g 0550982034)' 
     };
   }
 }
