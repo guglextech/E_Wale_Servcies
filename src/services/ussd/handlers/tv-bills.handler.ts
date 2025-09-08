@@ -6,6 +6,7 @@ import { ResponseBuilder } from '../response-builder';
 import { TVBillsService } from '../../tv-bills.service';
 import { SessionManager } from '../session-manager';
 import { UssdLoggingService } from '../logging.service';
+import { PaymentProcessor } from '../payment-processor';
 
 @Injectable()
 export class TVBillsHandler {
@@ -14,6 +15,7 @@ export class TVBillsHandler {
     private readonly tvBillsService: TVBillsService,
     private readonly sessionManager: SessionManager,
     private readonly loggingService: UssdLoggingService,
+    private readonly paymentProcessor: PaymentProcessor,
   ) {}
 
   /**
@@ -153,14 +155,9 @@ export class TVBillsHandler {
       // Log current session state
       await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-      // Show renewal summary
-      return this.responseBuilder.createResponse(
-        req.SessionId,
-        "Renewal Summary",
-        this.formatTVOrderSummary(state, 'renewal'),
-        "input",
-        "text"
-      );
+      // For renewal, go directly to payment processing (no summary screen)
+      const serviceName = this.paymentProcessor.getServiceName(state);
+      return this.paymentProcessor.createPaymentRequest(req.SessionId, subscriptionAmount, serviceName);
     } catch (error) {
       console.error("Error processing renewal:", error);
       return this.responseBuilder.createErrorResponse(
@@ -182,6 +179,25 @@ export class TVBillsHandler {
       "end",
       "text"
     );
+  }
+
+  /**
+   * Handle payment confirmation for TV bills
+   */
+  async handlePaymentConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
+    if (req.Message !== "1") {
+      return this.responseBuilder.createThankYouResponse(req.SessionId);
+    }
+
+    const total = state.totalAmount;
+    state.totalAmount = total;
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+
+    const serviceName = this.paymentProcessor.getServiceName(state);
+    return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
   }
 
   /**
@@ -260,7 +276,7 @@ export class TVBillsHandler {
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${nameData?.Value || 'N/A'}\n` +
-           `${amountLabel}: GH₵${amount?.toFixed(2)}\n\n` +
+           `${amountLabel}: GHS${amount?.toFixed(2)}\n\n` +
            `1. ${confirmText}\n2. Cancel`;
   }
 

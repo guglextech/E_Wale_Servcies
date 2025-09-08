@@ -206,8 +206,11 @@ export class UssdService {
         // Handle buy for selection (Self/Other)
         return await this.handleBuyForSelection(req, state);
       case 'pay_bills':
-        // For TV bills, handle amount input after account confirmation
-        return this.handleTVAmountInput(req, state);
+        if (state.subscriptionType === 'renew') {
+          return await this.handlePaymentConfirmation(req, state);
+        } else {
+          return this.handleTVAmountInput(req, state);
+        }
       case 'airtime_topup':
         // For airtime, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
@@ -320,22 +323,35 @@ export class UssdService {
    * Handle payment confirmation
    */
   private async handlePaymentConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
-    if (req.Message !== "1") {
-      return this.releaseSession(req.SessionId);
+    // Route to appropriate handler based on service type
+    switch (state.serviceType) {
+      case 'result_checker':
+        return await this.resultCheckerHandler.handlePaymentConfirmation(req, state);
+      case 'pay_bills':
+        return await this.tvBillsHandler.handlePaymentConfirmation(req, state);
+      case 'data_bundle':
+      case 'voice_bundle':
+      case 'airtime_topup':
+      case 'utility_service':
+      default:
+        // Use default payment confirmation for other services
+        if (req.Message !== "1") {
+          return this.releaseSession(req.SessionId);
+        }
+
+        const total = state.totalAmount;
+        state.totalAmount = total;
+        this.sessionManager.updateSession(req.SessionId, state);
+
+        const serviceName = this.paymentProcessor.getServiceName(state);
+        console.log("Payment Confirmation - ServiceName:", serviceName);
+        console.log("Payment Confirmation - Total:", total);
+        console.log("Payment Confirmation - Amount:", state.amount);
+        console.log("Payment Confirmation - SessionId:", req.SessionId);
+        console.log("Payment Confirmation - State:", state);
+        
+        return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
     }
-
-    const total = state.totalAmount;
-    state.totalAmount = total;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    const serviceName = this.paymentProcessor.getServiceName(state);
-    console.log("Payment Confirmation - ServiceName:", serviceName);
-    console.log("Payment Confirmation - Total:", total);
-    console.log("Payment Confirmation - Amount:", state.amount);
-    console.log("Payment Confirmation - SessionId:", req.SessionId);
-    console.log("Payment Confirmation - State:", state);
-    
-    return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
   }
 
   /**
@@ -499,26 +515,11 @@ export class UssdService {
   }
 
   /**
-   * Handle TV account display
+   * Handle TV account display - now handles subscription options
    */
   private async handleTVAccountDisplay(req: HBussdReq, state: SessionState): Promise<string> {
-    // Handle confirmation after account display
-    if (req.Message === "1") {
-      // User confirmed - proceed to amount input
-      return this.responseBuilder.createDecimalInputResponse(
-        req.SessionId,
-        "Enter Amount",
-        "Enter subscription amount:"
-      );
-    } else if (req.Message === "2") {
-      // User cancelled
-      return this.releaseSession(req.SessionId);
-    } else {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select 1 to confirm or 2 to cancel"
-      );
-    }
+    // Route to TV bills handler for subscription option selection
+    return await this.tvBillsHandler.handleSubscriptionOptionSelection(req, state);
   }
 
   private async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
