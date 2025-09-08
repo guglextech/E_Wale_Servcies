@@ -153,9 +153,14 @@ export class TVBillsHandler {
       // Log current session state
       await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-      // For renewal, go directly to payment processing (no summary screen)
-      const serviceName = this.paymentProcessor.getServiceName(state);
-      return this.paymentProcessor.createPaymentRequest(req.SessionId, subscriptionAmount, serviceName);
+      // Show renewal summary for confirmation
+      return this.responseBuilder.createResponse(
+        req.SessionId,
+        "Renewal Summary",
+        this.formatTVOrderSummary(state, 'renewal'),
+        "input",
+        "text"
+      );
     } catch (error) {
       console.error("Error processing renewal:", error);
       return this.responseBuilder.createErrorResponse(
