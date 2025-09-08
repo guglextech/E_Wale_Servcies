@@ -215,7 +215,6 @@ export class BundleHandler {
     let mobileDisplay = state.mobile;
     if (!mobileDisplay && req) {
       mobileDisplay = req.Mobile;
-      // console.log('Using fallback mobile from request:', mobileDisplay);
     }
     if (!mobileDisplay) {
       mobileDisplay = 'Mobile number not set';
