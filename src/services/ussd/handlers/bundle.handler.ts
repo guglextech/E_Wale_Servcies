@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 12;
+  private readonly BUNDLES_PER_PAGE = 6;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -34,18 +34,22 @@ export class BundleHandler {
 
     state.network = networkMap[req.Message];
     this.updateSession(req.SessionId, state);
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    // await this.logInteraction(req, state, 'network_selected');
 
     return this.showBundleCategories(req.SessionId, state);
   }
 
   async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-   
+    // Debug: Log buy for selection details
+    console.log(`Buy For Selection Debug - Message: ${req.Message}, Flow: ${state.flow}, Selected Bundle: ${state.selectedBundle?.Display}`);
+    
     if (req.Message === "1") {
       state.flow = 'self';
       state.mobile = req.Mobile;
+      // Debug: Log mobile number setting
+      console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
-      await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+      // await this.logInteraction(req, state, 'buy_for_self');
       // Show order summary directly
       return this.showOrderSummary(req.SessionId, state, req);
     }
@@ -53,7 +57,7 @@ export class BundleHandler {
     if (req.Message === "2") {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
-      await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+      // await this.logInteraction(req, state, 'buy_for_other');
       // Show mobile number input for "other" flow
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
@@ -79,7 +83,7 @@ export class BundleHandler {
     state.amount = undefined;
     state.totalAmount = undefined;
     this.updateSession(req.SessionId, state);
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    // await this.logInteraction(req, state, 'category_selected');
     
     return this.showBundlePage(req.SessionId, state);
   }
@@ -103,12 +107,15 @@ export class BundleHandler {
       return this.responseBuilder.createErrorResponse(req.SessionId, "Please select a valid bundle option");
     }
 
+    // Debug: Log bundle selection details
+    console.log(`Bundle Selection Debug - Page: ${state.currentBundlePage}, Selected Index: ${selectedIndex}, Bundle: ${pageBundles[selectedIndex]?.Display}, Flow: ${state.flow}`);
+
     // Reset flow state when selecting a new bundle
     state.flow = undefined;
     
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    // await this.logInteraction(req, state, 'bundle_selected');  
     return this.showBuyForOptions(req.SessionId, state);
   }
 
@@ -122,7 +129,7 @@ export class BundleHandler {
 
     state.mobile = validation.convertedNumber;
     this.updateSession(req.SessionId, state);
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    // await this.logInteraction(req, state, 'mobile_entered');
 
     // Show order summary after mobile number input
     return this.showOrderSummary(req.SessionId, state, req);
@@ -153,7 +160,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile,
+        destination: state.mobile || '233550982043',
         network: state.network,
         bundleType: 'data'
       });
@@ -202,7 +209,7 @@ export class BundleHandler {
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
     const menu = "Select Bundle:\n\n" + 
-      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') +
+      groups.map((group, index) => `${index + 1}. ${group.name} (${group.bundles.length} bundles)`).join('\n') +
       "\n\n99. Back";
 
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
@@ -214,9 +221,12 @@ export class BundleHandler {
     
     let mobileDisplay = state.mobile;
     if (!mobileDisplay && req) {
+      // Fallback to request mobile number if state mobile is not set
       mobileDisplay = req.Mobile;
+      console.log('Using fallback mobile from request:', mobileDisplay);
     }
     if (!mobileDisplay) {
+      // This should not happen in normal flow, but we'll handle it gracefully
       mobileDisplay = 'Mobile number not set';
     }
     
