@@ -34,7 +34,7 @@ export class BundleHandler {
 
     state.network = networkMap[req.Message];
     this.updateSession(req.SessionId, state);
-    await this.logInteraction(req, state, 'network_selected');
+    // await this.logInteraction(req, state, 'network_selected');
 
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
@@ -47,14 +47,14 @@ export class BundleHandler {
       state.flow = 'self';
       state.mobile = req.Mobile;
       this.updateSession(req.SessionId, state);
-      await this.logInteraction(req, state, 'buy_for_self');
+      // await this.logInteraction(req, state, 'buy_for_self');
       return this.showOrderSummary(req.SessionId, state, req);
     }
     
     if (req.Message === "2") {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
-      await this.logInteraction(req, state, 'buy_for_other');
+      // await this.logInteraction(req, state, 'buy_for_other');
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
       );
@@ -79,7 +79,7 @@ export class BundleHandler {
     state.amount = undefined;
     state.totalAmount = undefined;
     this.updateSession(req.SessionId, state);
-    await this.logInteraction(req, state, 'category_selected');
+    // await this.logInteraction(req, state, 'category_selected');
     return this.showBundlePage(req.SessionId, state);
   }
 
@@ -106,7 +106,7 @@ export class BundleHandler {
     state.flow = undefined;
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
-    await this.logInteraction(req, state, 'bundle_selected');  
+    // await this.logInteraction(req, state, 'bundle_selected');  
     return this.showBuyForOptions(req.SessionId, state);
   }
 
@@ -120,7 +120,7 @@ export class BundleHandler {
 
     state.mobile = validation.convertedNumber;
     this.updateSession(req.SessionId, state);
-    await this.logInteraction(req, state, 'mobile_entered');
+    // await this.logInteraction(req, state, 'mobile_entered');
 
     // Show order summary after mobile number input
     return this.showOrderSummary(req.SessionId, state, req);
