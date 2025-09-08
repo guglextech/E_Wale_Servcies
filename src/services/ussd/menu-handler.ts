@@ -7,13 +7,15 @@ import { UssdLoggingService } from "./logging.service";
 import { NetworkProvider } from "../../models/dto/airtime.dto";
 import { TVProvider } from "../../models/dto/tv-bills.dto";
 import { UtilityProvider } from "../../models/dto/utility.dto";
+import { TVBillsHandler } from "./handlers/tv-bills.handler";
 
 @Injectable()
 export class MenuHandler {
   constructor(
     private readonly responseBuilder: ResponseBuilder,
     private readonly sessionManager: SessionManager,
-    private readonly loggingService: UssdLoggingService
+    private readonly loggingService: UssdLoggingService,
+    private readonly tvBillsHandler: TVBillsHandler
   ) {}
 
   /**
@@ -79,7 +81,7 @@ export class MenuHandler {
   /**
    * Handle service type selection (step 3)
    */
-  handleServiceTypeSelection(req: HBussdReq, state: SessionState): string {
+  async handleServiceTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
     const handlers = {
       [ServiceType.RESULT_CHECKER]: () => this.handleResultCheckerServiceSelection(req, state),
       [ServiceType.DATA_BUNDLE]: () => this.handleDataBundleServiceSelection(req, state),
@@ -90,7 +92,7 @@ export class MenuHandler {
 
     const handler = handlers[state.serviceType];
     if (handler) {
-      return handler();
+      return await handler();
     }
 
     return this.responseBuilder.createErrorResponse(
@@ -149,32 +151,10 @@ export class MenuHandler {
   }
 
   /**
-   * Handle pay bills service selection
+   * Handle pay bills service selection - delegates to TV bills handler
    */
-  private handlePayBillsServiceSelection(req: HBussdReq, state: SessionState): string {
-    if (!["1", "2", "3"].includes(req.Message)) {
-      return this.responseBuilder.createInvalidSelectionResponse(
-        req.SessionId,
-        "Please select 1, 2, or 3"
-      );
-    }
-
-    const tvProviderMap = {
-      "1": TVProvider.DSTV,
-      "2": TVProvider.GOTV,
-      "3": TVProvider.STARTIMES
-    };
-
-    state.tvProvider = tvProviderMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    return this.responseBuilder.createResponse(
-      req.SessionId,
-      "Enter Account Number",
-      "Enter TV account number:",
-      "INPUT",
-      "TEXT"
-    );
+  private async handlePayBillsServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.tvBillsHandler.handleTVProviderSelection(req, state);
   }
 
   /**

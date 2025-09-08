@@ -60,7 +60,7 @@ export class ResultCheckerHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Invalid Mobile Number",
-        `Please enter a valid mobile number (e.g., 0550982034): ${mobileValidation.error}`
+        `Please enter a valid mobile number (e.g., 0550982034)`
       );
     }
 
@@ -91,8 +91,7 @@ export class ResultCheckerHandler {
     }
 
     state.name = req.Message.trim();
-    this.sessionManager.updateSession(req.SessionId, state);
-    
+    this.sessionManager.updateSession(req.SessionId, state);  
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Quantity",
@@ -109,7 +108,7 @@ export class ResultCheckerHandler {
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
         "Invalid Quantity",
-        "Please enter a valid quantity (1-100):"
+        "Please enter a valid quantity (1-80):"
       );
     }
 

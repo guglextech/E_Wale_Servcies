@@ -121,7 +121,7 @@ export class UssdService {
       case 2:
         return await this.menuHandler.handleMainMenuSelection(req, state);
       case 3:
-        const result = this.menuHandler.handleServiceTypeSelection(req, state);
+        const result = await this.menuHandler.handleServiceTypeSelection(req, state);
         if (result === "BUNDLE_SELECTION_REQUIRED") {
           return await this.bundleHandler.handleNetworkSelection(req, state);
         }
