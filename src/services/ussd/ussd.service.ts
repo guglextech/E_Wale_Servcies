@@ -284,17 +284,8 @@ export class UssdService {
           // Handle mobile number input for "other" flow
           return await this.handleOtherMobileNumber(req, state);
         } else {
-          // Handle order summary confirmation for "self" flow
-          if (req.Message === "1") {
-            return await this.handlePaymentConfirmation(req, state);
-          } else if (req.Message === "2") {
-            return this.releaseSession(req.SessionId);
-          } else {
-            return this.responseBuilder.createErrorResponse(
-              req.SessionId,
-              "Please select 1 to confirm or 2 to cancel"
-            );
-          }
+          // Show order summary confirmation for "self" flow
+          return this.bundleHandler.showOrderSummaryConfirmation(req.SessionId, state);
         }
       case 'pay_bills':
         return await this.handlePaymentConfirmation(req, state);
@@ -324,7 +315,10 @@ export class UssdService {
           return await this.handleBundleSelection(req, state);
         }
         if (state.flow === 'other') {
-          // Handle order summary confirmation for "other" flow
+          // Show order summary confirmation for "other" flow
+          return this.bundleHandler.showOrderSummaryConfirmation(req.SessionId, state);
+        } else {
+          // Handle order summary confirmation for "self" flow
           if (req.Message === "1") {
             return await this.handlePaymentConfirmation(req, state);
           } else if (req.Message === "2") {
@@ -335,9 +329,6 @@ export class UssdService {
               "Please select 1 to confirm or 2 to cancel"
             );
           }
-        } else {
-          // Bundle flow ends at step 7 for "self" flow
-          return this.releaseSession(req.SessionId);
         }
       case 'airtime_topup':
       case 'pay_bills':
@@ -357,8 +348,22 @@ export class UssdService {
       case 'result_checker':
         return await this.handlePaymentConfirmation(req, state);
       case 'data_bundle':
-        // Bundle flow ends at step 7, this should not be reached
-        return this.releaseSession(req.SessionId);
+        // Handle order summary confirmation for "other" flow
+        if (state.flow === 'other') {
+          if (req.Message === "1") {
+            return await this.handlePaymentConfirmation(req, state);
+          } else if (req.Message === "2") {
+            return this.releaseSession(req.SessionId);
+          } else {
+            return this.responseBuilder.createErrorResponse(
+              req.SessionId,
+              "Please select 1 to confirm or 2 to cancel"
+            );
+          }
+        } else {
+          // Bundle flow ends at step 8 for "self" flow
+          return this.releaseSession(req.SessionId);
+        }
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
       case 'utility_service':
