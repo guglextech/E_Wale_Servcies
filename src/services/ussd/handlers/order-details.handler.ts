@@ -18,8 +18,8 @@ export class OrderDetailsHandler {
    * Handle order details display for all services
    */
   async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
-    // Log order details view
-    await this.logInteraction(req, state, 'order_details_viewed');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
@@ -148,39 +148,6 @@ export class OrderDetailsHandler {
              `Amount: GH₵${amount?.toFixed(2)}\n\n` +
              `Press 1 to confirm payment`;
     }
-  }
-
-  /**
-   * Log USSD interaction with proper data structure
-   */
-  private async logInteraction(req: HBussdReq, state: SessionState, status: string): Promise<void> {
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      service: state.service,
-      flow: state.flow,
-      network: state.network,
-      amount: state.amount,
-      totalAmount: state.totalAmount,
-      quantity: state.quantity,
-      recipientName: state.name,
-      recipientMobile: state.mobile,
-      tvProvider: state.tvProvider,
-      accountNumber: state.accountNumber,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      bundleValue: state.bundleValue,
-      selectedBundle: state.selectedBundle,
-      accountInfo: state.accountInfo,
-      meterInfo: state.meterInfo,
-      status,
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
   }
 
   /**

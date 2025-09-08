@@ -23,10 +23,13 @@ import { UtilityHandler } from "./handlers/utility.handler";
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
 import { CommissionService } from "../commission.service";
+import { CommissionTransactionLogService } from "../commission-transaction-log.service";
+import { TransactionStatusCheckService } from "../transaction-status-check.service";
 
 // Import types
 import { SessionState, UssdLogData } from "./types";
 import { UtilityProvider } from "../../models/dto/utility.dto";
+import { CommissionTransactionLogData, CommissionServiceRequest } from "../../models/dto/commission-transaction-log.dto";
 
 @Injectable()
 export class UssdService {
@@ -50,6 +53,8 @@ export class UssdService {
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
     private readonly commissionService: CommissionService,
+    private readonly commissionTransactionLogService: CommissionTransactionLogService,
+    private readonly transactionStatusCheckService: TransactionStatusCheckService,
   ) {}
 
   /**
@@ -72,7 +77,7 @@ export class UssdService {
       }
     } catch (error) {
       console.error('USSD request error:', error);
-      await this.loggingService.updateUssdLog(req.SessionId, 'failed', {
+      await this.loggingService.updateSessionStatus(req.SessionId, 'failed', {
         errorMessage: error.message || 'Unknown error occurred'
       });
       return this.responseBuilder.createErrorResponse(req.SessionId, 'An error occurred. Please try again.');
@@ -84,19 +89,10 @@ export class UssdService {
    */
   private async handleInitiation(req: HBussdReq): Promise<string> {
     // Create new session
-    this.sessionManager.createSession(req.SessionId);
+    const state = this.sessionManager.createSession(req.SessionId);
 
-    // Log the initial USSD dial
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      status: 'initiated',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    // Log the initial USSD session
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'initiated');
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -117,34 +113,8 @@ export class UssdService {
       );
     }
 
-    // Log interaction
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      service: state.service,
-      flow: state.flow,
-      network: state.network,
-      amount: state.amount,
-      totalAmount: state.totalAmount,
-      quantity: state.quantity,
-      recipientName: state.name,
-      recipientMobile: state.mobile,
-      tvProvider: state.tvProvider,
-      accountNumber: state.accountNumber,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      bundleValue: state.bundleValue,
-      selectedBundle: state.selectedBundle,
-      accountInfo: state.accountInfo,
-      meterInfo: state.meterInfo,
-      status: 'interaction',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     // Route to appropriate handler based on sequence
     switch (req.Sequence) {
@@ -371,7 +341,7 @@ export class UssdService {
    * Release session
    */
   private async releaseSession(sessionId: string): Promise<string> {
-    await this.loggingService.updateUssdLog(sessionId, 'completed');
+    await this.loggingService.updateSessionStatus(sessionId, 'completed');
     this.sessionManager.deleteSession(sessionId);
     return this.responseBuilder.createThankYouResponse(sessionId);
   }
@@ -418,12 +388,15 @@ export class UssdService {
       const isSuccessful = req.OrderInfo.Payment.IsSuccessful;
 
       // Log payment completion
-      await this.loggingService.updateUssdLog(req.SessionId, isSuccessful ? 'completed' : 'failed', {
+      await this.loggingService.updateSessionStatus(req.SessionId, isSuccessful ? 'completed' : 'failed', {
         paymentStatus: req.OrderInfo.Status,
         orderId: req.OrderId,
         amountPaid: req.OrderInfo.Payment.AmountPaid,
         isSuccessful: isSuccessful
       });
+
+      // Log commission transaction
+      await this.logCommissionTransaction(req, isSuccessful);
 
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
@@ -604,20 +577,8 @@ export class UssdService {
     state.email = email;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log email input
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      status: 'email_entered',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
@@ -721,6 +682,128 @@ export class UssdService {
     }
   }
 
+  /**
+   * Log commission transaction after payment
+   */
+  private async logCommissionTransaction(req: HbPayments, isSuccessful: boolean): Promise<void> {
+    try {
+      const sessionState = this.sessionManager.getSession(req.SessionId);
+      if (!sessionState) return;
+
+      const commissionLogData: CommissionTransactionLogData = {
+        clientReference: req.OrderId,
+        hubtelTransactionId: req.OrderId,
+        externalTransactionId: null, // ExternalTransactionId not available in Payment interface
+        mobileNumber: req.OrderInfo?.CustomerMobileNumber || sessionState.mobile || '',
+        sessionId: req.SessionId,
+        serviceType: sessionState.serviceType || 'unknown',
+        network: sessionState.network,
+        tvProvider: sessionState.tvProvider,
+        utilityProvider: sessionState.utilityProvider,
+        bundleValue: sessionState.bundleValue,
+        selectedBundle: sessionState.selectedBundle,
+        accountNumber: sessionState.accountNumber,
+        meterNumber: sessionState.meterNumber,
+        amount: req.OrderInfo?.Payment?.AmountPaid || 0,
+        charges: (req.OrderInfo?.Payment?.AmountPaid || 0) - (req.OrderInfo?.Payment?.AmountAfterCharges || 0),
+        amountAfterCharges: req.OrderInfo?.Payment?.AmountAfterCharges || 0,
+        currencyCode: req.OrderInfo?.Currency || 'GHS',
+        paymentMethod: req.OrderInfo?.Payment?.PaymentType || 'mobile_money',
+        status: isSuccessful ? 'Paid' : 'Unpaid',
+        isFulfilled: false, // Will be updated when commission service responds
+        responseCode: isSuccessful ? '0000' : '2000',
+        message: isSuccessful ? 'Payment successful' : 'Payment failed',
+        commissionServiceStatus: 'pending',
+        transactionDate: new Date(),
+        retryCount: 0,
+        isRetryable: true
+      };
+
+      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
+
+      // If payment is successful, trigger commission service
+      if (isSuccessful) {
+        await this.processCommissionService(req, sessionState);
+      }
+    } catch (error) {
+      console.error('Error logging commission transaction:', error);
+    }
+  }
+
+  /**
+   * Process commission service request
+   */
+  private async processCommissionService(req: HbPayments, sessionState: SessionState): Promise<void> {
+    try {
+      const commissionRequest: CommissionServiceRequest = {
+        clientReference: req.OrderId,
+        amount: req.OrderInfo?.Payment?.AmountPaid || 0,
+        callbackUrl: `${process.env.APP_URL}/api/commission/callback`,
+        serviceType: this.mapServiceType(sessionState.serviceType),
+        network: sessionState.network,
+        destination: sessionState.mobile || req.OrderInfo?.CustomerMobileNumber || '',
+        tvProvider: sessionState.tvProvider,
+        utilityProvider: sessionState.utilityProvider,
+        extraData: {
+          sessionId: req.SessionId,
+          selectedBundle: sessionState.selectedBundle,
+          accountNumber: sessionState.accountNumber,
+          meterNumber: sessionState.meterNumber,
+          bundleValue: sessionState.bundleValue
+        }
+      };
+
+      const commissionResponse = await this.transactionStatusCheckService.processCommissionService(commissionRequest);
+      
+      if (commissionResponse) {
+        const isDelivered = commissionResponse.IsSuccessful && commissionResponse.IsFulfilled;
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          req.OrderId,
+          isDelivered ? 'delivered' : 'failed',
+          commissionResponse.Message,
+          commissionResponse.IsFulfilled,
+          isDelivered ? undefined : commissionResponse.Message
+        );
+      } else {
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          req.OrderId,
+          'failed',
+          'Commission service request failed',
+          false,
+          'Commission service request failed'
+        );
+      }
+    } catch (error) {
+      console.error('Error processing commission service:', error);
+      await this.commissionTransactionLogService.updateCommissionServiceStatus(
+        req.OrderId,
+        'failed',
+        'Commission service error',
+        false,
+        error.message || 'Commission service error'
+      );
+    }
+  }
+
+  /**
+   * Map service type to commission service format
+   */
+  private mapServiceType(serviceType?: string): 'bundle' | 'airtime' | 'tv_bill' | 'utility' {
+    switch (serviceType) {
+      case 'data_bundle':
+      case 'voice_bundle':
+        return 'bundle';
+      case 'airtime_topup':
+        return 'airtime';
+      case 'pay_bills':
+        return 'tv_bill';
+      case 'utility_service':
+        return 'utility';
+      default:
+        return 'bundle';
+    }
+  }
+
   // Expose logging service methods for external use
   async getUssdLogsByMobile(mobileNumber: string, limit: number = 50) {
     return this.loggingService.getUssdLogsByMobile(mobileNumber, limit);
@@ -732,9 +815,5 @@ export class UssdService {
 
   async getUssdStatistics() {
     return this.loggingService.getUssdStatistics();
-  }
-
-  async getAllUssdLogs(page: number = 1, limit: number = 50, status?: string) {
-    return this.loggingService.getAllUssdLogs(page, limit, status);
   }
 }

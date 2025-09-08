@@ -35,7 +35,8 @@ export class UtilityHandler {
     state.utilityProvider = utilityProviderMap[req.Message];
     this.sessionManager.updateSession(req.SessionId, state);
 
-    await this.logInteraction(req, state, 'utility_provider_selected');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     const message = state.utilityProvider === UtilityProvider.ECG
       ? "Enter mobile number linked to ECG meter:"
@@ -95,7 +96,8 @@ export class UtilityHandler {
     state.meterInfo = meterResponse.Data;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    await this.logInteraction(req, state, 'ecg_queried');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -120,7 +122,8 @@ export class UtilityHandler {
     state.mobile = validation.convertedNumber;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    await this.logInteraction(req, state, 'ghana_water_mobile_entered');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -174,7 +177,8 @@ export class UtilityHandler {
     }
     
     this.sessionManager.updateSession(req.SessionId, state);
-    await this.logInteraction(req, state, 'ghana_water_queried');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     // Display account information before proceeding
     const accountInfo = this.formatGhanaWaterAccountInfo(accountResponse.Data);
@@ -193,7 +197,7 @@ export class UtilityHandler {
    */
   async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.ECG) {
-      return this.handleECGMeterSelection(req, state);
+      return await this.handleECGMeterSelection(req, state);
     } else {
       return await this.handleGhanaWaterQuery(req, state);
     }
@@ -202,7 +206,7 @@ export class UtilityHandler {
   /**
    * Handle ECG meter selection
    */
-  private handleECGMeterSelection(req: HBussdReq, state: SessionState): string {
+  private async handleECGMeterSelection(req: HBussdReq, state: SessionState): Promise<string> {
     const meters = state.meterInfo || [];
     const selectedIndex = parseInt(req.Message) - 1;
 
@@ -217,7 +221,8 @@ export class UtilityHandler {
     state.meterNumber = meters[selectedIndex].Value;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    this.logInteraction(req, state, 'meter_selected');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
@@ -250,7 +255,8 @@ export class UtilityHandler {
     state.totalAmount = amount;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    await this.logInteraction(req, state, 'amount_entered');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
@@ -321,39 +327,6 @@ export class UtilityHandler {
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
              `1. Confirm\n2. Cancel`;
     }
-  }
-
-  /**
-   * Log USSD interaction with proper data structure
-   */
-  private async logInteraction(req: HBussdReq, state: SessionState, status: string): Promise<void> {
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      service: state.service,
-      flow: state.flow,
-      network: state.network,
-      amount: state.amount,
-      totalAmount: state.totalAmount,
-      quantity: state.quantity,
-      recipientName: state.name,
-      recipientMobile: state.mobile,
-      tvProvider: state.tvProvider,
-      accountNumber: state.accountNumber,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      bundleValue: state.bundleValue,
-      selectedBundle: state.selectedBundle,
-      accountInfo: state.accountInfo,
-      meterInfo: state.meterInfo,
-      status,
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
   }
 
   /**

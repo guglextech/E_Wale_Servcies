@@ -3,6 +3,7 @@ import { AppService } from "./services/app.service";
 import mongooseConfig from "ormconfig";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ConfigModule } from "@nestjs/config";
+import { HttpModule } from "@nestjs/axios";
 import { User, UserSchema } from "./models/schemas/user.shema";
 import { JwtModule } from "@nestjs/jwt";
 import { jwtConstants } from "./utils/validators";
@@ -42,6 +43,10 @@ import { UssdLogsController } from "./controllers/ussd-logs.controller";
 import { PaymentController } from "./controllers/payment.controller";
 import { CommissionService } from "./services/commission.service";
 import { CommissionController } from "./controllers/commission.controller";
+import { CommissionTransactionLogService } from "./services/commission-transaction-log.service";
+import { TransactionStatusCheckService } from "./services/transaction-status-check.service";
+import { CommissionTransactionLogsController } from "./controllers/commission-transaction-logs.controller";
+import { CommissionTransactionLog, CommissionTransactionLogSchema } from "./models/schemas/commission-transaction-log.schema";
 
 // Import USSD modular services
 import { SessionManager } from "./services/ussd/session-manager";
@@ -61,6 +66,7 @@ import { OrderDetailsHandler } from "./services/ussd/handlers/order-details.hand
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    HttpModule,
     MongooseModule.forRoot(mongooseConfig.uri, {
       connectionFactory: (connection) => {
         connection.on('connected', () => {
@@ -79,6 +85,7 @@ import { OrderDetailsHandler } from "./services/ussd/handlers/order-details.hand
       { name: Transactions.name, schema: TransactionsSchema },
       { name: Voucher.name, schema: VoucherSchema },
       { name: UssdLog.name, schema: UssdLogSchema },
+      { name: CommissionTransactionLog.name, schema: CommissionTransactionLogSchema },
     ]),
     JwtModule.register({
       secret: jwtConstants.secret,
@@ -100,6 +107,7 @@ import { OrderDetailsHandler } from "./services/ussd/handlers/order-details.hand
     UssdLogsController,
     PaymentController,
     CommissionController,
+    CommissionTransactionLogsController,
   ],
   providers: [
     AppService,
@@ -112,6 +120,8 @@ import { OrderDetailsHandler } from "./services/ussd/handlers/order-details.hand
     UtilityService,
     TransactionStatusService,
     CommissionService,
+    CommissionTransactionLogService,
+    TransactionStatusCheckService,
     // USSD modular services
     SessionManager,
     ResponseBuilder,
