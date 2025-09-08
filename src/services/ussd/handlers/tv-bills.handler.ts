@@ -77,9 +77,7 @@ export class TVBillsHandler {
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-    // Display account information before proceeding
-    const accountDisplay = this.formatTVAccountInfo(accountInfo);
-    
+    const accountDisplay = this.formatTVAccountInfo(accountInfo, state);
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Account Found",
@@ -240,12 +238,13 @@ export class TVBillsHandler {
   /**
    * Format TV account information
    */
-  private formatTVAccountInfo(accountInfo: any): string {
+  private formatTVAccountInfo(accountInfo: any, state: SessionState): string {
     const nameData = accountInfo.Data?.find(item => item.Display === 'name');
     const amountDueData = accountInfo.Data?.find(item => item.Display === 'amountDue');
     const accountData = accountInfo.Data?.find(item => item.Display === 'account');
     
     let info = "Account Details:\n";
+    info += `Provider: ${state.tvProvider}\n`;
     info += `Customer: ${nameData?.Value || 'N/A'}\n`;
     info += `Account: ${accountData?.Value || 'N/A'}\n`;
     
@@ -272,11 +271,11 @@ export class TVBillsHandler {
     const amountLabel = type === 'renewal' ? 'Renewal Amount' : 'Amount';
     const confirmText = type === 'renewal' ? 'Confirm Renewal' : 'Confirm';
 
-    return `${title}:\n\n` +
+    return `${title}:\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${nameData?.Value || 'N/A'}\n` +
-           `${amountLabel}: GHS${amount?.toFixed(2)}\n\n` +
+           `${amountLabel}: GHS${amount?.toFixed(2)}\n` +
            `1. ${confirmText}\n2. Cancel`;
   }
 
