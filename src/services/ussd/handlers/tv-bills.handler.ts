@@ -42,7 +42,7 @@ export class TVBillsHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Account Number",
-      "Enter TV account number:"
+      "Enter a smart card/IUC number:"
     );
   }
 
@@ -55,7 +55,7 @@ export class TVBillsHandler {
       if (!this.validateAccountNumber(req.Message, state.tvProvider)) {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
-          "Please enter a valid account number"
+          "Enter a valid smart card/IUC number"
         );
       }
 
