@@ -233,22 +233,7 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
-        // Handle buy for selection (Self/Other) or bundle selection if no bundle selected yet
-        if (!state.selectedBundle) {
-          return await this.handleBundleSelection(req, state);
-        }
-        // If flow is not set yet, handle buy for selection
-        if (!state.flow) {
-          return await this.handleBuyForSelection(req, state);
-        }
-        // If flow is set, handle the next step based on flow
-        if (state.flow === 'self') {
-          return this.bundleHandler.showOrderSummary(req.SessionId, state, req);
-        } else if (state.flow === 'other') {
-          return this.responseBuilder.createPhoneInputResponse(
-            req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
-          );
-        }
+        // Handle buy for selection (Self/Other)
         return await this.handleBuyForSelection(req, state);
       case 'pay_bills':
         // For TV bills, handle amount input after account confirmation
@@ -276,16 +261,21 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        // Handle bundle selection if no bundle selected yet
-        if (!state.selectedBundle) {
-          return await this.handleBundleSelection(req, state);
-        }
         if (state.flow === 'other') {
           // Handle mobile number input for "other" flow
           return await this.handleOtherMobileNumber(req, state);
         } else {
-          // Show order summary confirmation for "self" flow
-          return this.bundleHandler.showOrderSummaryConfirmation(req.SessionId, state);
+          // Handle order summary confirmation for "self" flow
+          if (req.Message === "1") {
+            return await this.handlePaymentConfirmation(req, state);
+          } else if (req.Message === "2") {
+            return this.releaseSession(req.SessionId);
+          } else {
+            return this.responseBuilder.createErrorResponse(
+              req.SessionId,
+              "Please select 1 to confirm or 2 to cancel"
+            );
+          }
         }
       case 'pay_bills':
         return await this.handlePaymentConfirmation(req, state);
@@ -310,15 +300,8 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
-        // Handle bundle selection if no bundle selected yet
-        if (!state.selectedBundle) {
-          return await this.handleBundleSelection(req, state);
-        }
         if (state.flow === 'other') {
-          // Show order summary confirmation for "other" flow
-          return this.bundleHandler.showOrderSummaryConfirmation(req.SessionId, state);
-        } else {
-          // Handle order summary confirmation for "self" flow
+          // Handle order summary confirmation for "other" flow
           if (req.Message === "1") {
             return await this.handlePaymentConfirmation(req, state);
           } else if (req.Message === "2") {
@@ -329,6 +312,9 @@ export class UssdService {
               "Please select 1 to confirm or 2 to cancel"
             );
           }
+        } else {
+          // Bundle flow ends at step 7 for "self" flow
+          return this.releaseSession(req.SessionId);
         }
       case 'airtime_topup':
       case 'pay_bills':
@@ -348,22 +334,8 @@ export class UssdService {
       case 'result_checker':
         return await this.handlePaymentConfirmation(req, state);
       case 'data_bundle':
-        // Handle order summary confirmation for "other" flow
-        if (state.flow === 'other') {
-          if (req.Message === "1") {
-            return await this.handlePaymentConfirmation(req, state);
-          } else if (req.Message === "2") {
-            return this.releaseSession(req.SessionId);
-          } else {
-            return this.responseBuilder.createErrorResponse(
-              req.SessionId,
-              "Please select 1 to confirm or 2 to cancel"
-            );
-          }
-        } else {
-          // Bundle flow ends at step 8 for "self" flow
-          return this.releaseSession(req.SessionId);
-        }
+        // Bundle flow ends at step 7, this should not be reached
+        return this.releaseSession(req.SessionId);
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
       case 'utility_service':

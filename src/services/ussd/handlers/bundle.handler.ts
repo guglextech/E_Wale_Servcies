@@ -50,7 +50,7 @@ export class BundleHandler {
       console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_self');
-      // Let the USSD service handle the next step (order summary)
+      // Show order summary directly
       return this.showOrderSummary(req.SessionId, state, req);
     }
     
@@ -58,7 +58,7 @@ export class BundleHandler {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_other');
-      // Let the USSD service handle the mobile number input in the next step
+      // Show mobile number input for "other" flow
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
       );
@@ -131,7 +131,7 @@ export class BundleHandler {
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'mobile_entered');
 
-    // Show order summary display first, then confirmation in next step
+    // Show order summary after mobile number input
     return this.showOrderSummary(req.SessionId, state, req);
   }
 
@@ -151,16 +151,8 @@ export class BundleHandler {
       );
     }
     
-    // Always show order summary as display first, then confirmation in next step
     return this.responseBuilder.createDisplayResponse(
-      sessionId, "Bundle Order Summary", this.formatOrderSummaryDisplay(state, req)
-    );
-  }
-
-  public showOrderSummaryConfirmation(sessionId: string, state: SessionState): string {
-    // Show confirmation options after order summary display
-    return this.responseBuilder.createNumberInputResponse(
-      sessionId, "Confirm Order", "1. Confirm Purchase\n2. Cancel\n\nSelect option:"
+      sessionId, "Bundle", this.formatOrderSummary(state, req)
     );
   }
 
@@ -168,7 +160,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile,
+        destination: state.mobile || '233550982043',
         network: state.network,
         bundleType: 'data'
       });
@@ -246,29 +238,6 @@ export class BundleHandler {
       `1. Confirm\n2. Cancel`;
   }
 
-  private formatOrderSummaryDisplay(state: SessionState, req?: HBussdReq): string {
-    const bundle = state.selectedBundle;
-    const flow = state.flow === 'self' ? '(Self)' : '(Other)';
-    
-    let mobileDisplay = state.mobile;
-    if (!mobileDisplay && req) {
-      // Fallback to request mobile number if state mobile is not set
-      mobileDisplay = req.Mobile;
-      console.log('Using fallback mobile from request:', mobileDisplay);
-    }
-    if (!mobileDisplay) {
-      // This should not happen in normal flow, but we'll handle it gracefully
-      mobileDisplay = 'Mobile number not set';
-    }
-    
-    return `Bundle Order Summary:\n\n` +
-      `Network: ${state.network}\n` +
-      `Bundle: ${bundle?.Display}\n` +
-      `Mobile: ${mobileDisplay} ${flow}\n` +
-      `Amount: GH${state.amount || bundle?.Amount || 0}\n\n` +
-      `Please confirm your order details.`;
-  }
-
   // Pagination handlers
   private handleNextPage(req: HBussdReq, state: SessionState): string {
     const currentGroup = this.getCurrentGroup(state);
@@ -324,16 +293,6 @@ export class BundleHandler {
 
   private updateSession(sessionId: string, state: SessionState): void {
     this.sessionManager.updateSession(sessionId, state);
-  }
-
-  private clearSelectionState(state: SessionState): void {
-    // Clear any previous bundle selection and flow state when navigating pages
-    state.selectedBundle = undefined;
-    state.bundleValue = undefined;
-    state.amount = undefined;
-    state.totalAmount = undefined;
-    state.flow = undefined;
-    state.mobile = undefined;
   }
 
   private groupBundlesByCategory(bundles: BundleOption[], network: NetworkProvider): BundleGroup[] {
