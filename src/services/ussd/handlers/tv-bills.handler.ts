@@ -81,7 +81,7 @@ export class TVBillsHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Account Found",
-      accountDisplay + "\n\n1. Confirm\n2. Cancel",
+      accountDisplay + "\n\n1. Renew subscription\n2. Change subscription",
       "input",
       "text"
     );
@@ -92,6 +92,96 @@ export class TVBillsHandler {
         "Unable to verify account. Please try again."
       );
     }
+  }
+
+  /**
+   * Handle subscription option selection
+   */
+  async handleSubscriptionOptionSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    if (!["1", "2"].includes(req.Message)) {
+      return this.responseBuilder.createInvalidSelectionResponse(
+        req.SessionId,
+        "Please select 1 or 2"
+      );
+    }
+
+    if (req.Message === "1") {
+      // Renew subscription - use full amount from account query
+      return await this.handleRenewSubscription(req, state);
+    } else if (req.Message === "2") {
+      // Change subscription - placeholder for future development
+      return await this.handleChangeSubscription(req, state);
+    }
+  }
+
+  /**
+   * Handle renew subscription flow
+   */
+  async handleRenewSubscription(req: HBussdReq, state: SessionState): Promise<string> {
+    try {
+      const accountInfo = state.accountInfo?.[0];
+      if (!accountInfo) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Account information not found. Please try again."
+        );
+      }
+
+      // Extract amount due from account info
+      const amountDueData = accountInfo.Data?.find(item => item.Display === 'amountDue');
+      if (!amountDueData || !amountDueData.Value) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Unable to retrieve subscription amount. Please try again."
+        );
+      }
+
+      const subscriptionAmount = parseFloat(amountDueData.Value);
+      if (isNaN(subscriptionAmount) || subscriptionAmount <= 0) {
+        return this.responseBuilder.createErrorResponse(
+          req.SessionId,
+          "Invalid subscription amount. Please try again."
+        );
+      }
+
+      // Set the amount to the full subscription amount
+      state.amount = subscriptionAmount;
+      state.totalAmount = subscriptionAmount;
+      state.subscriptionType = 'renew';
+      this.sessionManager.updateSession(req.SessionId, state);
+
+      // Log current session state
+      await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+
+      // Show renewal summary
+      return this.responseBuilder.createResponse(
+        req.SessionId,
+        "Renewal Summary",
+        this.formatTVOrderSummary(state, 'renewal'),
+        "input",
+        "text"
+      );
+    } catch (error) {
+      console.error("Error processing renewal:", error);
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Unable to process renewal. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Handle change subscription flow (placeholder)
+   */
+  async handleChangeSubscription(req: HBussdReq, state: SessionState): Promise<string> {
+    // This is a placeholder for future development
+    return this.responseBuilder.createResponse(
+      req.SessionId,
+      "Change Subscription",
+      "This feature is under development and will be available soon.\n\nThank you for your patience.",
+      "end",
+      "text"
+    );
   }
 
   /**
@@ -115,7 +205,7 @@ export class TVBillsHandler {
     }
 
     state.amount = amount;
-    state.totalAmount = amount; // Set totalAmount for payment processing
+    state.totalAmount = amount;
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log current session state
@@ -149,30 +239,29 @@ export class TVBillsHandler {
         info += `Amount Due: GHS${amount.toFixed(2)}\n`;
       }
     }
-    
     return info;
   }
 
   /**
-   * Format TV order summary
+   * Format TV order summary (unified method for both renewal and payment)
    */
-  private formatTVOrderSummary(state: SessionState): string {
+  private formatTVOrderSummary(state: SessionState, type: 'renewal' | 'payment' = 'payment'): string {
     const provider = state.tvProvider;
     const accountNumber = state.accountNumber;
     const amount = state.amount;
     const accountInfo = state.accountInfo?.[0];
+    const nameData = accountInfo?.Data?.find(item => item.Display === 'name');
 
-    // Debug logging
-    console.log('TV Order Summary - Amount:', amount);
-    console.log('TV Order Summary - TotalAmount:', state.totalAmount);
-    console.log('TV Order Summary - State:', state);
+    const title = type === 'renewal' ? 'Subscription Renewal Summary' : 'Bill Payment Summary';
+    const amountLabel = type === 'renewal' ? 'Renewal Amount' : 'Amount';
+    const confirmText = type === 'renewal' ? 'Confirm Renewal' : 'Confirm';
 
-    return `Bill Payment Summary:\n\n` +
+    return `${title}:\n\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
-           `Customer: ${accountInfo?.Display || 'N/A'}\n` +
-           `Amount: GH${amount?.toFixed(2) || '0.00'}\n\n` +
-           `1. Confirm\n2. Cancel`;
+           `Customer: ${nameData?.Value || 'N/A'}\n` +
+           `${amountLabel}: GH₵${amount?.toFixed(2)}\n\n` +
+           `1. ${confirmText}\n2. Cancel`;
   }
 
   /**

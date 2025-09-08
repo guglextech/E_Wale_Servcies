@@ -1,6 +1,6 @@
 import { NetworkProvider, BundleType } from "../../models/dto/airtime.dto";
 import { BundleOption } from "../../models/dto/bundle.dto";
-import { TVProvider, TVAccountInfo } from "../../models/dto/tv-bills.dto";
+import { TVProvider, TVAccountInfo, TVAccountQueryResponse } from "../../models/dto/tv-bills.dto";
 import { UtilityProvider, UtilityMeterInfo } from "../../models/dto/utility.dto";
 
 export interface SessionState {
@@ -26,7 +26,8 @@ export interface SessionState {
   // TV Bills specific fields
   tvProvider?: TVProvider;
   accountNumber?: string;
-  accountInfo?: TVAccountInfo[];
+  accountInfo?: TVAccountQueryResponse[];
+  subscriptionType?: 'renew' | 'change';
   // Utility specific fields
   utilityProvider?: UtilityProvider;
   meterNumber?: string;
