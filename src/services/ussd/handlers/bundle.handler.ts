@@ -14,7 +14,7 @@ interface BundleGroup {
 
 @Injectable()
 export class BundleHandler {
-  private readonly BUNDLES_PER_PAGE = 12;
+  private readonly BUNDLES_PER_PAGE = 14;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -36,21 +36,18 @@ export class BundleHandler {
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'network_selected');
 
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+
     return this.showBundleCategories(req.SessionId, state);
   }
 
   async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    // Debug: Log buy for selection details
-    console.log(`Buy For Selection Debug - Message: ${req.Message}, Flow: ${state.flow}, Selected Bundle: ${state.selectedBundle?.Display}`);
     
     if (req.Message === "1") {
       state.flow = 'self';
       state.mobile = req.Mobile;
-      // Debug: Log mobile number setting
-      console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_self');
-      // Show order summary directly
       return this.showOrderSummary(req.SessionId, state, req);
     }
     
@@ -58,7 +55,6 @@ export class BundleHandler {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
       await this.logInteraction(req, state, 'buy_for_other');
-      // Show mobile number input for "other" flow
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
       );
@@ -84,7 +80,6 @@ export class BundleHandler {
     state.totalAmount = undefined;
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'category_selected');
-    
     return this.showBundlePage(req.SessionId, state);
   }
 
@@ -107,12 +102,8 @@ export class BundleHandler {
       return this.responseBuilder.createErrorResponse(req.SessionId, "Please select a valid bundle option");
     }
 
-    // Debug: Log bundle selection details
-    console.log(`Bundle Selection Debug - Page: ${state.currentBundlePage}, Selected Index: ${selectedIndex}, Bundle: ${pageBundles[selectedIndex]?.Display}, Flow: ${state.flow}`);
-
     // Reset flow state when selecting a new bundle
     state.flow = undefined;
-    
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'bundle_selected');  
