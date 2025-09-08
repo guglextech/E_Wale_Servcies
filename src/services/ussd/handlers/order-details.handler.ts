@@ -115,12 +115,13 @@ export class OrderDetailsHandler {
     const accountNumber = state.accountNumber;
     const amount = state.amount;
     const accountInfo = state.accountInfo?.[0];
+    const nameData = accountInfo?.Data?.find(item => item.Display === 'name');
 
     return `Bill Payment Summary:\n\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
-           `Customer: ${accountInfo?.Display || 'N/A'}\n` +
-           `Amount: GH${amount?.toFixed(2)}\n\n` +
+           `Customer: ${nameData?.Value || 'N/A'}\n` +
+           `Amount: GH₵${amount?.toFixed(2)}\n\n` +
            `1. Confirm\n2. Cancel`;
   }
 

@@ -7,7 +7,8 @@ import {
   TVBillPaymentDto, 
   TVBillPaymentRequestDto,
   TVProvider,
-  TVAccountInfo
+  TVAccountInfo,
+  TVAccountQueryResponse
 } from '../models/dto/tv-bills.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
 
@@ -98,7 +99,7 @@ export class TVBillsService {
   /**
    * Query TV account information
    */
-  async queryAccount(queryDto: TVAccountQueryDto): Promise<TVAccountInfo> {
+  async queryAccount(queryDto: TVAccountQueryDto): Promise<TVAccountQueryResponse> {
     try {
       const { provider, accountNumber } = queryDto;
       
