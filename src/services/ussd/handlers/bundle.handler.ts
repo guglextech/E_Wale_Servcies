@@ -151,7 +151,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile,
+        destination: state.mobile || '233550982043',
         network: state.network,
         bundleType: 'data'
       });
@@ -212,9 +212,7 @@ export class BundleHandler {
     
     let mobileDisplay = state.mobile;
     if (!mobileDisplay && req) {
-      // Fallback to request mobile number if state mobile is not set
       mobileDisplay = req.Mobile;
-      console.log('Using fallback mobile from request:', mobileDisplay);
     }
     if (!mobileDisplay) {
       mobileDisplay = 'Mobile number not set';
