@@ -236,7 +236,7 @@ export class ResultCheckerHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid Ghanaian mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid mobile number (e.g., 0550982034)' 
     };
   }
 }
