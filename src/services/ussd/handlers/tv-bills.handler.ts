@@ -280,7 +280,7 @@ export class TVBillsHandler {
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${nameData?.Value || 'N/A'}\n` +
-           `${amountLabel}: GHS${amount?.toFixed(2)}\n` +
+           `${amountLabel}: GHS${amount?.toFixed(2)}\n\n` +
            `1. ${confirmText}\n2. Cancel`;
   }
 
