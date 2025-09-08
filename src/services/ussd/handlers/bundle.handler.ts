@@ -153,7 +153,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile || '233550982043',
+        destination: state.mobile,
         network: state.network,
         bundleType: 'data'
       });
@@ -163,7 +163,7 @@ export class BundleHandler {
       }
 
       // Debug: Log bundle data to understand structure
-      console.log(`Bundle data for ${state.network}:`, bundleResponse.Data.slice(0, 5)); // Log first 5 bundles
+      console.log(`Bundle data for ${state.network}:`, bundleResponse.Data.slice(0, 5)); 
       
       state.bundleGroups = this.groupBundlesByCategory(bundleResponse.Data, state.network);
       state.currentGroupIndex = 0;
@@ -224,12 +224,9 @@ export class BundleHandler {
     // Ensure mobile number is always available
     let mobileDisplay = state.mobile;
     if (!mobileDisplay && req) {
-      // Fallback to request mobile number if state mobile is not set
       mobileDisplay = req.Mobile;
-      console.log('Using fallback mobile from request:', mobileDisplay);
     }
     if (!mobileDisplay) {
-      // This should not happen in normal flow, but we'll handle it gracefully
       mobileDisplay = 'Mobile number not set';
     }
     
