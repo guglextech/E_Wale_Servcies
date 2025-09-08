@@ -160,7 +160,7 @@ export class BundleHandler {
   private async showBundleCategories(sessionId: string, state: SessionState): Promise<string> {
     try {
       const bundleResponse = await this.bundleService.queryBundles({
-        destination: state.mobile || '233550982043',
+        destination: state.mobile,
         network: state.network,
         bundleType: 'data'
       });
@@ -209,7 +209,7 @@ export class BundleHandler {
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
     const menu = "Select Bundle:\n\n" + 
-      groups.map((group, index) => `${index + 1}. ${group.name} (${group.bundles.length} bundles)`).join('\n') +
+      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') +
       "\n\n99. Back";
 
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
@@ -226,7 +226,6 @@ export class BundleHandler {
       console.log('Using fallback mobile from request:', mobileDisplay);
     }
     if (!mobileDisplay) {
-      // This should not happen in normal flow, but we'll handle it gracefully
       mobileDisplay = 'Mobile number not set';
     }
     
