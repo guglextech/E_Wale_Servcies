@@ -115,7 +115,7 @@ export class TVBillsHandler {
     }
 
     state.amount = amount;
-    state.totalAmount = amount; // Set totalAmount for payment processing
+    state.totalAmount = amount;
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log current session state

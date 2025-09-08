@@ -150,8 +150,6 @@ export class UtilityHandler {
       );
     }
 
-    console.log(`Ghana Water Query - Meter: ${req.Message}, Mobile: ${state.mobile}`);
-
     const accountResponse: UtilityQueryResponse = await this.utilityService.queryGhanaWaterAccount({
       meterNumber: req.Message,
       mobileNumber: state.mobile
@@ -160,7 +158,7 @@ export class UtilityHandler {
     if (accountResponse.ResponseCode !== '0000') {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
-        `Account not found: ${accountResponse.Message}`
+        `Account not found`
       );
     }
 
@@ -171,10 +169,7 @@ export class UtilityHandler {
     const sessionIdData = accountResponse.Data?.find(item => item.Display === 'sessionId');
     if (sessionIdData) {
       state.sessionId = sessionIdData.Value;
-      console.log(`Extracted SessionId: ${state.sessionId}`);
-    } else {
-      console.log('No SessionId found in response data');
-    }
+    } 
     
     this.sessionManager.updateSession(req.SessionId, state);
     // Log current session state
