@@ -17,11 +17,11 @@ export class TVBillsHandler {
   ) {}
 
   /**
-   * Handle TV provider selection
+   * Handle TV provider selection (merged from menu-handler)
    */
   async handleTVProviderSelection(req: HBussdReq, state: SessionState): Promise<string> {
     if (!["1", "2", "3"].includes(req.Message)) {
-      return this.responseBuilder.createErrorResponse(
+      return this.responseBuilder.createInvalidSelectionResponse(
         req.SessionId,
         "Please select 1, 2, or 3"
       );
@@ -39,10 +39,12 @@ export class TVBillsHandler {
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-    return this.responseBuilder.createNumberInputResponse(
+    return this.responseBuilder.createResponse(
       req.SessionId,
       "Enter Account Number",
-      "Enter a smart card/IUC number:"
+      "Enter a valid smart card/IUC number:",
+      "INPUT",
+      "TEXT"
     );
   }
 
@@ -73,7 +75,7 @@ export class TVBillsHandler {
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-          // Display account information before proceeding
+    // Display account information before proceeding
     const accountDisplay = this.formatTVAccountInfo(accountInfo);
     
     return this.responseBuilder.createResponse(

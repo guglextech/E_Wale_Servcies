@@ -68,7 +68,7 @@ export class AirtimeHandler {
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
       "Enter Amount",
-      "Enter amount to pay:"
+      "Enter amount to pay"
     );
   }
 
@@ -93,7 +93,7 @@ export class AirtimeHandler {
     }
 
     state.amount = amount;
-    state.totalAmount = amount; // Set total amount for payment
+    state.totalAmount = amount; 
     this.sessionManager.updateSession(req.SessionId, state);
 
     // Log current session state
