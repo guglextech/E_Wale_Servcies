@@ -1,6 +1,0 @@
-
-
-
-This is little close, but the issue it it open an input to enter receipt mobile.
- Instead to show ask for buy for My number or other number flow. If my self use my mobile number,
-  if other number input the moble number. Then proceed to the summary page and confirm payment. That is just the little left bug
