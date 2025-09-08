@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { UssdLog } from "../../models/schemas/ussd-log.schema";
-import { UssdLogData, UssdStatistics, PaginatedUssdLogs } from "./types";
+import { SessionState } from "./types";
 
 @Injectable()
 export class UssdLoggingService {
@@ -11,46 +11,42 @@ export class UssdLoggingService {
   ) {}
 
   /**
-   * Log USSD interaction (upsert - update existing or create new)
+   * Log current session state once per service
    */
-  async logUssdInteraction(logData: UssdLogData): Promise<void> {
+  async logSessionState(sessionId: string, mobileNumber: string, state: SessionState, status: string = 'active'): Promise<void> {
     try {
       const logEntry = {
-        mobileNumber: logData.mobileNumber,
-        sessionId: logData.sessionId,
-        sequence: logData.sequence,
-        message: logData.message,
-        serviceType: logData.serviceType,
-        service: logData.service,
-        flow: logData.flow,
-        network: logData.network,
-        amount: logData.amount,
-        totalAmount: logData.totalAmount,
-        quantity: logData.quantity,
-        recipientName: logData.recipientName,
-        recipientMobile: logData.recipientMobile,
-        tvProvider: logData.tvProvider,
-        accountNumber: logData.accountNumber,
-        utilityProvider: logData.utilityProvider,
-        meterNumber: logData.meterNumber,
-        bundleValue: logData.bundleValue,
-        selectedBundle: logData.selectedBundle,
-        accountInfo: logData.accountInfo,
-        meterInfo: logData.meterInfo,
-        status: logData.status,
-        userAgent: logData.userAgent,
-        deviceInfo: logData.deviceInfo,
-        location: logData.location,
+        mobileNumber,
+        sessionId,
+        sequence: 0, // Single log per service
+        message: 'Session State',
+        serviceType: state.serviceType,
+        service: state.service,
+        flow: state.flow,
+        network: state.network,
+        amount: state.amount,
+        totalAmount: state.totalAmount,
+        quantity: state.quantity,
+        recipientName: state.name,
+        recipientMobile: state.mobile,
+        tvProvider: state.tvProvider,
+        accountNumber: state.accountNumber,
+        utilityProvider: state.utilityProvider,
+        meterNumber: state.meterNumber,
+        bundleValue: state.bundleValue,
+        selectedBundle: state.selectedBundle,
+        accountInfo: state.accountInfo,
+        meterInfo: state.meterInfo,
+        status,
+        userAgent: 'USSD',
+        deviceInfo: 'Mobile USSD',
+        location: 'Ghana',
+        dialedAt: new Date()
       };
-
-      // Only set dialedAt for new records (initiated status)
-      if (logData.status === 'initiated') {
-        logEntry['dialedAt'] = new Date();
-      }
 
       // Use upsert to update existing record or create new one
       await this.ussdLogModel.findOneAndUpdate(
-        { sessionId: logData.sessionId },
+        { sessionId },
         logEntry,
         { 
           upsert: true, 
@@ -59,16 +55,15 @@ export class UssdLoggingService {
         }
       );
     } catch (error) {
-      console.error('Error logging USSD interaction:', error);
+      console.error('Error logging session state:', error);
     }
   }
 
   /**
-   * Update USSD log with completion status
+   * Update session status (completed, failed, cancelled)
    */
-  async updateUssdLog(sessionId: string, status: string, additionalData: any = {}): Promise<void> {
+  async updateSessionStatus(sessionId: string, status: string, additionalData: any = {}): Promise<void> {
     try {
-      // Get existing record to calculate duration
       const existingLog = await this.ussdLogModel.findOne({ sessionId });
       
       const updateData = {
@@ -89,11 +84,11 @@ export class UssdLoggingService {
         { $set: updateData },
         { 
           new: true,
-          upsert: false // Don't create if doesn't exist, should already exist
+          upsert: false
         }
       );
     } catch (error) {
-      console.error('Error updating USSD log:', error);
+      console.error('Error updating session status:', error);
     }
   }
 
@@ -131,7 +126,7 @@ export class UssdLoggingService {
   /**
    * Get USSD statistics
    */
-  async getUssdStatistics(): Promise<UssdStatistics> {
+  async getUssdStatistics(): Promise<any> {
     try {
       const totalDialers = await this.ussdLogModel.distinct('mobileNumber').countDocuments();
       const todayDialers = await this.ussdLogModel.countDocuments({
@@ -155,55 +150,6 @@ export class UssdLoggingService {
         completedTransactions: 0,
         failedTransactions: 0,
         successRate: '0'
-      };
-    }
-  }
-
-  /**
-   * Get all USSD logs with pagination
-   */
-  async getAllUssdLogs(page: number = 1, limit: number = 50, status?: string): Promise<PaginatedUssdLogs> {
-    try {
-      const skip = (page - 1) * limit;
-      const filter: any = {};
-
-      if (status) {
-        filter.status = status;
-      }
-
-      const [logs, total] = await Promise.all([
-        this.ussdLogModel
-          .find(filter)
-          .sort({ dialedAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .exec(),
-        this.ussdLogModel.countDocuments(filter)
-      ]);
-
-      return {
-        logs,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
-          hasNext: page * limit < total,
-          hasPrev: page > 1
-        }
-      };
-    } catch (error) {
-      console.error('Error fetching all USSD logs:', error);
-      return { 
-        logs: [], 
-        pagination: {
-          page: 1,
-          limit: 50,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
-        }
       };
     }
   }

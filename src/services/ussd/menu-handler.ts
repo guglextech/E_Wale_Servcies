@@ -237,16 +237,6 @@ export class MenuHandler {
    * Log service selection
    */
   private async logServiceSelection(req: HBussdReq, state: SessionState): Promise<void> {
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      status: 'service_selected',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
   }
 }

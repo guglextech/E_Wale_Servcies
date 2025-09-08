@@ -48,21 +48,4 @@ export class UssdLogsController {
             data: stats
         };
     }
-
-    @Get()
-    @ApiOperation({ summary: 'Get all USSD logs with pagination' })
-    @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
-    @ApiQuery({ name: 'limit', required: false, description: 'Number of logs per page (default: 50)' })
-    @ApiQuery({ name: 'status', required: false, description: 'Filter by status (initiated, completed, failed, cancelled)' })
-    async getAllLogs(
-        @Query('page') page: number = 1,
-        @Query('limit') limit: number = 50,
-        @Query('status') status?: string
-    ) {
-        const result = await this.ussdService.getAllUssdLogs(page, limit, status);
-        return {
-            success: true,
-            ...result
-        };
-    }
 }

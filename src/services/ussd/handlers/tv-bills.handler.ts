@@ -36,8 +36,8 @@ export class TVBillsHandler {
     state.tvProvider = tvProviderMap[req.Message];
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log TV provider selection
-    await this.logInteraction(req, state, 'tv_provider_selected');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -70,8 +70,8 @@ export class TVBillsHandler {
       state.accountInfo = [accountInfo];
       this.sessionManager.updateSession(req.SessionId, state);
 
-      // Log account query
-      await this.logInteraction(req, state, 'account_queried');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
           // Display account information before proceeding
     const accountDisplay = this.formatTVAccountInfo(accountInfo);
@@ -116,8 +116,8 @@ export class TVBillsHandler {
     state.totalAmount = amount; // Set totalAmount for payment processing
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log amount input
-    await this.logInteraction(req, state, 'amount_entered');
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     // Show order summary after amount input
     return this.responseBuilder.createResponse(
@@ -171,39 +171,6 @@ export class TVBillsHandler {
            `Customer: ${accountInfo?.Display || 'N/A'}\n` +
            `Amount: GH${amount?.toFixed(2) || '0.00'}\n\n` +
            `1. Confirm\n2. Cancel`;
-  }
-
-  /**
-   * Log USSD interaction with proper data structure
-   */
-  private async logInteraction(req: HBussdReq, state: SessionState, status: string): Promise<void> {
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      service: state.service,
-      flow: state.flow,
-      network: state.network,
-      amount: state.amount,
-      totalAmount: state.totalAmount,
-      quantity: state.quantity,
-      recipientName: state.name,
-      recipientMobile: state.mobile,
-      tvProvider: state.tvProvider,
-      accountNumber: state.accountNumber,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      bundleValue: state.bundleValue,
-      selectedBundle: state.selectedBundle,
-      accountInfo: state.accountInfo,
-      meterInfo: state.meterInfo,
-      status,
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
   }
 
   /**

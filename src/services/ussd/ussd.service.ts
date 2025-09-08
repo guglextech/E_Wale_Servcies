@@ -72,7 +72,7 @@ export class UssdService {
       }
     } catch (error) {
       console.error('USSD request error:', error);
-      await this.loggingService.updateUssdLog(req.SessionId, 'failed', {
+      await this.loggingService.updateSessionStatus(req.SessionId, 'failed', {
         errorMessage: error.message || 'Unknown error occurred'
       });
       return this.responseBuilder.createErrorResponse(req.SessionId, 'An error occurred. Please try again.');
@@ -84,19 +84,10 @@ export class UssdService {
    */
   private async handleInitiation(req: HBussdReq): Promise<string> {
     // Create new session
-    this.sessionManager.createSession(req.SessionId);
+    const state = this.sessionManager.createSession(req.SessionId);
 
-    // Log the initial USSD dial
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      status: 'initiated',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    // Log the initial USSD session
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'initiated');
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -117,34 +108,8 @@ export class UssdService {
       );
     }
 
-    // Log interaction
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      service: state.service,
-      flow: state.flow,
-      network: state.network,
-      amount: state.amount,
-      totalAmount: state.totalAmount,
-      quantity: state.quantity,
-      recipientName: state.name,
-      recipientMobile: state.mobile,
-      tvProvider: state.tvProvider,
-      accountNumber: state.accountNumber,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      bundleValue: state.bundleValue,
-      selectedBundle: state.selectedBundle,
-      accountInfo: state.accountInfo,
-      meterInfo: state.meterInfo,
-      status: 'interaction',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     // Route to appropriate handler based on sequence
     switch (req.Sequence) {
@@ -372,7 +337,7 @@ export class UssdService {
    * Release session
    */
   private async releaseSession(sessionId: string): Promise<string> {
-    await this.loggingService.updateUssdLog(sessionId, 'completed');
+    await this.loggingService.updateSessionStatus(sessionId, 'completed');
     this.sessionManager.deleteSession(sessionId);
     return this.responseBuilder.createThankYouResponse(sessionId);
   }
@@ -419,7 +384,7 @@ export class UssdService {
       const isSuccessful = req.OrderInfo.Payment.IsSuccessful;
 
       // Log payment completion
-      await this.loggingService.updateUssdLog(req.SessionId, isSuccessful ? 'completed' : 'failed', {
+      await this.loggingService.updateSessionStatus(req.SessionId, isSuccessful ? 'completed' : 'failed', {
         paymentStatus: req.OrderInfo.Status,
         orderId: req.OrderId,
         amountPaid: req.OrderInfo.Payment.AmountPaid,
@@ -609,20 +574,8 @@ export class UssdService {
     state.email = email;
     this.sessionManager.updateSession(req.SessionId, state);
 
-    // Log email input
-    await this.loggingService.logUssdInteraction({
-      mobileNumber: req.Mobile,
-      sessionId: req.SessionId,
-      sequence: req.Sequence,
-      message: req.Message,
-      serviceType: state.serviceType,
-      utilityProvider: state.utilityProvider,
-      meterNumber: state.meterNumber,
-      status: 'email_entered',
-      userAgent: 'USSD',
-      deviceInfo: 'Mobile USSD',
-      location: 'Ghana'
-    });
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
@@ -737,9 +690,5 @@ export class UssdService {
 
   async getUssdStatistics() {
     return this.loggingService.getUssdStatistics();
-  }
-
-  async getAllUssdLogs(page: number = 1, limit: number = 50, status?: string) {
-    return this.loggingService.getAllUssdLogs(page, limit, status);
   }
 }
