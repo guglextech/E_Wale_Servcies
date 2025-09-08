@@ -34,7 +34,7 @@ export class BundleHandler {
 
     state.network = networkMap[req.Message];
     this.updateSession(req.SessionId, state);
-    // await this.logInteraction(req, state, 'network_selected');
+    await this.logInteraction(req, state, 'network_selected');
 
     return this.showBundleCategories(req.SessionId, state);
   }
@@ -49,7 +49,7 @@ export class BundleHandler {
       // Debug: Log mobile number setting
       console.log('Setting mobile for self flow:', req.Mobile, 'State mobile:', state.mobile);
       this.updateSession(req.SessionId, state);
-      // await this.logInteraction(req, state, 'buy_for_self');
+      await this.logInteraction(req, state, 'buy_for_self');
       // Show order summary directly
       return this.showOrderSummary(req.SessionId, state, req);
     }
@@ -57,7 +57,7 @@ export class BundleHandler {
     if (req.Message === "2") {
       state.flow = 'other';
       this.updateSession(req.SessionId, state);
-      // await this.logInteraction(req, state, 'buy_for_other');
+      await this.logInteraction(req, state, 'buy_for_other');
       // Show mobile number input for "other" flow
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId, "Enter Mobile Number", "Enter recipient's mobile number:"
@@ -83,7 +83,7 @@ export class BundleHandler {
     state.amount = undefined;
     state.totalAmount = undefined;
     this.updateSession(req.SessionId, state);
-    // await this.logInteraction(req, state, 'category_selected');
+    await this.logInteraction(req, state, 'category_selected');
     
     return this.showBundlePage(req.SessionId, state);
   }
@@ -115,7 +115,7 @@ export class BundleHandler {
     
     this.selectBundle(state, pageBundles[selectedIndex]);
     this.updateSession(req.SessionId, state);
-    // await this.logInteraction(req, state, 'bundle_selected');  
+    await this.logInteraction(req, state, 'bundle_selected');  
     return this.showBuyForOptions(req.SessionId, state);
   }
 
@@ -129,7 +129,7 @@ export class BundleHandler {
 
     state.mobile = validation.convertedNumber;
     this.updateSession(req.SessionId, state);
-    // await this.logInteraction(req, state, 'mobile_entered');
+    await this.logInteraction(req, state, 'mobile_entered');
 
     // Show order summary after mobile number input
     return this.showOrderSummary(req.SessionId, state, req);
@@ -247,7 +247,6 @@ export class BundleHandler {
       this.updateSession(req.SessionId, state);
       return this.showBundlePage(req.SessionId, state);
     }
-    
     return this.responseBuilder.createErrorResponse(req.SessionId, "No more bundles to show");
   }
 
@@ -392,5 +391,13 @@ export class BundleHandler {
     return { isValid: false, error: 'Must be a valid mobile number (e.g 0550982034)' };
   }
 
+
+  private logInteraction(req: HBussdReq, state: SessionState, interaction: string): void {
+    this.loggingService.logSessionState(req.SessionId, req.Mobile, state, interaction);
+  }
+
+  private logError(error: any): void {
+    console.error('Error:', error);
+  }
  
 }
