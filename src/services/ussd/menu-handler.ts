@@ -4,10 +4,10 @@ import { SessionState, ServiceType } from "./types";
 import { ResponseBuilder } from "./response-builder";
 import { SessionManager } from "./session-manager";
 import { UssdLoggingService } from "./logging.service";
-import { NetworkProvider } from "../../models/dto/airtime.dto";
 import { TVProvider } from "../../models/dto/tv-bills.dto";
 import { UtilityProvider } from "../../models/dto/utility.dto";
 import { TVBillsHandler } from "./handlers/tv-bills.handler";
+import { AirtimeHandler } from "./handlers/airtime.handler";
 
 @Injectable()
 export class MenuHandler {
@@ -15,7 +15,8 @@ export class MenuHandler {
     private readonly responseBuilder: ResponseBuilder,
     private readonly sessionManager: SessionManager,
     private readonly loggingService: UssdLoggingService,
-    private readonly tvBillsHandler: TVBillsHandler
+    private readonly tvBillsHandler: TVBillsHandler,
+    private readonly airtimeHandler: AirtimeHandler
   ) {}
 
   /**
@@ -138,16 +139,8 @@ export class MenuHandler {
   /**
    * Handle airtime service selection
    */
-  private handleAirtimeServiceSelection(req: HBussdReq, state: SessionState): string {
-    const result = this.handleNetworkSelection(req, state, "Please select 1, 2, or 3");
-    if (result === "SUCCESS") {
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter recipient mobile number:"
-      );
-    }
-    return result;
+  private async handleAirtimeServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.airtimeHandler.handleNetworkSelection(req, state);
   }
 
   /**
@@ -191,27 +184,6 @@ export class MenuHandler {
     }
   }
 
-  /**
-   * Generic network selection handler
-   */
-  private handleNetworkSelection(req: HBussdReq, state: SessionState, errorMessage: string): string {
-    if (!["1", "2", "3"].includes(req.Message)) {
-      return this.responseBuilder.createInvalidSelectionResponse(
-        req.SessionId,
-        errorMessage
-      );
-    }
-
-    const networkMap = {
-      "1": NetworkProvider.MTN,
-      "2": NetworkProvider.TELECEL,
-      "3": NetworkProvider.AT
-    };
-
-    state.network = networkMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-    return "SUCCESS";
-  }
 
   /**
    * Log service selection
