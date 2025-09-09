@@ -156,7 +156,7 @@ export class UssdService {
         // Handle bundle category selection
         return await this.bundleHandler.handleBundleCategorySelection(req, state);
       case 'airtime_topup':
-        return this.handleAirtimeMobileNumber(req, state);
+        return await this.airtimeHandler.handleBuyerTypeSelection(req, state);
       case 'pay_bills':
         return await this.handleTVAccountQuery(req, state);
       case 'utility_service':
@@ -181,7 +181,11 @@ export class UssdService {
         // Handle bundle selection
         return await this.handleBundleSelection(req, state);
       case 'airtime_topup':
-        return this.handleAmountInput(req, state);
+        if (state.flow === 'other') {
+          return await this.airtimeHandler.handleAirtimeMobileNumber(req, state);
+        } else {
+          return await this.airtimeHandler.handleAmountInput(req, state);
+        }
       case 'pay_bills':
         return this.handleTVAccountDisplay(req, state);
       case 'utility_service':
@@ -212,8 +216,12 @@ export class UssdService {
           return this.handleTVAmountInput(req, state);
         }
       case 'airtime_topup':
-        // For airtime, trigger payment confirmation directly after order summary
-        return await this.handlePaymentConfirmation(req, state);
+        if (state.flow === 'other') {
+          return await this.airtimeHandler.handleAmountInput(req, state);
+        } else {
+          // For airtime, trigger payment confirmation directly after order summary
+          return await this.handlePaymentConfirmation(req, state);
+        }
       case 'utility_service':
         // For utility, handle email input for Ghana Water or amount input for ECG
         return await this.handleUtilityStep6(req, state);
@@ -250,10 +258,11 @@ export class UssdService {
             );
           }
         }
+      case 'airtime_topup':
+        // For airtime "other" flow, trigger payment confirmation after amount input
+        return await this.handlePaymentConfirmation(req, state);
       case 'pay_bills':
         return await this.handlePaymentConfirmation(req, state);
-      case 'airtime_topup':
-        return this.releaseSession(req.SessionId);
       case 'utility_service':
         return await this.handleUtilityStep7(req, state);
       default:
@@ -487,13 +496,6 @@ export class UssdService {
   }
 
 
-  private async handleAirtimeMobileNumber(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.airtimeHandler.handleAirtimeMobileNumber(req, state);
-  }
-
-  private async handleAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.airtimeHandler.handleAmountInput(req, state);
-  }
 
   private async handleTVAccountQuery(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.tvBillsHandler.handleTVAccountQuery(req, state);
