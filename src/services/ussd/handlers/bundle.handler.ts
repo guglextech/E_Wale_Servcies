@@ -84,6 +84,14 @@ export class BundleHandler {
   }
 
   async handleBundleSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    // Check if user is in category selection mode (after going back to categories)
+    if (state.isInCategorySelectionMode) {
+      // Clear the flag and handle as category selection
+      state.isInCategorySelectionMode = false;
+      this.updateSession(req.SessionId, state);
+      return await this.handleBundleCategorySelection(req, state);
+    }
+
     const currentGroup = this.getCurrentGroup(state);
     if (!currentGroup) {
       return this.responseBuilder.createErrorResponse(req.SessionId, "No bundles available");
@@ -256,6 +264,8 @@ export class BundleHandler {
     state.bundleValue = undefined;
     state.amount = undefined;
     state.totalAmount = undefined;
+    // Set flag to indicate user is in category selection mode
+    state.isInCategorySelectionMode = true;
     this.updateSession(req.SessionId, state);
     return this.formatBundleCategories(req.SessionId, state);
   }
