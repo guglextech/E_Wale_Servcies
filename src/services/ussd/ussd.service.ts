@@ -178,6 +178,13 @@ export class UssdService {
           return this.resultCheckerHandler.handleMobileNumber(req, state);
         }
       case 'data_bundle':
+        // Check if user is in category selection mode (after going back to categories)
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
+          state.isInCategorySelectionMode = false;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return await this.handleBundleCategorySelection(req, state);
+        }
         // Handle bundle selection
         return await this.handleBundleSelection(req, state);
       case 'airtime_topup':
@@ -207,6 +214,13 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
+        // Check if user is in category selection mode (after going back to categories)
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
+          state.isInCategorySelectionMode = false;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return await this.handleBundleCategorySelection(req, state);
+        }
         // Handle buy for selection (Self/Other)
         return await this.handleBuyForSelection(req, state);
       case 'pay_bills':
