@@ -23,6 +23,7 @@ export interface SessionState {
   currentGroupIndex?: number;
   selectedBundle?: BundleOption;
   bundleValue?: string;
+  isInCategorySelectionMode?: boolean; // Flag to indicate user is in category selection mode after going back to packages
   // TV Bills specific fields
   tvProvider?: TVProvider;
   accountNumber?: string;
