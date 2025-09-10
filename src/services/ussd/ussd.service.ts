@@ -256,6 +256,13 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Check if user is in category selection mode (after going back to categories)
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
+          state.isInCategorySelectionMode = false;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return await this.handleBundleCategorySelection(req, state);
+        }
         if (state.flow === 'other') {
           // Handle mobile number input for "other" flow
           return await this.handleOtherMobileNumber(req, state);
@@ -296,6 +303,13 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Check if user is in category selection mode (after going back to categories)
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
+          state.isInCategorySelectionMode = false;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return await this.handleBundleCategorySelection(req, state);
+        }
         if (state.flow === 'other') {
           // Handle order summary confirmation for "other" flow
           if (req.Message === "1") {
