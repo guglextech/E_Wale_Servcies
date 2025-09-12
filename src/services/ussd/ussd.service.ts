@@ -344,6 +344,13 @@ export class UssdService {
       case 'result_checker':
         return await this.handlePaymentConfirmation(req, state);
       case 'data_bundle':
+        // Check if user is in category selection mode (after going back to categories)
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
+          state.isInCategorySelectionMode = false;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return await this.handleBundleCategorySelection(req, state);
+        }
         // Bundle flow ends at step 7, this should not be reached
         return this.releaseSession(req.SessionId);
       case 'airtime_topup':
@@ -366,6 +373,18 @@ export class UssdService {
       case 'pay_bills':
         return await this.tvBillsHandler.handlePaymentConfirmation(req, state);
       case 'data_bundle':
+        // Check if user is in category selection mode (after going back to categories)
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
+          state.isInCategorySelectionMode = false;
+          this.sessionManager.updateSession(req.SessionId, state);
+          return await this.handleBundleCategorySelection(req, state);
+        }
+        // Use default payment confirmation for data bundle
+        if (req.Message !== "1") {
+          return this.releaseSession(req.SessionId);
+        }
+        break;
       case 'voice_bundle':
       case 'airtime_topup':
       case 'utility_service':
