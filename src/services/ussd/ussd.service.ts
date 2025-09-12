@@ -218,6 +218,10 @@ export class UssdService {
         if (req.Message === "99") {
           return await this.bundleHandler.handleBackToCategories(req, state);
         }
+        // Handle bundle selection (if user is viewing bundle packages and no flow is set)
+        if (state.currentGroupIndex !== undefined && state.currentBundlePage !== undefined && !state.flow) {
+          return await this.handleBundleSelection(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
