@@ -272,6 +272,10 @@ export class UssdService {
           this.sessionManager.updateSession(req.SessionId, state);
           return await this.handleBundleCategorySelection(req, state);
         }
+        // Handle bundle selection if user is viewing bundle packages
+        if (!state.selectedBundle && state.bundleGroups && state.currentGroupIndex !== undefined) {
+          return await this.handleBundleSelection(req, state);
+        }
         if (state.flow === 'other') {
           // Handle mobile number input for "other" flow
           return await this.handleOtherMobileNumber(req, state);
