@@ -327,6 +327,14 @@ export class UssdService {
           this.sessionManager.updateSession(req.SessionId, state);
           return await this.handleBundleCategorySelection(req, state);
         }
+        // Handle bundle selection if user is viewing bundle packages
+        if (!state.selectedBundle && state.bundleGroups && state.currentGroupIndex !== undefined) {
+          return await this.handleBundleSelection(req, state);
+        }
+        // Handle buy-for selection if user has selected a bundle but no flow yet
+        if (state.selectedBundle && !state.flow) {
+          return await this.handleBuyForSelection(req, state);
+        }
         if (state.flow === 'other') {
           // Handle order summary confirmation for "other" flow
           if (req.Message === "1") {
