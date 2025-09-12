@@ -179,18 +179,12 @@ export class UssdService {
         }
       case 'data_bundle':
         // Check if user is in category selection mode (after going back to categories)
-        // if (state.isInCategorySelectionMode) {
-        //   state.isInCategorySelectionMode = false;
-        //   this.sessionManager.updateSession(req.SessionId, state);
-        //   return await this.handleBundleCategorySelection(req, state);
-        // }
-
-        if (state.isInCategorySelectionMode && !state.selectedBundle) {
+        if (state.isInCategorySelectionMode) {
+          // Clear the flag and handle as category selection
           state.isInCategorySelectionMode = false;
           this.sessionManager.updateSession(req.SessionId, state);
           return await this.handleBundleCategorySelection(req, state);
         }
-        
         // Handle bundle selection
         return await this.handleBundleSelection(req, state);
       case 'airtime_topup':
@@ -224,7 +218,7 @@ export class UssdService {
         if (req.Message === "99") {
           return await this.bundleHandler.handleBackToCategories(req, state);
         }
-        
+       
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
