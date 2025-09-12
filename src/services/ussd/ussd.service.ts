@@ -264,6 +264,10 @@ export class UssdService {
         if (req.Message === "99") {
           return await this.bundleHandler.handleBackToCategories(req, state);
         }
+        // Handle bundle selection (if user selects a bundle number)
+        if (/^[1-9]\d*$/.test(req.Message)) {
+          return await this.handleBundleSelection(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
@@ -316,6 +320,10 @@ export class UssdService {
         if (req.Message === "99") {
           return await this.bundleHandler.handleBackToCategories(req, state);
         }
+        // Handle bundle selection (if user selects a bundle number)
+        if (/^[1-9]\d*$/.test(req.Message)) {
+          return await this.handleBundleSelection(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
@@ -360,6 +368,10 @@ export class UssdService {
         // Handle "99" navigation for going back to categories
         if (req.Message === "99") {
           return await this.bundleHandler.handleBackToCategories(req, state);
+        }
+        // Handle bundle selection (if user selects a bundle number)
+        if (/^[1-9]\d*$/.test(req.Message)) {
+          return await this.handleBundleSelection(req, state);
         }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
