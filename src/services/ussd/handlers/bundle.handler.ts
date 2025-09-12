@@ -249,7 +249,7 @@ export class BundleHandler {
     return this.responseBuilder.createErrorResponse(req.SessionId, "Already on first page");
   }
 
-  private handleBackToCategories(req: HBussdReq, state: SessionState): string {
+  public handleBackToCategories(req: HBussdReq, state: SessionState): string {
     state.currentGroupIndex = 0;
     state.currentBundlePage = 0;
     state.selectedBundle = undefined;
