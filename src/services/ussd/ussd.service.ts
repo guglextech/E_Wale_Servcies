@@ -214,6 +214,10 @@ export class UssdService {
           return this.resultCheckerHandler.handleNameInput(req, state);
         }
       case 'data_bundle':
+        // Handle "99" navigation for going back to categories
+        if (req.Message === "99") {
+          return await this.bundleHandler.handleBackToCategories(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
@@ -256,6 +260,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Handle "99" navigation for going back to categories
+        if (req.Message === "99") {
+          return await this.bundleHandler.handleBackToCategories(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
@@ -304,6 +312,10 @@ export class UssdService {
           return this.releaseSession(req.SessionId);
         }
       case 'data_bundle':
+        // Handle "99" navigation for going back to categories
+        if (req.Message === "99") {
+          return await this.bundleHandler.handleBackToCategories(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
@@ -345,6 +357,10 @@ export class UssdService {
       case 'result_checker':
         return await this.handlePaymentConfirmation(req, state);
       case 'data_bundle':
+        // Handle "99" navigation for going back to categories
+        if (req.Message === "99") {
+          return await this.bundleHandler.handleBackToCategories(req, state);
+        }
         // Check if user is in category selection mode (after going back to categories)
         if (state.isInCategorySelectionMode) {
           // Clear the flag and handle as category selection
