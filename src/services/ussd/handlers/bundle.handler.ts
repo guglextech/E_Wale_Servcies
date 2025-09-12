@@ -258,7 +258,7 @@ export class BundleHandler {
     state.totalAmount = undefined;
     state.flow = undefined;
     state.mobile = undefined;
-    state.isInCategorySelectionMode = true;
+    // state.isInCategorySelectionMode = true;
     this.updateSession(req.SessionId, state);
     return this.formatBundleCategories(req.SessionId, state);
   }
