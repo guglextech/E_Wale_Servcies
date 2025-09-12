@@ -360,13 +360,13 @@ export class BundleHandler {
   private cleanBundleDisplay(display: string): string {
 
     return display
-      .replace(/\(GHS?\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GHS 50) or (GH 50)
-      .replace(/\(GHs?\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GHs 0.5) or (GH 0.5)
-      .replace(/\(GH₵\s*\d+(?:\.\d+)?\)/gi, '') // Remove (GH₵ 50)
-      .replace(/\s*-\s*GHs?\s*\d+(?:\.\d+)?/gi, '') // Remove - GHs 0.5
-      .replace(/\s*-\s*GHS?\s*\d+(?:\.\d+)?/gi, '') // Remove - GHS 50
-      .replace(/\s*-\s*GH₵\s*\d+(?:\.\d+)?/gi, '') // Remove - GH₵ 50
-      .trim(); // Remove extra spaces
+      .replace(/\(GHS?\s*\d+(?:\.\d+)?\)/gi, '') 
+      .replace(/\(GHs?\s*\d+(?:\.\d+)?\)/gi, '') 
+      .replace(/\(GH₵\s*\d+(?:\.\d+)?\)/gi, '')
+      .replace(/\s*-\s*GHs?\s*\d+(?:\.\d+)?/gi, '') 
+      .replace(/\s*-\s*GHS?\s*\d+(?:\.\d+)?/gi, '') 
+      .replace(/\s*-\s*GH₵\s*\d+(?:\.\d+)?/gi, '') 
+      .trim();
   }
 
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
