@@ -256,7 +256,8 @@ export class BundleHandler {
     state.bundleValue = undefined;
     state.amount = undefined;
     state.totalAmount = undefined;
-    // Set flag to indicate user is in category selection mode
+    state.flow = undefined;
+    state.mobile = undefined;
     state.isInCategorySelectionMode = true;
     this.updateSession(req.SessionId, state);
     return this.formatBundleCategories(req.SessionId, state);
