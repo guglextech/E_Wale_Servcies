@@ -31,6 +31,8 @@ export interface SessionState {
   subscriptionType?: 'renew' | 'change';
   // Utility specific fields
   utilityProvider?: UtilityProvider;
+  meterType?: 'prepaid' | 'postpaid';
+  utilitySubOption?: 'topup' | 'add_meter' | 'pay_bill';
   meterNumber?: string;
   meterInfo?: UtilityMeterInfo[];
   selectedMeter?: UtilityMeterInfo;

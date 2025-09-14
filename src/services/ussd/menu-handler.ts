@@ -170,12 +170,14 @@ export class MenuHandler {
     this.sessionManager.updateSession(req.SessionId, state);
 
     if (state.utilityProvider === UtilityProvider.ECG) {
-      return this.responseBuilder.createPhoneInputResponse(
+      // For ECG, show meter type selection
+      return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number linked to ECG meter:"
+        "Select Meter Type",
+        "Select Meter Type:\n1. Prepaid\n2. Postpaid"
       );
     } else {
+      // For Ghana Water, proceed directly to mobile number input
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Enter Mobile Number",

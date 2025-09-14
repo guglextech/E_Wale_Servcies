@@ -160,7 +160,12 @@ export class UssdService {
       case 'pay_bills':
         return await this.handleTVAccountQuery(req, state);
       case 'utility_service':
-        return await this.handleUtilityQuery(req, state);
+        // For ECG, handle meter type selection; for Ghana Water, handle mobile number
+        if (state.utilityProvider === UtilityProvider.ECG) {
+          return await this.utilityHandler.handleECGMeterTypeSelection(req, state);
+        } else {
+          return await this.handleUtilityQuery(req, state);
+        }
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -196,7 +201,12 @@ export class UssdService {
       case 'pay_bills':
         return this.handleTVAccountDisplay(req, state);
       case 'utility_service':
-        return await this.handleUtilityStep5(req, state);
+        // For ECG with meter type selection, handle sub-option selection
+        if (state.utilityProvider === UtilityProvider.ECG && state.meterType && !state.utilitySubOption) {
+          return await this.utilityHandler.handleECGSubOptionSelection(req, state);
+        } else {
+          return await this.handleUtilityStep5(req, state);
+        }
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -242,8 +252,13 @@ export class UssdService {
           return await this.handlePaymentConfirmation(req, state);
         }
       case 'utility_service':
-        // For utility, handle email input for Ghana Water or amount input for ECG
-        return await this.handleUtilityStep6(req, state);
+        // For ECG with prepaid topup, handle mobile number input first
+        if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && !state.mobile) {
+          return await this.handleUtilityQuery(req, state);
+        } else {
+          // For utility, handle email input for Ghana Water or amount input for ECG
+          return await this.handleUtilityStep6(req, state);
+        }
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -299,7 +314,12 @@ export class UssdService {
         // For TV bills, trigger payment confirmation directly after order summary
         return await this.handlePaymentConfirmation(req, state);
       case 'utility_service':
-        return await this.handleUtilityStep7(req, state);
+        // For ECG with prepaid topup, handle meter selection if mobile was just entered
+        if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.mobile && !state.selectedMeter) {
+          return await this.handleUtilityStep5(req, state);
+        } else {
+          return await this.handleUtilityStep7(req, state);
+        }
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -356,7 +376,12 @@ export class UssdService {
       case 'pay_bills':
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        return await this.handleUtilityStep8(req, state);
+        // For ECG with prepaid topup, handle amount input after meter selection
+        if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
+          return await this.handleUtilityAmountInput(req, state);
+        } else {
+          return await this.handleUtilityStep8(req, state);
+        }
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
@@ -386,7 +411,12 @@ export class UssdService {
       case 'airtime_topup':
         return this.releaseSession(req.SessionId);
       case 'utility_service':
-        return await this.handleUtilityStep9(req, state);
+        // For ECG with prepaid topup, handle payment confirmation after amount input
+        if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.amount) {
+          return await this.handlePaymentConfirmation(req, state);
+        } else {
+          return await this.handleUtilityStep9(req, state);
+        }
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
