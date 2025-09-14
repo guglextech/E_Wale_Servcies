@@ -129,7 +129,7 @@ export class BundleHandler {
   // Display methods
   public showBuyForOptions(sessionId: string, state: SessionState): string {
     return this.responseBuilder.createNumberInputResponse(
-     sessionId, "Who are you buying for?", "1. My Number\n2. Other Number\n\nSelect option:"
+     sessionId, "Who are you buying for?", "1. Self\n2. Other \n\nSelect option:"
     );
   }
 
