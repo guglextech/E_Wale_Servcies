@@ -124,8 +124,8 @@ export class MenuHandler {
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
-      "Buying For",
-      "Buy for:\n1. Buy for me\n2. For other"
+      "Who are you buying for?",
+      "Buy for:\n1. Self\n2. Other"
     );
   }
 
