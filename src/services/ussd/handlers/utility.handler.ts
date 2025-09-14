@@ -294,12 +294,9 @@ export class UtilityHandler {
     // Set amount directly from amountDue (use positive amount for payment)
     state.amount = billAmount;
     state.totalAmount = billAmount;
-
-    // Set static email
     state.email = "guglextechnologies@gmail.com";
     
     this.sessionManager.updateSession(req.SessionId, state);
-    // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
     // Display bill summary with amount due directly (like DSTV)
@@ -307,7 +304,7 @@ export class UtilityHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Bill Summary",
-      accountInfo + "\n\n1. Pay Bill\n2. Cancel",
+      accountInfo + "\n\n1. Continue\n2. Cancel",
       "input",
       "text"
     );
@@ -383,6 +380,19 @@ export class UtilityHandler {
       req.SessionId,
       "Utility Top-Up",
       this.formatUtilityOrderSummary(state) + "\n\n"
+    );
+  }
+
+  /**
+   * Show Ghana Water payment summary
+   */
+  showGhanaWaterPaymentSummary(sessionId: string, state: SessionState): string {
+    return this.responseBuilder.createResponse(
+      sessionId,
+      "Payment Summary",
+      this.formatUtilityOrderSummary(state),
+      "input",
+      "text"
     );
   }
 

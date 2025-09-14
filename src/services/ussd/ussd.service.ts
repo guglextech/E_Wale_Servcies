@@ -639,13 +639,13 @@ export class UssdService {
   private async handleUtilityStep6(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
       if (req.Message === "1") {
-        return await this.handlePaymentConfirmation(req, state);
+        return this.utilityHandler.showGhanaWaterPaymentSummary(req.SessionId, state);
       } else if (req.Message === "2") {
         return this.releaseSession(req.SessionId);
       } else {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
-          "Please select 1 to pay bill or 2 to cancel"
+          "Please select 1 to continue or 2 to cancel"
         );
       }
     } else {
@@ -659,8 +659,8 @@ export class UssdService {
    */
   private async handleUtilityStep7(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // Ghana Water flow now ends at step 6 with direct payment
-      return this.releaseSession(req.SessionId);
+      // Ghana Water payment confirmation
+      return await this.handleUtilityConfirmation(req, state);
     } else {
       // For ECG, handle confirmation
       return await this.handleUtilityConfirmation(req, state);
