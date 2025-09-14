@@ -150,7 +150,7 @@ export class UtilityHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Meter Number",
-      "Enter meter number:"
+      "Enter meter number:(eg.0106XXXXX010)-12 digits"
     );
   }
 
