@@ -290,21 +290,16 @@ export class TVBillsHandler {
       return false;
     }
 
-    // Basic validation - can be enhanced based on provider-specific formats
     const cleaned = accountNumber.replace(/\s/g, '');
     
     switch (provider) {
       case TVProvider.DSTV:
-        // DSTV account numbers are typically 10-12 digits
         return /^\d{10,12}$/.test(cleaned);
       case TVProvider.GOTV:
-        // GoTV account numbers are typically 10-12 digits
         return /^\d{10,12}$/.test(cleaned);
       case TVProvider.STARTIMES:
-        // StarTimes account numbers are typically 10-12 digits
         return /^\d{10,12}$/.test(cleaned);
       default:
-        // Default validation for unknown providers
         return /^\d{8,15}$/.test(cleaned);
     }
   }
