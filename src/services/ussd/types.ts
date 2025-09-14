@@ -5,7 +5,7 @@ import { UtilityProvider, UtilityMeterInfo } from "../../models/dto/utility.dto"
 
 export interface SessionState {
   service?: string;
-  serviceType?: string; // 'result_checker', 'data_bundle', 'voice_bundle', 'airtime_topup', 'pay_bills', 'utility_service'
+  serviceType?: string; 
   mobile?: string;
   name?: string;
   quantity?: number;
@@ -23,7 +23,7 @@ export interface SessionState {
   currentGroupIndex?: number;
   selectedBundle?: BundleOption;
   bundleValue?: string;
-  isInCategorySelectionMode?: boolean; // Flag to indicate user is in category selection mode after going back to packages
+  isInCategorySelectionMode?: boolean; 
   // TV Bills specific fields
   tvProvider?: TVProvider;
   accountNumber?: string;

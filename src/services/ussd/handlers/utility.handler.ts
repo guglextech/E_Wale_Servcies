@@ -292,7 +292,7 @@ export class UtilityHandler {
     let menu = "Select Meter:\n";
     
     meters.forEach((meter, index) => {
-      menu += `${index + 1}. ${meter.Display} - ${meter.Value}\n`;
+      menu += `${index + 1}. ${meter.Display}\n`;
     });
 
     return menu;
