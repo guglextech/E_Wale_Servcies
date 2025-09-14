@@ -283,15 +283,15 @@ export class UtilityHandler {
       );
     }
 
-    const billAmount = parseFloat(amountDueData.Value);
-    if (isNaN(billAmount) || billAmount <= 0) {
+    const billAmount = Math.abs(parseFloat(amountDueData.Value));
+    if (isNaN(billAmount) || billAmount === 0) {
       return this.responseBuilder.createErrorResponse(
         req.SessionId,
         "Invalid bill amount. Please try again."
       );
     }
 
-    // Set amount directly from amountDue (like DSTV)
+    // Set amount directly from amountDue (use positive amount for payment)
     state.amount = billAmount;
     state.totalAmount = billAmount;
 
@@ -397,11 +397,9 @@ export class UtilityHandler {
     info += `Customer: ${nameData?.Value || 'N/A'}\n`;
     
     if (amountDueData) {
-      const amount = parseFloat(amountDueData.Value);
+      const amount = Math.abs(parseFloat(amountDueData.Value));
       if (amount > 0) {
         info += `Amount Due: GHS${amount.toFixed(2)}\n`;
-      } else if (amount < 0) {
-        info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
       } else {
         info += `Balance: GHS0.00\n`;
       }
