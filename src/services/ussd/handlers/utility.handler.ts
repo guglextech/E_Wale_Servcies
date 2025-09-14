@@ -17,6 +17,103 @@ export class UtilityHandler {
   ) {}
 
   /**
+   * Handle ECG meter type selection (Prepaid/Postpaid)
+   */
+  async handleECGMeterTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    if (!["1", "2"].includes(req.Message)) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select 1 or 2"
+      );
+    }
+
+    const meterTypeMap = {
+      "1": "prepaid" as const,
+      "2": "postpaid" as const
+    };
+
+    state.meterType = meterTypeMap[req.Message];
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+
+    if (state.meterType === "prepaid") {
+      return this.responseBuilder.createNumberInputResponse(
+        req.SessionId,
+        "Prepaid Options",
+        "Select Prepaid Option:\n1. Top-up prepaid\n2. Add Prepaid meter"
+      );
+    } else {
+      return this.responseBuilder.createNumberInputResponse(
+        req.SessionId,
+        "Postpaid Options", 
+        "Select Postpaid Option:\n1. Pay Bill\n2. Add postpaid meter"
+      );
+    }
+  }
+
+  /**
+   * Handle ECG sub-option selection (Top-up/Add meter/Pay Bill)
+   */
+  async handleECGSubOptionSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    if (!["1", "2"].includes(req.Message)) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Please select 1 or 2"
+      );
+    }
+
+    if (state.meterType === "prepaid") {
+      const prepaidOptionMap = {
+        "1": "topup" as const,
+        "2": "add_meter" as const
+      };
+      state.utilitySubOption = prepaidOptionMap[req.Message];
+    } else {
+      const postpaidOptionMap = {
+        "1": "pay_bill" as const,
+        "2": "add_meter" as const
+      };
+      state.utilitySubOption = postpaidOptionMap[req.Message];
+    }
+
+    this.sessionManager.updateSession(req.SessionId, state);
+
+    // Log current session state
+    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+
+    // For postpaid options, show coming soon
+    if (state.meterType === "postpaid") {
+      return this.responseBuilder.createResponse(
+        req.SessionId,
+        "Coming Soon",
+        "This service is coming soon. Thank you for your patience.\n\n0. Back to main menu",
+        "display",
+        "text"
+      );
+    }
+
+    // For prepaid "add_meter" option, show coming soon
+    if (state.utilitySubOption === "add_meter") {
+      return this.responseBuilder.createResponse(
+        req.SessionId,
+        "Coming Soon",
+        "This service is coming soon. Thank you for your patience.\n\n0. Back to main menu",
+        "display",
+        "text"
+      );
+    }
+
+    // For prepaid "topup" option, proceed with normal flow
+    return this.responseBuilder.createPhoneInputResponse(
+      req.SessionId,
+      "Enter Mobile Number",
+      "Enter mobile number linked to ECG meter:"
+    );
+  }
+
+  /**
    * Handle utility provider selection
    */
   async handleUtilityProviderSelection(req: HBussdReq, state: SessionState): Promise<string> {
@@ -38,15 +135,21 @@ export class UtilityHandler {
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-    const message = state.utilityProvider === UtilityProvider.ECG
-      ? "Enter mobile number linked to ECG meter:"
-      : "Enter mobile number linked to Ghana Water meter:";
-
-    return this.responseBuilder.createPhoneInputResponse(
-      req.SessionId,
-      "Enter Mobile Number",
-      message
-    );
+    if (state.utilityProvider === UtilityProvider.ECG) {
+      // For ECG, show meter type selection
+      return this.responseBuilder.createNumberInputResponse(
+        req.SessionId,
+        "Select Meter Type",
+        "Select Meter Type:\n1. Prepaid\n2. Postpaid"
+      );
+    } else {
+      // For Ghana Water, proceed directly to mobile number input
+      return this.responseBuilder.createPhoneInputResponse(
+        req.SessionId,
+        "Enter Mobile Number",
+        "Enter mobile number linked to Ghana Water meter:"
+      );
+    }
   }
 
   /**
@@ -292,7 +395,7 @@ export class UtilityHandler {
     let menu = "Select Meter:\n";
     
     meters.forEach((meter, index) => {
-      menu += `${index + 1}. ${meter.Display} - ${meter.Value}\n`;
+      menu += `${index + 1}. ${meter.Display}\n`;
     });
 
     return menu;
@@ -307,15 +410,17 @@ export class UtilityHandler {
 
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
-      return `ECG Top-Up Summary:\n\n` +
+      const meterTypeDisplay = state.meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
+      return `ECG ${meterTypeDisplay} Top-up:\n\n` +
              `Provider: ${provider}\n` +
+             `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
              `Customer: ${meter?.Value}\n` +
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
              `1. Confirm\n2. Cancel`;
     } else {
       const meter = state.meterInfo?.[0];
-      return `Ghana Water Top-Up Summary:\n\n` +
+      return `Ghana Water :\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
              `Customer: ${meter?.Display || 'N/A'}\n` +

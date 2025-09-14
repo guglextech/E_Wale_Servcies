@@ -4,10 +4,9 @@ import { SessionState, ServiceType } from "./types";
 import { ResponseBuilder } from "./response-builder";
 import { SessionManager } from "./session-manager";
 import { UssdLoggingService } from "./logging.service";
-import { TVProvider } from "../../models/dto/tv-bills.dto";
-import { UtilityProvider } from "../../models/dto/utility.dto";
 import { TVBillsHandler } from "./handlers/tv-bills.handler";
 import { AirtimeHandler } from "./handlers/airtime.handler";
+import { UtilityHandler } from "./handlers/utility.handler";
 
 @Injectable()
 export class MenuHandler {
@@ -16,8 +15,9 @@ export class MenuHandler {
     private readonly sessionManager: SessionManager,
     private readonly loggingService: UssdLoggingService,
     private readonly tvBillsHandler: TVBillsHandler,
-    private readonly airtimeHandler: AirtimeHandler
-  ) {}
+    private readonly airtimeHandler: AirtimeHandler,
+    private readonly utilityHandler: UtilityHandler
+  ) { }
 
   /**
    * Handle main menu selection
@@ -51,17 +51,17 @@ export class MenuHandler {
    * Generic service selection handler
    */
   private async handleServiceSelection(
-    req: HBussdReq, 
-    state: SessionState, 
-    serviceType: ServiceType, 
-    label: string, 
+    req: HBussdReq,
+    state: SessionState,
+    serviceType: ServiceType,
+    label: string,
     message: string
   ): Promise<string> {
     state.serviceType = serviceType;
     this.sessionManager.updateSession(req.SessionId, state);
-    
+
     await this.logServiceSelection(req, state);
-    
+
     return this.responseBuilder.createNumberInputResponse(req.SessionId, label, message);
   }
 
@@ -151,37 +151,10 @@ export class MenuHandler {
   }
 
   /**
-   * Handle utility service selection
+   * Handle utility service selection - delegates to utility handler
    */
-  private handleUtilityServiceSelection(req: HBussdReq, state: SessionState): string {
-    if (!["1", "2"].includes(req.Message)) {
-      return this.responseBuilder.createInvalidSelectionResponse(
-        req.SessionId,
-        "Please select 1 or 2"
-      );
-    }
-
-    const utilityProviderMap = {
-      "1": UtilityProvider.ECG,
-      "2": UtilityProvider.GHANA_WATER
-    };
-
-    state.utilityProvider = utilityProviderMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    if (state.utilityProvider === UtilityProvider.ECG) {
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number linked to ECG meter:"
-      );
-    } else {
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number linked to Ghana Water meter:"
-      );
-    }
+  private async handleUtilityServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.utilityHandler.handleUtilityProviderSelection(req, state);
   }
 
 

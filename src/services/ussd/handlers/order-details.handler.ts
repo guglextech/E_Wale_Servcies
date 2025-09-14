@@ -134,8 +134,10 @@ export class OrderDetailsHandler {
 
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
-      return `ECG Top-Up Order Summary:\n\n` +
+      const meterTypeDisplay = state.meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
+      return `ECG ${meterTypeDisplay} Top-Up Order Summary:\n\n` +
              `Provider: ${provider}\n` +
+             `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
              `Customer: ${meter?.Value}\n` +
              `Amount: GH₵${amount?.toFixed(2)}\n\n` +
