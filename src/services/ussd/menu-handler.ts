@@ -4,8 +4,6 @@ import { SessionState, ServiceType } from "./types";
 import { ResponseBuilder } from "./response-builder";
 import { SessionManager } from "./session-manager";
 import { UssdLoggingService } from "./logging.service";
-import { TVProvider } from "../../models/dto/tv-bills.dto";
-import { UtilityProvider } from "../../models/dto/utility.dto";
 import { TVBillsHandler } from "./handlers/tv-bills.handler";
 import { AirtimeHandler } from "./handlers/airtime.handler";
 import { UtilityHandler } from "./handlers/utility.handler";
