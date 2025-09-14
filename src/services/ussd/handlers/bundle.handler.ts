@@ -129,7 +129,9 @@ export class BundleHandler {
   // Display methods
   public showBuyForOptions(sessionId: string, state: SessionState): string {
     return this.responseBuilder.createNumberInputResponse(
-     sessionId, "Who are you buying for?", "1. Self\n2. Other \n\nSelect option:"
+      sessionId,
+      "Who are you buying for?", 
+      "Buy for:\n1. Self\n2. Other"
     );
   }
 
@@ -387,4 +389,9 @@ export class BundleHandler {
   private logInteraction(req: HBussdReq, state: SessionState, interaction: string): void {
     this.loggingService.logSessionState(req.SessionId, req.Mobile, state, interaction);
   }
+
+  private logError(error: any): void {
+    console.error('Error:', error);
+  }
+ 
 }
