@@ -21,36 +21,22 @@ export class UtilityHandler {
    */
   async handleECGMeterTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
     if (!["1", "2"].includes(req.Message)) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select 1 or 2"
-      );
+      return this.createError(req.SessionId, "Please select 1 or 2");
     }
 
-    const meterTypeMap = {
-      "1": "prepaid" as const,
-      "2": "postpaid" as const
-    };
-
+    const meterTypeMap = { "1": "prepaid" as const, "2": "postpaid" as const };
     state.meterType = meterTypeMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
+    this.updateAndLog(req, state);
 
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
-    if (state.meterType === "prepaid") {
-      return this.responseBuilder.createNumberInputResponse(
-        req.SessionId,
-        "Prepaid Options",
-        "Select Prepaid Option:\n1. Top-up prepaid\n2. Add Prepaid meter"
-      );
-    } else {
-      return this.responseBuilder.createNumberInputResponse(
-        req.SessionId,
-        "Postpaid Options", 
-        "Select Postpaid Option:\n1. Pay Bill\n2. Add postpaid meter"
-      );
-    }
+    const optionText = state.meterType === "prepaid" 
+      ? "Select Prepaid Option:\n1. Top-up prepaid\n2. Add Prepaid meter"
+      : "Select Postpaid Option:\n1. Pay Bill\n2. Add postpaid meter";
+    
+    return this.responseBuilder.createNumberInputResponse(
+      req.SessionId,
+      `${state.meterType.charAt(0).toUpperCase() + state.meterType.slice(1)} Options`,
+      optionText
+    );
   }
 
   /**
@@ -58,54 +44,23 @@ export class UtilityHandler {
    */
   async handleECGSubOptionSelection(req: HBussdReq, state: SessionState): Promise<string> {
     if (!["1", "2"].includes(req.Message)) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select 1 or 2"
-      );
+      return this.createError(req.SessionId, "Please select 1 or 2");
     }
 
-    if (state.meterType === "prepaid") {
-      const prepaidOptionMap = {
-        "1": "topup" as const,
-        "2": "add_meter" as const
-      };
-      state.utilitySubOption = prepaidOptionMap[req.Message];
-    } else {
-      const postpaidOptionMap = {
-        "1": "pay_bill" as const,
-        "2": "add_meter" as const
-      };
-      state.utilitySubOption = postpaidOptionMap[req.Message];
+    const optionMaps = {
+      prepaid: { "1": "topup" as const, "2": "add_meter" as const },
+      postpaid: { "1": "pay_bill" as const, "2": "add_meter" as const }
+    };
+
+    state.utilitySubOption = optionMaps[state.meterType][req.Message];
+    this.updateAndLog(req, state);
+
+    // Show coming soon for non-topup options
+    if (state.meterType === "postpaid" || state.utilitySubOption === "add_meter") {
+      return this.createComingSoon(req.SessionId);
     }
 
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
-    // For postpaid options, show coming soon
-    if (state.meterType === "postpaid") {
-      return this.responseBuilder.createResponse(
-        req.SessionId,
-        "Coming Soon",
-        "This service is coming soon. Thank you for your patience.\n\n0. Back to main menu",
-        "display",
-        "text"
-      );
-    }
-
-    // For prepaid "add_meter" option, show coming soon
-    if (state.utilitySubOption === "add_meter") {
-      return this.responseBuilder.createResponse(
-        req.SessionId,
-        "Coming Soon",
-        "This service is coming soon. Thank you for your patience.\n\n0. Back to main menu",
-        "display",
-        "text"
-      );
-    }
-
-    // For prepaid "topup" option, proceed with normal flow
+    // Proceed with prepaid topup
     return this.responseBuilder.createPhoneInputResponse(
       req.SessionId,
       "Enter Mobile Number",
@@ -118,38 +73,24 @@ export class UtilityHandler {
    */
   async handleUtilityProviderSelection(req: HBussdReq, state: SessionState): Promise<string> {
     if (!["1", "2"].includes(req.Message)) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select 1 or 2"
-      );
+      return this.createError(req.SessionId, "Please select 1 or 2");
     }
 
-    const utilityProviderMap = {
-      "1": UtilityProvider.ECG,
-      "2": UtilityProvider.GHANA_WATER
-    };
+    const providerMap = { "1": UtilityProvider.ECG, "2": UtilityProvider.GHANA_WATER };
+    state.utilityProvider = providerMap[req.Message];
+    this.updateAndLog(req, state);
 
-    state.utilityProvider = utilityProviderMap[req.Message];
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
-    if (state.utilityProvider === UtilityProvider.ECG) {
-      // For ECG, show meter type selection
-      return this.responseBuilder.createNumberInputResponse(
-        req.SessionId,
-        "Select Meter Type",
-        "Select Meter Type:\n1. Prepaid\n2. Postpaid"
-      );
-    } else {
-      // For Ghana Water, proceed directly to mobile number input
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number linked to Ghana Water meter:"
-      );
-    }
+    return state.utilityProvider === UtilityProvider.ECG
+      ? this.responseBuilder.createNumberInputResponse(
+          req.SessionId,
+          "Select Meter Type",
+          "Select Meter Type:\n1. Prepaid\n2. Postpaid"
+        )
+      : this.responseBuilder.createPhoneInputResponse(
+          req.SessionId,
+          "Enter Mobile Number",
+          "Enter mobile number linked to Ghana Water meter:"
+        );
   }
 
   /**
@@ -157,17 +98,12 @@ export class UtilityHandler {
    */
   async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
     try {
-      if (state.utilityProvider === UtilityProvider.ECG) {
-        return await this.handleECGQuery(req, state);
-      } else {
-        return await this.handleGhanaWaterMobileInput(req, state);
-      }
+      return state.utilityProvider === UtilityProvider.ECG
+        ? await this.handleECGQuery(req, state)
+        : await this.handleGhanaWaterMobileInput(req, state);
     } catch (error) {
       console.error("Error querying utility:", error);
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Unable to verify account. Please try again."
-      );
+      return this.createError(req.SessionId, "Unable to verify account. Please try again.");
     }
   }
 
@@ -176,31 +112,21 @@ export class UtilityHandler {
    */
   private async handleECGQuery(req: HBussdReq, state: SessionState): Promise<string> {
     const validation = this.validateMobileNumber(req.Message);
-    
     if (!validation.isValid) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        validation.error || "Invalid mobile number format"
-      );
+      return this.createError(req.SessionId, validation.error || "Invalid mobile number format");
     }
 
-    const meterResponse: UtilityQueryResponse = await this.utilityService.queryECGMeters({
+    const meterResponse = await this.utilityService.queryECGMeters({
       mobileNumber: validation.convertedNumber
     });
 
     if (meterResponse.ResponseCode !== '0000') {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        `No meters found: ${meterResponse.Message}`
-      );
+      return this.createError(req.SessionId, `No meters found: ${meterResponse.Message}`);
     }
 
     state.mobile = validation.convertedNumber;
     state.meterInfo = meterResponse.Data;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    this.updateAndLog(req, state);
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -214,19 +140,12 @@ export class UtilityHandler {
    */
   private async handleGhanaWaterMobileInput(req: HBussdReq, state: SessionState): Promise<string> {
     const validation = this.validateMobileNumber(req.Message);
-    
     if (!validation.isValid) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        validation.error || "Invalid mobile number format"
-      );
+      return this.createError(req.SessionId, validation.error || "Invalid mobile number format");
     }
 
     state.mobile = validation.convertedNumber;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    this.updateAndLog(req, state);
 
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
@@ -240,66 +159,44 @@ export class UtilityHandler {
    */
   private async handleGhanaWaterQuery(req: HBussdReq, state: SessionState): Promise<string> {
     if (!this.validateMeterNumber(req.Message)) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please enter a valid meter number"
-      );
+      return this.createError(req.SessionId, "Please enter a valid meter number");
     }
-
     if (!state.mobile) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Mobile number not found. Please restart the session."
-      );
+      return this.createError(req.SessionId, "Mobile number not found. Please restart the session.");
     }
 
-    const accountResponse: UtilityQueryResponse = await this.utilityService.queryGhanaWaterAccount({
+    const accountResponse = await this.utilityService.queryGhanaWaterAccount({
       meterNumber: req.Message,
       mobileNumber: state.mobile
     });
 
     if (accountResponse.ResponseCode !== '0000') {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        `Account not found`
-      );
+      return this.createError(req.SessionId, "Account not found");
     }
 
-    state.meterNumber = req.Message;
-    state.meterInfo = accountResponse.Data;
-    
-    // Extract SessionId from the query response
-    const sessionIdData = accountResponse.Data?.find(item => item.Display === 'sessionId');
-    if (sessionIdData) {
-      state.sessionId = sessionIdData.Value;
-    }
-
-    // Extract amount due and set it directly (like DSTV flow)
+    // Extract and validate amount
     const amountDueData = accountResponse.Data?.find(item => item.Display === 'amountDue');
-    if (!amountDueData || !amountDueData.Value) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Unable to retrieve bill amount. Please try again."
-      );
+    if (!amountDueData?.Value) {
+      return this.createError(req.SessionId, "Unable to retrieve bill amount. Please try again.");
     }
 
     const billAmount = Math.abs(parseFloat(amountDueData.Value));
     if (isNaN(billAmount) || billAmount === 0) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Invalid bill amount. Please try again."
-      );
+      return this.createError(req.SessionId, "Invalid bill amount. Please try again.");
     }
 
-    // Set amount directly from amountDue (use positive amount for payment)
-    state.amount = billAmount;
-    state.totalAmount = billAmount;
-    state.email = "guglextechnologies@gmail.com";
-    
-    this.sessionManager.updateSession(req.SessionId, state);
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    // Update state
+    Object.assign(state, {
+      meterNumber: req.Message,
+      meterInfo: accountResponse.Data,
+      amount: billAmount,
+      totalAmount: billAmount,
+      email: "guglextechnologies@gmail.com",
+      sessionId: accountResponse.Data?.find(item => item.Display === 'sessionId')?.Value
+    });
 
-    // Display bill summary with amount due directly (like DSTV)
+    this.updateAndLog(req, state);
+
     const accountInfo = this.formatGhanaWaterAccountInfo(accountResponse.Data);
     return this.responseBuilder.createResponse(
       req.SessionId,
@@ -314,11 +211,9 @@ export class UtilityHandler {
    * Handle utility step 5 (meter selection for ECG or meter number for Ghana Water)
    */
   async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
-    if (state.utilityProvider === UtilityProvider.ECG) {
-      return await this.handleECGMeterSelection(req, state);
-    } else {
-      return await this.handleGhanaWaterQuery(req, state);
-    }
+    return state.utilityProvider === UtilityProvider.ECG
+      ? await this.handleECGMeterSelection(req, state)
+      : await this.handleGhanaWaterQuery(req, state);
   }
 
   /**
@@ -329,18 +224,12 @@ export class UtilityHandler {
     const selectedIndex = parseInt(req.Message) - 1;
 
     if (selectedIndex < 0 || selectedIndex >= meters.length) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please select a valid meter option"
-      );
+      return this.createError(req.SessionId, "Please select a valid meter option");
     }
 
     state.selectedMeter = meters[selectedIndex];
     state.meterNumber = meters[selectedIndex].Value;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    this.updateAndLog(req, state);
 
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
@@ -356,25 +245,15 @@ export class UtilityHandler {
     const amount = parseFloat(req.Message);
     
     if (isNaN(amount) || amount <= 0) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please enter a valid amount greater than 0"
-      );
+      return this.createError(req.SessionId, "Please enter a valid amount greater than 0");
     }
-
     if (amount < 1) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Minimum top-up amount is GH₵1.00"
-      );
+      return this.createError(req.SessionId, "Minimum top-up amount is GH₵1.00");
     }
 
     state.amount = amount;
     state.totalAmount = amount;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+    this.updateAndLog(req, state);
 
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
@@ -457,36 +336,40 @@ export class UtilityHandler {
     }
   }
 
-  /**
-   * Validate mobile number format
-   */
+  // Helper methods
+  private createError(sessionId: string, message: string): string {
+    return this.responseBuilder.createErrorResponse(sessionId, message);
+  }
+
+  private createComingSoon(sessionId: string): string {
+    return this.responseBuilder.createResponse(
+      sessionId,
+      "Coming Soon",
+      "This service is coming soon. Thank you for your patience.\n\n0. Back to main menu",
+      "display",
+      "text"
+    );
+  }
+
+  private updateAndLog(req: HBussdReq, state: SessionState): void {
+    this.sessionManager.updateSession(req.SessionId, state);
+    this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+  }
+
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
     const cleaned = mobile.replace(/\D/g, '');
     
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
-      const converted = '233' + cleaned.substring(1);
-      return { isValid: true, convertedNumber: converted };
+      return { isValid: true, convertedNumber: '233' + cleaned.substring(1) };
     }
-    
     if (cleaned.length === 12 && cleaned.startsWith('233')) {
       return { isValid: true, convertedNumber: cleaned };
     }
     
-    return { 
-      isValid: false, 
-      error: 'Must be a valid mobile number (e.g., 0550982034)' 
-    };
+    return { isValid: false, error: 'Must be a valid mobile number (e.g., 0550982043)' };
   }
 
-  /**
-   * Validate meter number format
-   */
   private validateMeterNumber(meterNumber: string): boolean {
-    if (!meterNumber || meterNumber.trim().length === 0) {
-      return false;
-    }
-
-    const cleaned = meterNumber.replace(/\s/g, '');
-    return /^\d{8,15}$/.test(cleaned);
+    return meterNumber?.trim() && /^\d{8,15}$/.test(meterNumber.replace(/\s/g, ''));
   }
 }
