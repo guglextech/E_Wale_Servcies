@@ -60,14 +60,14 @@ export class OrderDetailsHandler {
     const price = this.getServicePrice(service);
 
     if (flow === 'self') {
-      return `Voucher Order Summary:\n\n` +
+      return `Voucher Order:\n\n` +
              `Service: ${service}\n` +
              `Quantity: ${quantity}\n` +
              `Mobile: ${mobile}\n` +
              `Total: GH₵${(price * quantity).toFixed(2)}\n\n` +
              `Press 1 to confirm payment`;
     } else {
-      return `Voucher Order Summary:\n\n` +
+      return `Voucher Order:\n\n` +
              `Service: ${service}\n` +
              `Quantity: ${quantity}\n` +
              `For: ${name} (${mobile})\n` +
@@ -84,7 +84,7 @@ export class OrderDetailsHandler {
     const mobile = state.mobile;
     const network = state.network;
 
-    return `Bundle Order Summary:\n\n` +
+    return `Bundle Order:\n\n` +
            `Network: ${network}\n` +
            `Bundle: ${bundle?.Display}\n` +
            `Mobile: ${mobile}\n` +
@@ -100,7 +100,7 @@ export class OrderDetailsHandler {
     const network = state.network;
     const amount = state.amount;
 
-    return `Airtime Order Summary:\n\n` +
+    return `Airtime :\n\n` +
            `Network: ${network}\n` +
            `Mobile: ${mobile}\n` +
            `Amount: GH₵${amount?.toFixed(2)}\n\n` +
@@ -117,7 +117,7 @@ export class OrderDetailsHandler {
     const accountInfo = state.accountInfo?.[0];
     const nameData = accountInfo?.Data?.find(item => item.Display === 'name');
 
-    return `Bill Payment Summary:\n\n` +
+    return `Bill Payment:\n\n` +
            `Provider: ${provider}\n` +
            `Account: ${accountNumber}\n` +
            `Customer: ${nameData?.Value || 'N/A'}\n` +

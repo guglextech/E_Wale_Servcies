@@ -153,11 +153,7 @@ export class ResultCheckerHandler {
     const total = state.totalAmount;
     state.totalAmount = total;
     this.sessionManager.updateSession(req.SessionId, state);
-
     const serviceName = this.paymentProcessor.getServiceName(state);
-    console.log("serviceName", serviceName);
-    console.log("total", total);
-    console.log("req.SessionId", req.SessionId);
     return this.paymentProcessor.createPaymentRequest(req.SessionId, total, serviceName);
   }
 
@@ -222,7 +218,7 @@ export class ResultCheckerHandler {
     // Remove any non-digit characters
     const cleaned = mobile.replace(/\D/g, '');
     
-    // Check if it's a valid Ghanaian mobile number
+    // Check if it's a valid  mobile number
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
       // Convert to international format
       const converted = '233' + cleaned.substring(1);

@@ -106,10 +106,8 @@ export class TVBillsHandler {
     }
 
     if (req.Message === "1") {
-      // Renew subscription - use full amount from account query
       return await this.handleRenewSubscription(req, state);
     } else if (req.Message === "2") {
-      // Change subscription - placeholder for future development
       return await this.handleChangeSubscription(req, state);
     }
   }
@@ -178,7 +176,7 @@ export class TVBillsHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Change Subscription",
-      "This feature is under development and will be available soon.\n\nThank you for your patience.",
+      "This feature is will be available soon.\n\nThank you for your patience.",
       "end",
       "text"
     );
