@@ -59,7 +59,7 @@ export class AirtimeHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Who are you buying for?",
-      "Buy for:\n1. Self\n2. Other"
+      "Who are you buying for?:\n1. Self\n2. Other"
     );
   }
 
