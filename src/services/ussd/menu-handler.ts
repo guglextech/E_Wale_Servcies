@@ -28,11 +28,11 @@ export class MenuHandler {
     }
 
     const menuHandlers = {
-      "1": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE \n2. WASSCE/NovDec \n3. School Placement Checker"),
+      "1": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE"),
       "2": () => this.handleServiceSelection(req, state, ServiceType.DATA_BUNDLE, "Select Network", "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
       "3": () => this.handleServiceSelection(req, state, ServiceType.AIRTIME_TOPUP, "Select Network", "Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
       "4": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
-      "5": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Prepaid\n2. Ghana Water"),
+      "5": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Power\n2. Ghana Water"),
       "6": () => this.handleComingSoon(req, state)
     };
 
