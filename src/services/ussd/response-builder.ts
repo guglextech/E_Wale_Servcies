@@ -143,7 +143,7 @@ export class ResponseBuilder {
     return this.createReleaseResponse(
       sessionId,
       "Contact Us",
-      "Phone: +233262195121\nEmail: guglextechnologies@gmail.com"
+      "Phone: 0262195121 or 0549102930\nEmail: guglextechnologies@gmail.com"
     );
   }
 

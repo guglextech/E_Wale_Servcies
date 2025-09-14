@@ -415,15 +415,12 @@ export class UtilityHandler {
              `Provider: ${provider}\n` +
              `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
-             `Customer: ${meter?.Value}\n` +
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
              `1. Confirm\n2. Cancel`;
     } else {
-      const meter = state.meterInfo?.[0];
-      return `Ghana Water :\n\n` +
+      return `Ghana Water:\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
-             `Customer: ${meter?.Display || 'N/A'}\n` +
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
              `1. Confirm\n2. Cancel`;
     }
