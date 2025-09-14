@@ -135,15 +135,21 @@ export class UtilityHandler {
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-    const message = state.utilityProvider === UtilityProvider.ECG
-      ? "Enter mobile number linked to ECG meter:"
-      : "Enter mobile number linked to Ghana Water meter:";
-
-    return this.responseBuilder.createPhoneInputResponse(
-      req.SessionId,
-      "Enter Mobile Number",
-      message
-    );
+    if (state.utilityProvider === UtilityProvider.ECG) {
+      // For ECG, show meter type selection
+      return this.responseBuilder.createNumberInputResponse(
+        req.SessionId,
+        "Select Meter Type",
+        "Select Meter Type:\n1. Prepaid\n2. Postpaid"
+      );
+    } else {
+      // For Ghana Water, proceed directly to mobile number input
+      return this.responseBuilder.createPhoneInputResponse(
+        req.SessionId,
+        "Enter Mobile Number",
+        "Enter mobile number linked to Ghana Water meter:"
+      );
+    }
   }
 
   /**
