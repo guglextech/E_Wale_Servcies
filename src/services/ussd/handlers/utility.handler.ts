@@ -307,7 +307,7 @@ export class UtilityHandler {
 
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
-      return `ECG Top-Up Summary:\n\n` +
+      return `ECG Power:\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${meter?.Display}\n` +
              `Customer: ${meter?.Value}\n` +
@@ -315,7 +315,7 @@ export class UtilityHandler {
              `1. Confirm\n2. Cancel`;
     } else {
       const meter = state.meterInfo?.[0];
-      return `Ghana Water Top-Up Summary:\n\n` +
+      return `Ghana Water :\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
              `Customer: ${meter?.Display || 'N/A'}\n` +
