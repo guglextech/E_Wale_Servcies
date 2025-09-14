@@ -272,19 +272,42 @@ export class UtilityHandler {
     const sessionIdData = accountResponse.Data?.find(item => item.Display === 'sessionId');
     if (sessionIdData) {
       state.sessionId = sessionIdData.Value;
-    } 
+    }
+
+    // Extract amount due and set it directly (like DSTV flow)
+    const amountDueData = accountResponse.Data?.find(item => item.Display === 'amountDue');
+    if (!amountDueData || !amountDueData.Value) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Unable to retrieve bill amount. Please try again."
+      );
+    }
+
+    const billAmount = parseFloat(amountDueData.Value);
+    if (isNaN(billAmount) || billAmount <= 0) {
+      return this.responseBuilder.createErrorResponse(
+        req.SessionId,
+        "Invalid bill amount. Please try again."
+      );
+    }
+
+    // Set amount directly from amountDue (like DSTV)
+    state.amount = billAmount;
+    state.totalAmount = billAmount;
+
+    // Set static email
+    state.email = "guglextechnologies@gmail.com";
     
     this.sessionManager.updateSession(req.SessionId, state);
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
 
-    // Display account information before proceeding
+    // Display bill summary with amount due directly (like DSTV)
     const accountInfo = this.formatGhanaWaterAccountInfo(accountResponse.Data);
-    
     return this.responseBuilder.createResponse(
       req.SessionId,
-      "Account Summary",
-      accountInfo + "\n\n1. Confirm\n2. Cancel",
+      "Bill Summary",
+      accountInfo + "\n\n1. Pay Bill\n2. Cancel",
       "input",
       "text"
     );
@@ -364,21 +387,21 @@ export class UtilityHandler {
   }
 
   /**
-   * Format Ghana Water account information
+   * Format Ghana Water bill information
    */
   private formatGhanaWaterAccountInfo(data: any[]): string {
     const nameData = data.find(item => item.Display === 'name');
     const amountDueData = data.find(item => item.Display === 'amountDue');
     
-    let info = "Account Details:\n";
+    let info = "Bill Details:\n";
     info += `Customer: ${nameData?.Value || 'N/A'}\n`;
     
     if (amountDueData) {
       const amount = parseFloat(amountDueData.Value);
       if (amount > 0) {
-        info += `Amount Due: GHS -${amount.toFixed(2)}\n`;
+        info += `Amount Due: GHS${amount.toFixed(2)}\n`;
       } else if (amount < 0) {
-        info += `Credit Balance: GHS-${Math.abs(amount).toFixed(2)}\n`;
+        info += `Credit Balance: GHS${Math.abs(amount).toFixed(2)}\n`;
       } else {
         info += `Balance: GHS0.00\n`;
       }

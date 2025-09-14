@@ -642,23 +642,14 @@ export class UssdService {
    */
   private async handleUtilityStep6(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // For Ghana Water, handle confirmation after account display
       if (req.Message === "1") {
-        // User confirmed - proceed to email input
-        return this.responseBuilder.createResponse(
-          req.SessionId,
-          "Enter Email",
-          "Enter your email address:",
-          "input",
-          "text"
-        );
+        return await this.handlePaymentConfirmation(req, state);
       } else if (req.Message === "2") {
-        // User cancelled
         return this.releaseSession(req.SessionId);
       } else {
         return this.responseBuilder.createErrorResponse(
           req.SessionId,
-          "Please select 1 to confirm or 2 to cancel"
+          "Please select 1 to pay bill or 2 to cancel"
         );
       }
     } else {
@@ -668,40 +659,12 @@ export class UssdService {
   }
 
   /**
-   * Handle Ghana Water email input
-   */
-  private async handleGhanaWaterEmailInput(req: HBussdReq, state: SessionState): Promise<string> {
-    const email = req.Message.trim();
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return this.responseBuilder.createErrorResponse(
-        req.SessionId,
-        "Please enter a valid email address"
-      );
-    }
-
-    state.email = email;
-    this.sessionManager.updateSession(req.SessionId, state);
-
-    // Log current session state
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
-    return this.responseBuilder.createDecimalInputResponse(
-      req.SessionId,
-      "Enter Amount",
-      "Enter top-up amount:"
-    );
-  }
-
-  /**
-   * Handle utility step 7 (email input for Ghana Water or confirmation for ECG)
+   * Handle utility step 7 (confirmation for ECG)
    */
   private async handleUtilityStep7(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // For Ghana Water, handle email input
-      return await this.handleGhanaWaterEmailInput(req, state);
+      // Ghana Water flow now ends at step 6 with direct payment
+      return this.releaseSession(req.SessionId);
     } else {
       // For ECG, handle confirmation
       return await this.handleUtilityConfirmation(req, state);
@@ -709,28 +672,36 @@ export class UssdService {
   }
 
   /**
-   * Handle utility step 8 (amount input for Ghana Water or end session for ECG)
+   * Handle utility step 8 (ECG prepaid amount input or end session)
    */
   private async handleUtilityStep8(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // For Ghana Water, handle amount input
-      return await this.handleUtilityAmountInput(req, state);
-    } else {
-      // For ECG, end session (payment already triggered in Step 7)
+      // Ghana Water flow now ends at step 6 with direct payment
       return this.releaseSession(req.SessionId);
+    } else {
+      // For ECG with prepaid topup, handle amount input after meter selection
+      if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
+        return await this.handleUtilityAmountInput(req, state);
+      } else {
+        return this.releaseSession(req.SessionId);
+      }
     }
   }
 
   /**
-   * Handle utility step 9 (confirmation for Ghana Water)
+   * Handle utility step 9 (ECG payment confirmation)
    */
   private async handleUtilityStep9(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // For Ghana Water, handle confirmation
-      return await this.handleUtilityConfirmation(req, state);
-    } else {
-      // For ECG, end session (payment already triggered in Step 7)
+      // Ghana Water flow now ends at step 6 with direct payment
       return this.releaseSession(req.SessionId);
+    } else {
+      // For ECG with prepaid topup, handle payment confirmation after amount input
+      if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.amount) {
+        return await this.handlePaymentConfirmation(req, state);
+      } else {
+        return this.releaseSession(req.SessionId);
+      }
     }
   }
 
