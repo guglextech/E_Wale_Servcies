@@ -272,7 +272,7 @@ export class TVBillsHandler {
     const accountInfo = state.accountInfo?.[0];
     const nameData = accountInfo?.Data?.find(item => item.Display === 'name');
 
-    const title = type === 'renewal' ? 'Subscription Renewal Summary' : 'Bill Payment Summary';
+    const title = type === 'renewal' ? 'Subscription Renewal' : 'Bill Payment';
     const amountLabel = type === 'renewal' ? 'Renewal Amount' : 'Amount';
     const confirmText = type === 'renewal' ? 'Confirm Renewal' : 'Confirm';
 
