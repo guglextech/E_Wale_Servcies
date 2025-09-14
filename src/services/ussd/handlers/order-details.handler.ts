@@ -135,19 +135,16 @@ export class OrderDetailsHandler {
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
       const meterTypeDisplay = state.meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
-      return `ECG ${meterTypeDisplay} Top-Up Order Summary:\n\n` +
+      return `ECG ${meterTypeDisplay} Top-Up:\n\n` +
              `Provider: ${provider}\n` +
              `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
-             `Customer: ${meter?.Value}\n` +
              `Amount: GH₵${amount?.toFixed(2)}\n\n` +
              `Press 1 to confirm payment`;
     } else {
-      const meter = state.meterInfo?.[0];
-      return `Ghana Water Top-Up Order Summary:\n\n` +
+      return `Ghana Water Bill:\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
-             `Customer: ${meter?.Display || 'N/A'}\n` +
              `Amount: GH₵${amount?.toFixed(2)}\n\n` +
              `Press 1 to confirm payment`;
     }
