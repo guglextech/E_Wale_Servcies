@@ -20,21 +20,23 @@ export class UtilityHandler {
    * Handle ECG meter type selection (Prepaid/Postpaid)
    */
   async handleECGMeterTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (!["1", "2"].includes(req.Message)) {
-      return this.createError(req.SessionId, "Please select 1 or 2");
+    const validationResult = this.validateBinarySelection(req.Message);
+    if (!validationResult.isValid) {
+      return this.createError(req.SessionId, validationResult.error);
     }
 
+    // Only prepaid is currently supported
     const meterTypeMap = { "1": "prepaid" as const, "2": "postpaid" as const };
     state.meterType = meterTypeMap[req.Message];
     this.updateAndLog(req, state);
 
     const optionText = state.meterType === "prepaid" 
-      ? "Select Prepaid Option:\n1. Top-up prepaid\n2. Add Prepaid meter"
+      ? "Select Prepaid Option:\n1. Top-up prepaid"
       : "Select Postpaid Option:\n1. Pay Bill\n2. Add postpaid meter";
     
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
-      `${state.meterType.charAt(0).toUpperCase() + state.meterType.slice(1)} Options`,
+      `${this.capitalizeFirst(state.meterType)} Options`,
       optionText
     );
   }
@@ -43,8 +45,9 @@ export class UtilityHandler {
    * Handle ECG sub-option selection (Top-up/Add meter/Pay Bill)
    */
   async handleECGSubOptionSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (!["1", "2"].includes(req.Message)) {
-      return this.createError(req.SessionId, "Please select 1 or 2");
+    const validationResult = this.validateBinarySelection(req.Message);
+    if (!validationResult.isValid) {
+      return this.createError(req.SessionId, validationResult.error);
     }
 
     const optionMaps = {
@@ -72,8 +75,9 @@ export class UtilityHandler {
    * Handle utility provider selection
    */
   async handleUtilityProviderSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    if (!["1", "2"].includes(req.Message)) {
-      return this.createError(req.SessionId, "Please select 1 or 2");
+    const validationResult = this.validateBinarySelection(req.Message);
+    if (!validationResult.isValid) {
+      return this.createError(req.SessionId, validationResult.error);
     }
 
     const providerMap = { "1": UtilityProvider.ECG, "2": UtilityProvider.GHANA_WATER };
@@ -84,7 +88,7 @@ export class UtilityHandler {
       ? this.responseBuilder.createNumberInputResponse(
           req.SessionId,
           "Select Meter Type",
-          "Select Meter Type:\n1. Prepaid\n2. Postpaid"
+          "Select Meter Type:\n1. Prepaid"
         )
       : this.responseBuilder.createPhoneInputResponse(
           req.SessionId,
@@ -103,7 +107,7 @@ export class UtilityHandler {
         : await this.handleGhanaWaterMobileInput(req, state);
     } catch (error) {
       console.error("Error querying utility:", error);
-      return this.createError(req.SessionId, "Unable to verify account. Please try again.");
+      return this.createError(req.SessionId, "No meter linked to this mobile number. Please try again.");
     }
   }
 
@@ -180,8 +184,8 @@ export class UtilityHandler {
       return this.createError(req.SessionId, "Unable to retrieve bill amount. Please try again.");
     }
 
-    const billAmount = Math.abs(parseFloat(amountDueData.Value));
-    if (isNaN(billAmount) || billAmount === 0) {
+    const validationResult = this.validateAmount(amountDueData.Value, 0);
+    if (!validationResult.isValid) {
       return this.createError(req.SessionId, "Invalid bill amount. Please try again.");
     }
 
@@ -189,8 +193,8 @@ export class UtilityHandler {
     Object.assign(state, {
       meterNumber: req.Message,
       meterInfo: accountResponse.Data,
-      amount: billAmount,
-      totalAmount: billAmount,
+      amount: validationResult.amount,
+      totalAmount: validationResult.amount,
       email: "guglextechnologies@gmail.com",
       sessionId: accountResponse.Data?.find(item => item.Display === 'sessionId')?.Value
     });
@@ -242,17 +246,13 @@ export class UtilityHandler {
    * Handle utility amount input
    */
   async handleUtilityAmountInput(req: HBussdReq, state: SessionState): Promise<string> {
-    const amount = parseFloat(req.Message);
-    
-    if (isNaN(amount) || amount <= 0) {
-      return this.createError(req.SessionId, "Please enter a valid amount greater than 0");
-    }
-    if (amount < 1) {
-      return this.createError(req.SessionId, "Minimum top-up amount is GH₵1.00");
+    const validationResult = this.validateAmount(req.Message, 1);
+    if (!validationResult.isValid) {
+      return this.createError(req.SessionId, validationResult.error);
     }
 
-    state.amount = amount;
-    state.totalAmount = amount;
+    state.amount = validationResult.amount;
+    state.totalAmount = validationResult.amount;
     this.updateAndLog(req, state);
 
     return this.responseBuilder.createDisplayResponse(
@@ -286,9 +286,9 @@ export class UtilityHandler {
     info += `Customer: ${nameData?.Value || 'N/A'}\n`;
     
     if (amountDueData) {
-      const amount = Math.abs(parseFloat(amountDueData.Value));
-      if (amount > 0) {
-        info += `Amount Due: GHS${amount.toFixed(2)}\n`;
+      const validationResult = this.validateAmount(amountDueData.Value, 0);
+      if (validationResult.isValid && validationResult.amount > 0) {
+        info += `Amount Due: GHS${validationResult.amount.toFixed(2)}\n`;
       } else {
         info += `Balance: GHS0.00\n`;
       }
@@ -371,5 +371,43 @@ export class UtilityHandler {
 
   private validateMeterNumber(meterNumber: string): boolean {
     return meterNumber?.trim() && /^\d{8,15}$/.test(meterNumber.replace(/\s/g, ''));
+  }
+
+  /**
+   * Validate binary selection (1 or 2)
+   */
+  private validateBinarySelection(message: string): { isValid: boolean; error?: string } {
+    if (!["1", "2"].includes(message)) {
+      return { isValid: false, error: "Please select 1 or 2" };
+    }
+    return { isValid: true };
+  }
+
+  /**
+   * Capitalize first letter of string
+   */
+  private capitalizeFirst(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  /**
+   * Validate amount input
+   */
+  private validateAmount(input: string, minAmount: number = 0): { isValid: boolean; amount?: number; error?: string } {
+    const amount = Math.abs(parseFloat(input));
+    
+    if (isNaN(amount)) {
+      return { isValid: false, error: "Please enter a valid amount" };
+    }
+    
+    if (amount <= 0) {
+      return { isValid: false, error: "Please enter a valid amount greater than 0" };
+    }
+    
+    if (amount < minAmount) {
+      return { isValid: false, error: `Minimum amount is GH₵${minAmount.toFixed(2)}` };
+    }
+    
+    return { isValid: true, amount };
   }
 }
