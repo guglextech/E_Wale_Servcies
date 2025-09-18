@@ -97,7 +97,7 @@ export class UssdService {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Welcome to E-Wale",
-      "Welcome to E-Wale\n1. Results Voucher\n2. Data Bundle\n3. Airtime Top-Up\n4. Pay Bills\n5. Utility \n0. Contact us"
+      "Welcome to E-Wale\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers\n0. Contact us"
     );
   }
 
