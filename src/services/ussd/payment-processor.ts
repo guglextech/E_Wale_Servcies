@@ -25,7 +25,7 @@ export class PaymentProcessor {
       DataType: HbEnums.DATATYPE_DISPLAY,
       FieldType: HbEnums.FIELDTYPE_TEXT
     };
-
+    console.log(response);
     return JSON.stringify(response);
   }
 
