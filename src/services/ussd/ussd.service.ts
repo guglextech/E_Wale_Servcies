@@ -443,7 +443,7 @@ export class UssdService {
         if (req.Message !== "1") {
           return this.releaseSession(req.SessionId);
         }
-        break;
+        // break;
         // Fall through to default payment processing
       case 'voice_bundle':
       case 'airtime_topup':

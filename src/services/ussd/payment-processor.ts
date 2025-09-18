@@ -19,7 +19,8 @@ export class PaymentProcessor {
     const response: any = {
       SessionId: sessionId,
       Type: HbEnums.ADDTOCART,
-      Message: `Payment request for GHS ${total} has been submitted.Instant delivery. Kindly approve the Momo prompt. If no prompt, Dial *170# select 6) My Wallet 3) My Approvals`,
+      // Message: `Payment request for GHS ${total} has been submitted.Instant delivery. Kindly approve the Momo prompt. If no prompt, Dial *170# select 6) My Wallet 3) My Approvals`,
+      Message: `Payment request for GHS ${total} has been submitted. Kindly approve the MOMO prompt. If no prompt, Dial *170# select 6) My Wallet 3) My Approvals`,
       Item: new CheckOutItem(serviceName, 1, total),
       Label: "Payment Request Submitted",
       DataType: HbEnums.DATATYPE_DISPLAY,
