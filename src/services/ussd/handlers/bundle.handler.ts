@@ -35,9 +35,7 @@ export class BundleHandler {
     state.network = networkMap[req.Message];
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'network_selected');
-
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
     return this.showBundleCategories(req.SessionId, state);
   }
 

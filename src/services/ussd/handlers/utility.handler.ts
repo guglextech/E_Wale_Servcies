@@ -321,14 +321,14 @@ export class UtilityHandler {
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
       const meterTypeDisplay = state.meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
-      return `ECG ${meterTypeDisplay} Top-up:\n\n` +
+      return `ECG ${meterTypeDisplay} Top-up\n` +
              `Provider: ${provider}\n` +
              `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
              `1. Confirm\n2. Cancel`;
     } else {
-      return `Ghana Water:\n\n` +
+      return `Ghana Water:\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
