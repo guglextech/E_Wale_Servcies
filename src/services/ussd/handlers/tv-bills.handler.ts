@@ -272,7 +272,7 @@ export class TVBillsHandler {
 
     const title = type === 'renewal' ? 'Subscription Renewal' : 'Bill Payment';
     const amountLabel = type === 'renewal' ? 'Renewal Amount' : 'Amount';
-    const confirmText = type === 'renewal' ? 'Confirm Renewal' : 'Confirm';
+    const confirmText = type === 'renewal' ? 'Confirm' : 'Confirm';
 
     return `${title}:\n` +
            `Provider: ${provider}\n` +

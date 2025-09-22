@@ -40,7 +40,7 @@ export class ResultCheckerHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter other mobile number (e.g., 0550982043):"
+        "Enter other mobile number (e.g 0550982043):"
       );
     } else {
       return this.responseBuilder.createInvalidSelectionResponse(
@@ -122,7 +122,10 @@ export class ResultCheckerHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Order Details",
-      `Service: ${state.service}\nBought For: ${displayMobile}\nQuantity: ${quantity}\nAmount: ${this.paymentProcessor.formatAmount(state.totalAmount)}\n\n1. Confirm\n2. Cancel`
+      `Service: ${state.service}\n
+       Bought For: ${displayMobile}\n
+       Quantity: ${quantity}\n
+       Amount: ${this.paymentProcessor.formatAmount(state.totalAmount)}\n\n1. Confirm\n2. Cancel`
     );
   }
 
@@ -231,7 +234,7 @@ export class ResultCheckerHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid mobile number (e.g., 0550982043)' 
+      error: 'Must be a valid mobile number (e.g 0550982043)' 
     };
   }
 }
