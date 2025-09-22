@@ -15,33 +15,26 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<User>
   ) {}
 
-  async createUser(createUserDto: any)  {
+  async createUser(createUserDto: any) {
     try {
       const hashedPassword = await this.encryptString(createUserDto.password);
+      
       const user = new User();
       user.userId = genrUuid();
       user.username = createUserDto.username;
       user.password = hashedPassword;
-      user.role = createUserDto.role;
-      user.firstname = createUserDto.firstname;
-      user.lastname = createUserDto.lastname;
-      user.photo = createUserDto.photo;
-      user.phone = createUserDto.phone;
+      user.role = createUserDto.role || 'admin';
       user.createdAt = new Date();
-      user.permissions = createUserDto.permissions;
-      user.authType = 'Normal';
-      user.userDescription = createUserDto.userDescription;
-      user.updatedAt = new Date();
 
       await new this.userModel(user).save();
-    }catch (error) {
+      return {
+        response: new HttpException('SUCCESS', HttpStatus.CREATED)
+      };
+    } catch (error) {
       console.log(error);
       return {
-        "response" :new HttpException('FAILED', HttpStatus.INTERNAL_SERVER_ERROR)
-      }
-    }
-    return {
-      "response" :new HttpException('SUCCESS', HttpStatus.CREATED)
+        response: new HttpException('FAILED', HttpStatus.INTERNAL_SERVER_ERROR)
+      };
     }
   }
 
