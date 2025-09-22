@@ -73,7 +73,6 @@ export class AirtimeService {
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
   ) {}
 
-  // ==================== PUBLIC METHODS ====================
 
   /**
    * Deliver airtime via Hubtel Commission Service
@@ -144,8 +143,6 @@ export class AirtimeService {
       throw error;
     }
   }
-
-  // ==================== PRIVATE HELPER METHODS ====================
 
   /**
    * Validate airtime request parameters

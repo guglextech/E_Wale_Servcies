@@ -625,7 +625,6 @@ export class UssdService {
   }
 
   private async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
-    console.log("handleUtilityStep5", req, state);
     return await this.utilityHandler.handleUtilityStep5(req, state);
   }
 

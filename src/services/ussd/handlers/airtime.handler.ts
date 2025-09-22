@@ -132,7 +132,7 @@ export class AirtimeHandler {
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
       "Airtime Top-Up",
-      this.formatAirtimeOrderSummary(state) + "\n\n"
+      this.formatAirtimeOrderSummary(state) + "\n"
     );
   }
 
@@ -143,7 +143,7 @@ export class AirtimeHandler {
     const { mobile, network, amount, flow } = state;
     const recipient = flow === 'self' ? 'Self' : 'Other';
 
-    return `Airtime Top-Up:\n\n` +
+    return `Airtime Top-Up:\n` +
            `Network: ${network}\n` +
            `Recipient: ${recipient}\n` +
            `Mobile: ${mobile}\n` +
@@ -168,7 +168,7 @@ export class AirtimeHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid mobile number (e.g. 0550982043)' 
     };
   }
 }
