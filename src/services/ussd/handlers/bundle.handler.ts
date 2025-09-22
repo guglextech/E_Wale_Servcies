@@ -15,7 +15,7 @@ interface BundleGroup {
 @Injectable()
 export class BundleHandler {
   // private readonly BUNDLES_PER_PAGE = 14;
-  private readonly BUNDLES_PER_PAGE = 5;
+  private readonly BUNDLES_PER_PAGE = 6;
   private readonly BUNDLES_PER_GROUP = 8;
 
   constructor(
@@ -217,7 +217,7 @@ export class BundleHandler {
       mobileDisplay = 'Mobile number not set';
     }
     
-    return `Bundle:\n\n` +
+    return `Bundle Package:\n` +
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +

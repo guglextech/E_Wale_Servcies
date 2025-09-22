@@ -132,7 +132,7 @@ export class ResponseBuilder {
     return this.createReleaseResponse(
       sessionId,
       "Thank you",
-      "Love from Guglex Technologies. Interrupted?. Try again!."
+      "Session expired. Try again!."
     );
   }
 
