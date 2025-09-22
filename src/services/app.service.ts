@@ -3,11 +3,8 @@ import {CustomPaginator, customResponse} from "../utils/responses";
 
 @Injectable()
 export class AppService {
-
   private excludedFields = ['__v'];
-
-  constructor() {
-  }
+  constructor() {}
 
   // Basic service methods can be added here as needed
   async getHello(): Promise<string> {
