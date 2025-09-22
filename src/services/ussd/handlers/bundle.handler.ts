@@ -190,7 +190,7 @@ export class BundleHandler {
     menu += "\n";
     if (state.currentBundlePage > 0) menu += "00. Previous\n";
     if (this.getPageBundles(currentGroup.bundles, state.currentBundlePage + 1).length > 0) menu += "0. Next\n";
-    menu += "99. Back to Packages\n";
+    menu += "99. Go Back \n";
 
     return this.responseBuilder.createNumberInputResponse(
       sessionId, `Page ${state.currentBundlePage + 1} of ${totalPages}`, menu
@@ -199,9 +199,8 @@ export class BundleHandler {
 
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
-    const menu = "Select Bundle:\n\n" + 
-      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') + "\n\n99. Back";
-
+    // const menu = "Select Bundle:\n\n" +  groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') + "\n\n99. Back";
+    const menu = "Select Bundle:\n" +  groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n');
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
   }
 
