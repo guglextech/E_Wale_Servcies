@@ -40,7 +40,7 @@ export class ResultCheckerHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter other mobile number (e.g., 0550982034):"
+        "Enter other mobile number (e.g., 0550982043):"
       );
     } else {
       return this.responseBuilder.createInvalidSelectionResponse(
@@ -60,7 +60,7 @@ export class ResultCheckerHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Invalid Mobile Number",
-        `Please enter a valid mobile number (e.g., 0550982034)`
+        `Please enter a valid mobile number (e.g., 0550982043)`
       );
     }
 
@@ -231,7 +231,7 @@ export class ResultCheckerHandler {
     
     return { 
       isValid: false, 
-      error: 'Must be a valid mobile number (e.g., 0550982034)' 
+      error: 'Must be a valid mobile number (e.g., 0550982043)' 
     };
   }
 }

@@ -35,9 +35,7 @@ export class BundleHandler {
     state.network = networkMap[req.Message];
     this.updateSession(req.SessionId, state);
     await this.logInteraction(req, state, 'network_selected');
-
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
     return this.showBundleCategories(req.SessionId, state);
   }
 
@@ -202,8 +200,7 @@ export class BundleHandler {
   private formatBundleCategories(sessionId: string, state: SessionState): string {
     const groups = state.bundleGroups || [];
     const menu = "Select Bundle:\n\n" + 
-      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') +
-      "\n\n99. Back";
+      groups.map((group, index) => `${index + 1}. ${group.name}`).join('\n') + "\n\n99. Back";
 
     return this.responseBuilder.createNumberInputResponse(sessionId, "Bundle Packages", menu);
   }
@@ -382,7 +379,7 @@ export class BundleHandler {
       return { isValid: true, convertedNumber: cleaned };
     }
     
-    return { isValid: false, error: 'Must be a valid mobile number (e.g 0550982034)' };
+    return { isValid: false, error: 'Must be a valid mobile number (e.g 0550982043)' };
   }
 
 

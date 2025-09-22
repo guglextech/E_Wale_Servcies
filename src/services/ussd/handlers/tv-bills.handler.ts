@@ -81,7 +81,7 @@ export class TVBillsHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Account Found",
-      accountDisplay + "\n\n1. Renew subscription\n2. Change subscription",
+      accountDisplay + "\n1. Renew subscription\n2. Change subscription",
       "input",
       "text"
     );

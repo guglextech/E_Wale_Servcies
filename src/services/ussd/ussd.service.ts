@@ -97,7 +97,7 @@ export class UssdService {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Welcome to E-Wale",
-      "Welcome to E-Wale\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers\n0. Contact us"
+      "Welcome to E-Wale(Win an Iphone Promo)\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers\n0. Contact us"
     );
   }
 
@@ -625,7 +625,6 @@ export class UssdService {
   }
 
   private async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
-    console.log("handleUtilityStep5", req, state);
     return await this.utilityHandler.handleUtilityStep5(req, state);
   }
 
