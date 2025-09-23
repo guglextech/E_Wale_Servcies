@@ -14,18 +14,9 @@ export class AuthController {
 
   constructor(private readonly authService: AuthService) {}
 
-  // @Public()
-  // @Post("signup")
-  // createUser(@Body() createUserDto: CreateUserDto)  {
-  //   createUserDto.role = Role.User;
-  //   return this.authService.createUser(createUserDto);
-  // }
-
-  @Roles(Role.Admin)
-  @UseGuards(RoleAuthGuard)
   @Post("admin/signup")
   createUsers(@Body() createUserDto: CreateUserDto)  {
-    return this.authService.createUser(createUserDto);
+    return this.authService.createAdminUser(createUserDto);
   }
 
   @Public()
@@ -36,17 +27,4 @@ export class AuthController {
     return req.user;
   }
 
-  // @Public()
-  // @UseGuards(GoogleAuthGuard)
-  // @Get('google')
-  // loginGoogle() {}
-  //
-  //
-  // @Public()
-  // @Get('google/callback')
-  // @UseGuards(GoogleAuthGuard)
-  // async googleCallback(@Req() req) {
-  //   console.log(req.user);
-  //   return await this.authService.generateTokenAfterCallBack(req);
-  // }
 }

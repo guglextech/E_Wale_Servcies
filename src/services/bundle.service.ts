@@ -75,8 +75,6 @@ export class BundleService {
     }
   };
 
-  // ==================== PUBLIC METHODS ====================
-
   /**
    * Deliver bundle via Hubtel Commission Service
    * This is called after payment is successful

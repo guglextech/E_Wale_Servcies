@@ -185,7 +185,7 @@ export class BundleHandler {
       // Format amount consistently
       const amount = bundle.Amount % 1 === 0 ? bundle.Amount.toString() : bundle.Amount.toFixed(2);
       const displayText = this.cleanBundleDisplay(bundle.Display);
-      menu += `${index + 1}. ${displayText} - GH${amount}\n`;
+      menu += `${index + 1}. ${displayText} - GHS${amount}\n`;
     });
 
     menu += "\n";
@@ -217,7 +217,7 @@ export class BundleHandler {
       mobileDisplay = 'Mobile number not set';
     }
     
-    return `Bundle Package:\n` +
+    return `Exclusive Bundle Package:\n` +
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +

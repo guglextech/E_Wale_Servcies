@@ -1,0 +1,639 @@
+{
+  "info": {
+    "name": "E-Wales Backend API",
+    "description": "Complete API collection for E-Wales backend services including authentication, user management, airtime, bundles, TV bills, utilities, and USSD",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Base Endpoint",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.token) {",
+                  "        pm.collectionVariables.set('authToken', response.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newadmin\",\n  \"password\": \"newpassword123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/admin/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "admin", "signup"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users?username=testuser",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {
+                  "key": "username",
+                  "value": "testuser"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Airtime Services",
+      "item": [
+        {
+          "name": "Deliver Airtime",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination\": \"0241234567\",\n  \"amount\": 5.00,\n  \"network\": \"MTN\",\n  \"callbackUrl\": \"{{baseUrl}}/airtime/callback\",\n  \"clientReference\": \"AIRTIME_{{$randomUUID}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/airtime/deliver",
+              "host": ["{{baseUrl}}"],
+              "path": ["airtime", "deliver"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Airtime Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResponseCode\": \"0000\",\n  \"Message\": \"Success\",\n  \"ClientReference\": \"AIRTIME_12345\",\n  \"TransactionId\": \"HT_{{$randomUUID}}\",\n  \"Amount\": 5.00,\n  \"Commission\": \"0.10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/airtime/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["airtime", "callback"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bundle Services",
+      "item": [
+        {
+          "name": "Query Bundles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bundle/query?network=MTN&destination=0241234567&bundleType=Data Bundle",
+              "host": ["{{baseUrl}}"],
+              "path": ["bundle", "query"],
+              "query": [
+                {
+                  "key": "network",
+                  "value": "MTN"
+                },
+                {
+                  "key": "destination",
+                  "value": "0241234567"
+                },
+                {
+                  "key": "bundleType",
+                  "value": "Data Bundle",
+                  "description": "Optional: Data Bundle, Voice Bundle, Airtime Top-Up, Fibre Broadband, Broadband"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deliver Bundle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bundleType\": \"Data Bundle\",\n  \"network\": \"MTN\",\n  \"destination\": \"0241234567\",\n  \"bundleValue\": \"MTN_1GB_30DAYS\",\n  \"amount\": 10.00,\n  \"callbackUrl\": \"{{baseUrl}}/bundle/callback\",\n  \"clientReference\": \"BUNDLE_{{$randomUUID}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bundle/deliver",
+              "host": ["{{baseUrl}}"],
+              "path": ["bundle", "deliver"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bundle Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"BUNDLE_12345\",\n  \"status\": \"Success\",\n  \"phone\": \"0241234567\",\n  \"bundleId\": \"MTN_1GB_30DAYS\",\n  \"amount\": 10.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bundle/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["bundle", "callback"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "TV Bills",
+      "item": [
+        {
+          "name": "Query TV Account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tv-bills/query?provider=DSTV&accountNumber=1234567890",
+              "host": ["{{baseUrl}}"],
+              "path": ["tv-bills", "query"],
+              "query": [
+                {
+                  "key": "provider",
+                  "value": "DSTV"
+                },
+                {
+                  "key": "accountNumber",
+                  "value": "1234567890"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pay TV Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"DSTV\",\n  \"accountNumber\": \"1234567890\",\n  \"amount\": 50.00,\n  \"package\": \"Compact\",\n  \"reference\": \"TVBILL_{{$randomUUID}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tv-bills/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["tv-bills", "pay"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TV Bills Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"TVBILL_12345\",\n  \"status\": \"Success\",\n  \"provider\": \"DSTV\",\n  \"accountNumber\": \"1234567890\",\n  \"amount\": 50.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tv-bills/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["tv-bills", "callback"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Utility Services",
+      "item": [
+        {
+          "name": "Query ECG Meters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/utility/ecg/query?meterNumber=12345678901",
+              "host": ["{{baseUrl}}"],
+              "path": ["utility", "ecg", "query"],
+              "query": [
+                {
+                  "key": "meterNumber",
+                  "value": "12345678901"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ECG Top-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meterNumber\": \"12345678901\",\n  \"amount\": 20.00,\n  \"customerName\": \"John Doe\",\n  \"reference\": \"ECG_{{$randomUUID}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/utility/ecg/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["utility", "ecg", "topup"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Query Ghana Water Account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/utility/ghana-water/query?accountNumber=GW123456789",
+              "host": ["{{baseUrl}}"],
+              "path": ["utility", "ghana-water", "query"],
+              "query": [
+                {
+                  "key": "accountNumber",
+                  "value": "GW123456789"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ghana Water Top-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"GW123456789\",\n  \"amount\": 25.00,\n  \"customerName\": \"Jane Doe\",\n  \"reference\": \"WATER_{{$randomUUID}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/utility/ghana-water/topup",
+              "host": ["{{baseUrl}}"],
+              "path": ["utility", "ghana-water", "topup"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Utility Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"ECG_12345\",\n  \"status\": \"Success\",\n  \"meterNumber\": \"12345678901\",\n  \"amount\": 20.00,\n  \"token\": \"1234-5678-9012-3456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/utility/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["utility", "callback"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "USSD Services",
+      "item": [
+        {
+          "name": "USSD Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"session_{{$randomUUID}}\",\n  \"serviceCode\": \"*123#\",\n  \"phoneNumber\": \"0241234567\",\n  \"text\": \"\",\n  \"networkCode\": \"62002\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/flow/ussd",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "flow", "ussd"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "USSD Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"USSD_{{$randomUUID}}\",\n  \"status\": \"Success\",\n  \"sessionId\": \"session_12345\",\n  \"phoneNumber\": \"0241234567\",\n  \"amount\": 5.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/flow/ussd/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "flow", "ussd", "callback"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Test Scenarios",
+      "item": [
+        {
+          "name": "Full Airtime Flow",
+          "item": [
+            {
+              "name": "1. Login as Admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Login successful', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.token) {",
+                      "        pm.collectionVariables.set('authToken', response.token);",
+                      "    }",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "2. Deliver Airtime",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Airtime delivery initiated', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "pm.test('Response has success flag', function () {",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response.success).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"destination\": \"0241234567\",\n  \"amount\": 5.00,\n  \"network\": \"MTN\",\n  \"callbackUrl\": \"{{baseUrl}}/airtime/callback\",\n  \"clientReference\": \"AIRTIME_TEST_{{$randomUUID}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airtime/deliver",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["airtime", "deliver"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh token if needed",
+          "console.log('Base URL:', pm.collectionVariables.get('baseUrl'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "pm.test('Response time is less than 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});"
+        ]
+      }
+    }
+  ]
+}
