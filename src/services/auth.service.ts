@@ -6,6 +6,7 @@ import {InjectModel} from "@nestjs/mongoose";
 import {Model} from "mongoose";
 import {User} from "../models/schemas/user.shema";
 import {genrUuid, jwtConstants} from "../utils/validators";
+import {Role} from "../models/schemas/enums/role.enum";
 
 @Injectable()
 export class AuthService {
@@ -99,5 +100,28 @@ export class AuthService {
 
   async encryptString(value: string) {
     return await bcrypt.hash(value, 10);
+  }
+
+  async createAdminUser(createUserDto: any) {
+    try {
+      const hashedPassword = await this.encryptString(createUserDto.password);
+      
+      const user = new User();
+      user.userId = genrUuid();
+      user.username = createUserDto.username;
+      user.password = hashedPassword;
+      user.role = Role.Admin;
+      user.createdAt = new Date();
+
+      await new this.userModel(user).save();
+      return {
+        response: new HttpException('Admin created successfully', HttpStatus.CREATED)
+      };
+    } catch (error) {
+      console.log('Admin creation error:', error);
+      return {
+        response: new HttpException('Failed to create admin user', HttpStatus.INTERNAL_SERVER_ERROR)
+      };
+    }
   }
 }

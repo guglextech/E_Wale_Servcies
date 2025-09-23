@@ -29,7 +29,7 @@ export class MenuHandler {
 
     const menuHandlers = {
       "1": () => this.handleServiceSelection(req, state, ServiceType.AIRTIME_TOPUP, "Select Network", "Enjoy an exclusive 100% bonus on selected networks\nSelect Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
-      "2": () => this.handleServiceSelection(req, state, ServiceType.DATA_BUNDLE, "Select Network", "Instant Exclusive Data Bundle\nSelect Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
+      "2": () => this.handleServiceSelection(req, state, ServiceType.DATA_BUNDLE, "Select Network", "Instant Exclusive Data Bundle. Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
       "3": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
       "4": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Power\n2. Ghana Water"),
       "5": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE"),
