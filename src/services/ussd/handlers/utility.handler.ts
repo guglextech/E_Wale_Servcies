@@ -198,8 +198,8 @@ export class UtilityHandler {
       mobile: mobileNumber,
       meterNumber: req.Message,
       meterInfo: accountResponse.Data,
-      amount: validationResult.amount,
-      totalAmount: validationResult.amount,
+      // amount: validationResult.amount,
+      // totalAmount: validationResult.amount,
       email: "guglextechnologies@gmail.com",
       sessionId: accountResponse.Data?.find(item => item.Display === 'sessionId')?.Value
     });
