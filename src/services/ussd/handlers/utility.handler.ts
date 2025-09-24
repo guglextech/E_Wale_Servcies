@@ -106,7 +106,7 @@ export class UtilityHandler {
         ? await this.handleECGQuery(req, state)
         : await this.handleGhanaWaterQuery(req, state);
     } catch (error) {
-      console.error("Error querying utility:", error);
+      // console.error("Error querying utility:", error);
       return this.createError(req.SessionId, "No meter linked to this mobile number. Please try again.");
     }
   }
@@ -190,7 +190,7 @@ export class UtilityHandler {
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Bill Summary",
-      accountInfo + "\n\n1. Continue\n2. Cancel",
+      accountInfo + "\n1. Continue\n2. Cancel",
       "input",
       "text"
     );
@@ -264,10 +264,8 @@ export class UtilityHandler {
   private formatGhanaWaterAccountInfo(data: any[]): string {
     const nameData = data.find(item => item.Display === 'name');
     const amountDueData = data.find(item => item.Display === 'amountDue');
-    
     let info = "GWCL Bill Payment:\n";
     info += `Customer: ${nameData?.Value || 'N/A'}\n`;
-    
     if (amountDueData) {
       const validationResult = this.validateAmount(amountDueData.Value, 0);
       if (validationResult.isValid && validationResult.amount > 0) {
@@ -276,7 +274,6 @@ export class UtilityHandler {
         info += `Balance: GHS0.00\n`;
       }
     }
-    
     return info;
   }
 
