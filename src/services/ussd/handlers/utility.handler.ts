@@ -162,7 +162,7 @@ export class UtilityHandler {
   /**
    * Handle Ghana Water query
    */
-  private async handleGhanaWaterQuery(req: HBussdReq, state: SessionState): Promise<string> {
+  async handleGhanaWaterQuery(req: HBussdReq, state: SessionState): Promise<string> {
     if (!this.validateMeterNumber(req.Message)) {
       return this.createError(req.SessionId, "Please enter a valid meter number");
     }
@@ -228,10 +228,12 @@ export class UtilityHandler {
   }
 
   /**
-   * Handle utility step 5 (meter selection for ECG)
+   * Handle utility step 5 (meter selection for ECG or account query for Ghana Water)
    */
   async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
-    return await this.handleECGMeterSelection(req, state);
+    return state.utilityProvider === UtilityProvider.ECG
+      ? await this.handleECGMeterSelection(req, state)
+      : await this.handleGhanaWaterQuery(req, state);
   }
 
   /**
@@ -340,7 +342,7 @@ export class UtilityHandler {
         `Provider: ${provider}\n` +
         `Meter Type: ${meterTypeDisplay}\n` +
         `Meter: ${meter?.Display}\n` +
-        `Amount: GHS${amount?.toFixed(2)}\n` +
+        `Amount: GHS${amount?.toFixed(2)}\n\n` +
         `1. Confirm\n2. Cancel`;
     } else {
       return `GWCL Bill Payment\n` +
