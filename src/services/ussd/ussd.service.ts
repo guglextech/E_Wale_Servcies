@@ -679,8 +679,8 @@ export class UssdService {
    */
   private async handleUtilityStep8(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // Ghana Water flow now ends at step 6 with direct payment
-      return this.releaseSession(req.SessionId);
+      // Ghana Water payment confirmation
+      return await this.handleUtilityConfirmation(req, state);
     } else {
       // For ECG with prepaid topup, handle amount input after meter selection
       if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
