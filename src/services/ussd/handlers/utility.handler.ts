@@ -343,7 +343,7 @@ export class UtilityHandler {
         `Amount: GHS${amount?.toFixed(2)}\n` +
         `1. Confirm\n2. Cancel`;
     } else {
-      return `GWCL Bill Payment\n\n` +
+      return `GWCL Bill Payment\n` +
         `Account: ${state.meterNumber}\n` +
         `Payment Amount: GHS${amount?.toFixed(2)}\n\n` +
         `1. Confirm\n2. Cancel`;
