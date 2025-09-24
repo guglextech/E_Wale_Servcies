@@ -255,6 +255,9 @@ export class UssdService {
         // For ECG with prepaid topup, handle mobile number input first
         if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && !state.mobile) {
           return await this.handleUtilityQuery(req, state);
+        } else if (state.utilityProvider === UtilityProvider.GHANA_WATER && state.ghanaWaterService && !state.meterNumber) {
+          // For Ghana Water, handle account number input after service selection
+          return await this.utilityHandler.handleGhanaWaterQuery(req, state);
         } else {
           // For utility, handle email input for Ghana Water or amount input for ECG
           return await this.handleUtilityStep6(req, state);
@@ -658,8 +661,13 @@ export class UssdService {
    */
   private async handleUtilityStep7(req: HBussdReq, state: SessionState): Promise<string> {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      // Ghana Water payment confirmation
-      return await this.handleUtilityConfirmation(req, state);
+      if (state.ghanaWaterService === 'pay_bill' && !state.amount) {
+        // Ghana Water payment amount input
+        return await this.handleUtilityAmountInput(req, state);
+      } else {
+        // Ghana Water payment confirmation
+        return await this.handleUtilityConfirmation(req, state);
+      }
     } else {
       // For ECG, handle confirmation
       return await this.handleUtilityConfirmation(req, state);
