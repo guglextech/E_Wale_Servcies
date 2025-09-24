@@ -90,21 +90,21 @@ export class UtilityHandler {
           "Select Meter Type",
           "Select Meter Type:\n1. Prepaid"
         )
-      : this.responseBuilder.createPhoneInputResponse(
+      : this.responseBuilder.createNumberInputResponse(
           req.SessionId,
-          "Enter Mobile Number",
-          "Enter your mobile number:"
+          "Enter Meter Number",
+          "Enter your customer account number:(eg.0106XXXXX010)-12 digits"
         );
   }
 
   /**
-   * Handle utility query (ECG mobile number or Ghana Water mobile number)
+   * Handle utility query (ECG mobile number or Ghana Water account number)
    */
   async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
     try {
       return state.utilityProvider === UtilityProvider.ECG
         ? await this.handleECGQuery(req, state)
-        : await this.handleGhanaWaterMobileInput(req, state);
+        : await this.handleGhanaWaterQuery(req, state);
     } catch (error) {
       console.error("Error querying utility:", error);
       return this.createError(req.SessionId, "No meter linked to this mobile number. Please try again.");
@@ -140,38 +140,22 @@ export class UtilityHandler {
   }
 
   /**
-   * Handle Ghana Water mobile number input
-   */
-  private async handleGhanaWaterMobileInput(req: HBussdReq, state: SessionState): Promise<string> {
-    const validation = this.validateMobileNumber(req.Message);
-    if (!validation.isValid) {
-      return this.createError(req.SessionId, validation.error || "Invalid mobile number format");
-    }
-
-    state.mobile = validation.convertedNumber;
-    this.updateAndLog(req, state);
-
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Enter Meter Number",
-      "Enter your customer account number:(eg.0106XXXXX010)-12 digits"
-    );
-  }
-
-  /**
    * Handle Ghana Water query
    */
   private async handleGhanaWaterQuery(req: HBussdReq, state: SessionState): Promise<string> {
     if (!this.validateMeterNumber(req.Message)) {
       return this.createError(req.SessionId, "Please enter a valid meter number");
     }
-    if (!state.mobile) {
+
+    // Use mobile number from the USSD request
+    const mobileNumber = req.Mobile;
+    if (!mobileNumber) {
       return this.createError(req.SessionId, "Mobile number not found. Please restart the session.");
     }
 
     const accountResponse = await this.utilityService.queryGhanaWaterAccount({
       meterNumber: req.Message,
-      mobileNumber: state.mobile
+      mobileNumber: mobileNumber
     });
 
     if (accountResponse.ResponseCode !== '0000') {
@@ -191,6 +175,7 @@ export class UtilityHandler {
 
     // Update state
     Object.assign(state, {
+      mobile: mobileNumber,
       meterNumber: req.Message,
       meterInfo: accountResponse.Data,
       amount: validationResult.amount,
@@ -212,12 +197,10 @@ export class UtilityHandler {
   }
 
   /**
-   * Handle utility step 5 (meter selection for ECG or meter number for Ghana Water)
+   * Handle utility step 5 (meter selection for ECG)
    */
   async handleUtilityStep5(req: HBussdReq, state: SessionState): Promise<string> {
-    return state.utilityProvider === UtilityProvider.ECG
-      ? await this.handleECGMeterSelection(req, state)
-      : await this.handleGhanaWaterQuery(req, state);
+    return await this.handleECGMeterSelection(req, state);
   }
 
   /**
@@ -268,7 +251,7 @@ export class UtilityHandler {
   showGhanaWaterPaymentSummary(sessionId: string, state: SessionState): string {
     return this.responseBuilder.createResponse(
       sessionId,
-      "Payment Summary",
+      "GWCL Bill Payment Summary",
       this.formatUtilityOrderSummary(state),
       "input",
       "text"
@@ -325,13 +308,13 @@ export class UtilityHandler {
              `Provider: ${provider}\n` +
              `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
-             `Amount: GHS${amount?.toFixed(2)}\n\n` +
+             `Amount: GHS${amount?.toFixed(2)}\n` +
              `1. Confirm\n2. Cancel`;
     } else {
       return `GWCL Bill Payment:\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
-             `Amount: GHS${amount?.toFixed(2)}\n\n` +
+             `Amount: GHS${amount?.toFixed(2)}\n` +
              `1. Confirm\n2. Cancel`;
     }
   }
