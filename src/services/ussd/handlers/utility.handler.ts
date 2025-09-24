@@ -210,7 +210,7 @@ export class UtilityHandler {
 
     if (state.ghanaWaterService === "check_bill") {
       // For check bill, just display the information
-      return this.responseBuilder.createDisplayResponse(
+      return this.responseBuilder.createReleaseResponse(
         req.SessionId,
         "Bill Summary",
         accountInfo
@@ -270,12 +270,10 @@ export class UtilityHandler {
     this.updateAndLog(req, state);
 
     const title = state.utilityProvider === UtilityProvider.ECG ? "Utility Top-Up" : "Bill Payment Summary";
-    return this.responseBuilder.createResponse(
+    return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       title,
-      this.formatUtilityOrderSummary(state),
-      "input",
-      "text"
+      this.formatUtilityOrderSummary(state)
     );
   }
 
