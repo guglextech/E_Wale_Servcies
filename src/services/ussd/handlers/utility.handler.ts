@@ -14,7 +14,7 @@ export class UtilityHandler {
     private readonly utilityService: UtilityService,
     private readonly sessionManager: SessionManager,
     private readonly loggingService: UssdLoggingService,
-  ) {}
+  ) { }
 
   /**
    * Handle ECG meter type selection (Prepaid/Postpaid)
@@ -30,10 +30,10 @@ export class UtilityHandler {
     state.meterType = meterTypeMap[req.Message];
     this.updateAndLog(req, state);
 
-    const optionText = state.meterType === "prepaid" 
+    const optionText = state.meterType === "prepaid"
       ? "Select Prepaid Option:\n1. Top-up prepaid"
       : "Select Postpaid Option:\n1. Pay Bill\n2. Add postpaid meter";
-    
+
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       `${this.capitalizeFirst(state.meterType)} Options`,
@@ -86,25 +86,25 @@ export class UtilityHandler {
 
     return state.utilityProvider === UtilityProvider.ECG
       ? this.responseBuilder.createNumberInputResponse(
-          req.SessionId,
-          "Select Meter Type",
-          "Select Meter Type:\n1. Prepaid"
-        )
+        req.SessionId,
+        "Select Meter Type",
+        "Select Meter Type:\n1. Prepaid"
+      )
       : this.responseBuilder.createNumberInputResponse(
-          req.SessionId,
-          "Enter Meter Number",
-          "Enter your customer account number:(eg.0106XXXXX010)-12 digits"
-        );
+        req.SessionId,
+        "Ghana Water Services",
+        "Select Service:\n1. Pay Bill\n2. Check Current Bill"
+      );
   }
 
   /**
-   * Handle utility query (ECG mobile number or Ghana Water account number)
+   * Handle utility query (ECG mobile number or Ghana Water service selection)
    */
   async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
     try {
       return state.utilityProvider === UtilityProvider.ECG
         ? await this.handleECGQuery(req, state)
-        : await this.handleGhanaWaterQuery(req, state);
+        : await this.handleGhanaWaterServiceSelection(req, state);
     } catch (error) {
       // console.error("Error querying utility:", error);
       return this.createError(req.SessionId, "No meter linked to this mobile number. Please try again.");
@@ -136,6 +136,26 @@ export class UtilityHandler {
       req.SessionId,
       "Select Meter",
       this.formatECGMeterMenu(state)
+    );
+  }
+
+  /**
+   * Handle Ghana Water service selection
+   */
+  async handleGhanaWaterServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    const validationResult = this.validateBinarySelection(req.Message);
+    if (!validationResult.isValid) {
+      return this.createError(req.SessionId, validationResult.error);
+    }
+
+    const serviceMap = { "1": "pay_bill" as const, "2": "check_bill" as const };
+    state.ghanaWaterService = serviceMap[req.Message];
+    this.updateAndLog(req, state);
+
+    return this.responseBuilder.createNumberInputResponse(
+      req.SessionId,
+      "Enter Meter Number",
+      "Enter your customer account number:(eg.0106XXXXX010)-12 digits"
     );
   }
 
@@ -187,13 +207,24 @@ export class UtilityHandler {
     this.updateAndLog(req, state);
 
     const accountInfo = this.formatGhanaWaterAccountInfo(accountResponse.Data);
-    return this.responseBuilder.createResponse(
-      req.SessionId,
-      "Bill Summary",
-      accountInfo + "\n1. Continue\n2. Cancel",
-      "input",
-      "text"
-    );
+
+    if (state.ghanaWaterService === "check_bill") {
+      // For check bill, just display the information
+      return this.responseBuilder.createResponse(
+        req.SessionId,
+        "Bill Summary",
+        accountInfo + "\n\n0. Back to main menu",
+        "display",
+        "text"
+      );
+    } else {
+      // For pay bill, show account info and ask for payment amount
+      return this.responseBuilder.createDecimalInputResponse(
+        req.SessionId,
+        "GWCL Bill Payment",
+        accountInfo + "\nEnter Payment Amount:"
+      );
+    }
   }
 
   /**
@@ -238,9 +269,10 @@ export class UtilityHandler {
     state.totalAmount = validationResult.amount;
     this.updateAndLog(req, state);
 
+    const title = state.utilityProvider === UtilityProvider.ECG ? "Utility Top-Up" : "Bill Payment Summary";
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
-      "Utility Top-Up",
+      title,
       this.formatUtilityOrderSummary(state) + "\n\n"
     );
   }
@@ -264,16 +296,19 @@ export class UtilityHandler {
   private formatGhanaWaterAccountInfo(data: any[]): string {
     const nameData = data.find(item => item.Display === 'name');
     const amountDueData = data.find(item => item.Display === 'amountDue');
-    let info = "GWCL Bill Payment:\n";
-    info += `Customer: ${nameData?.Value || 'N/A'}\n`;
+
+    let info = "GWCL Bill Payment\n\n";
+    info += `Account: ${nameData?.Value || 'N/A'}\n`;
+
     if (amountDueData) {
       const validationResult = this.validateAmount(amountDueData.Value, 0);
       if (validationResult.isValid && validationResult.amount > 0) {
-        info += `Amount Due: GHS${validationResult.amount.toFixed(2)}\n`;
+        info += `Amount Due: GHS${validationResult.amount.toFixed(2)}`;
       } else {
-        info += `Balance: GHS0.00\n`;
+        info += `Amount Due: GHS0.00`;
       }
     }
+
     return info;
   }
 
@@ -283,7 +318,7 @@ export class UtilityHandler {
   private formatECGMeterMenu(state: SessionState): string {
     const meters = state.meterInfo || [];
     let menu = "Select Meter:\n";
-    
+
     meters.forEach((meter, index) => {
       menu += `${index + 1}. ${meter.Display}\n`;
     });
@@ -302,17 +337,16 @@ export class UtilityHandler {
       const meter = state.selectedMeter;
       const meterTypeDisplay = state.meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
       return `ECG ${meterTypeDisplay} Top-up\n` +
-             `Provider: ${provider}\n` +
-             `Meter Type: ${meterTypeDisplay}\n` +
-             `Meter: ${meter?.Display}\n` +
-             `Amount: GHS${amount?.toFixed(2)}\n` +
-             `1. Confirm\n2. Cancel`;
+        `Provider: ${provider}\n` +
+        `Meter Type: ${meterTypeDisplay}\n` +
+        `Meter: ${meter?.Display}\n` +
+        `Amount: GHS${amount?.toFixed(2)}\n` +
+        `1. Confirm\n2. Cancel`;
     } else {
-      return `GWCL Bill Payment:\n` +
-             `Provider: ${provider}\n` +
-             `Meter: ${state.meterNumber}\n` +
-             `Amount: GHS${amount?.toFixed(2)}\n` +
-             `1. Confirm\n2. Cancel`;
+      return `GWCL Bill Payment\n\n` +
+        `Account: ${state.meterNumber}\n` +
+        `Payment Amount: GHS${amount?.toFixed(2)}\n\n` +
+        `1. Confirm\n2. Cancel`;
     }
   }
 
@@ -338,14 +372,14 @@ export class UtilityHandler {
 
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
     const cleaned = mobile.replace(/\D/g, '');
-    
+
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
       return { isValid: true, convertedNumber: '233' + cleaned.substring(1) };
     }
     if (cleaned.length === 12 && cleaned.startsWith('233')) {
       return { isValid: true, convertedNumber: cleaned };
     }
-    
+
     return { isValid: false, error: 'Must be a valid mobile number (e.g., 0550982043)' };
   }
 
@@ -375,19 +409,19 @@ export class UtilityHandler {
    */
   private validateAmount(input: string, minAmount: number = 0): { isValid: boolean; amount?: number; error?: string } {
     const amount = Math.abs(parseFloat(input));
-    
+
     if (isNaN(amount)) {
       return { isValid: false, error: "Please enter a valid amount" };
     }
-    
+
     if (amount <= 0) {
       return { isValid: false, error: "Please enter a valid amount greater than 0" };
     }
-    
+
     if (amount < minAmount) {
       return { isValid: false, error: `Minimum amount is GH₵${minAmount.toFixed(2)}` };
     }
-    
+
     return { isValid: true, amount };
   }
 }

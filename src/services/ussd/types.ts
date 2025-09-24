@@ -33,6 +33,7 @@ export interface SessionState {
   utilityProvider?: UtilityProvider;
   meterType?: 'prepaid' | 'postpaid';
   utilitySubOption?: 'topup' | 'add_meter' | 'pay_bill';
+  ghanaWaterService?: 'pay_bill' | 'check_bill';
   meterNumber?: string;
   meterInfo?: UtilityMeterInfo[];
   selectedMeter?: UtilityMeterInfo;
