@@ -343,8 +343,13 @@ export class UtilityHandler {
         `Amount: GHS${amount?.toFixed(2)}\n\n` +
         `1. Confirm\n2. Cancel`;
     } else {
+      // Extract account name from meterInfo for Ghana Water
+      const nameData = state.meterInfo?.find(item => item.Display === 'name');
+      const accountName = nameData?.Value || state.meterNumber;
+      
       return `GWCL Bill Payment\n` +
-        `Account: ${state.meterNumber}\n` +
+        `Customer: ${accountName}\n` +
+        `Account No: ${state.meterNumber}\n` +
         `Amount: GHS${amount?.toFixed(2)}\n\n` +
         `1. Confirm\n2. Cancel`;
     }
