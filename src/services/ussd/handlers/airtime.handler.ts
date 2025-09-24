@@ -143,7 +143,7 @@ export class AirtimeHandler {
     const { mobile, network, amount, flow } = state;
     const recipient = flow === 'self' ? 'Self' : 'Other';
 
-    return `Airtime Top-Up 100% bonus on exclusive networks:\n` +
+    return `Airtime top-Up 100% bonus on exclusive networks:\n` +
            `Network: ${network}\n` +
            `Recipient: ${recipient}\n` +
            `Mobile: ${mobile}\n` +

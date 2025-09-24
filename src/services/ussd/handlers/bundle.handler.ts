@@ -217,7 +217,7 @@ export class BundleHandler {
       mobileDisplay = 'Mobile number not set';
     }
     
-    return `Exclusive Bundle Package:\n` +
+    return `Bundle top-up 100% bonus on exclusive networks:\n` +
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +

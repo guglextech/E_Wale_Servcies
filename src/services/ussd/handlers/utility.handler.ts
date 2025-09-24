@@ -93,7 +93,7 @@ export class UtilityHandler {
       : this.responseBuilder.createPhoneInputResponse(
           req.SessionId,
           "Enter Mobile Number",
-          "Enter mobile number linked to Ghana Water meter:"
+          "Enter your mobile number:"
         );
   }
 
@@ -154,7 +154,7 @@ export class UtilityHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Meter Number",
-      "Enter meter number:(eg.0106XXXXX010)-12 digits"
+      "Enter your customer account number:(eg.0106XXXXX010)-12 digits"
     );
   }
 
@@ -282,7 +282,7 @@ export class UtilityHandler {
     const nameData = data.find(item => item.Display === 'name');
     const amountDueData = data.find(item => item.Display === 'amountDue');
     
-    let info = "Bill Details:\n";
+    let info = "GWCL Bill Payment:\n";
     info += `Customer: ${nameData?.Value || 'N/A'}\n`;
     
     if (amountDueData) {
@@ -328,7 +328,7 @@ export class UtilityHandler {
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
              `1. Confirm\n2. Cancel`;
     } else {
-      return `Ghana Water:\n` +
+      return `GWCL Bill Payment:\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
              `Amount: GHS${amount?.toFixed(2)}\n\n` +
