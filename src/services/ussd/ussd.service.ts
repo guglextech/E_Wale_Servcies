@@ -258,6 +258,9 @@ export class UssdService {
         } else if (state.utilityProvider === UtilityProvider.GHANA_WATER && state.ghanaWaterService && !state.meterNumber) {
           // For Ghana Water, handle account number input after service selection
           return await this.utilityHandler.handleGhanaWaterQuery(req, state);
+        } else if (state.utilityProvider === UtilityProvider.GHANA_WATER && state.ghanaWaterService === 'pay_bill' && state.meterNumber && !state.amount) {
+          // For Ghana Water, handle payment amount input after account lookup
+          return await this.handleUtilityAmountInput(req, state);
         } else {
           // For utility, handle email input for Ghana Water or amount input for ECG
           return await this.handleUtilityStep6(req, state);
@@ -660,18 +663,8 @@ export class UssdService {
    * Handle utility step 7 (confirmation for ECG)
    */
   private async handleUtilityStep7(req: HBussdReq, state: SessionState): Promise<string> {
-    if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
-      if (state.ghanaWaterService === 'pay_bill' && !state.amount) {
-        // Ghana Water payment amount input
-        return await this.handleUtilityAmountInput(req, state);
-      } else {
-        // Ghana Water payment confirmation
-        return await this.handleUtilityConfirmation(req, state);
-      }
-    } else {
-      // For ECG, handle confirmation
-      return await this.handleUtilityConfirmation(req, state);
-    }
+    // For both ECG and Ghana Water, handle confirmation after order summary is shown
+    return await this.handleUtilityConfirmation(req, state);
   }
 
   /**

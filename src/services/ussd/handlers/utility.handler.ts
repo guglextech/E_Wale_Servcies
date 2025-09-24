@@ -210,11 +210,10 @@ export class UtilityHandler {
 
     if (state.ghanaWaterService === "check_bill") {
       // For check bill, just display the information
-      return this.responseBuilder.createResponse(
+      return this.responseBuilder.createDisplayResponse(
         req.SessionId,
         "Bill Summary",
-        accountInfo,
-        "display"
+        accountInfo
       );
     } else {
       // For pay bill, show account info and ask for payment amount
