@@ -213,16 +213,15 @@ export class UtilityHandler {
       return this.responseBuilder.createResponse(
         req.SessionId,
         "Bill Summary",
-        accountInfo + "\n\n0. Back to main menu",
-        "display",
-        "text"
+        accountInfo,
+        "display"
       );
     } else {
       // For pay bill, show account info and ask for payment amount
       return this.responseBuilder.createDecimalInputResponse(
         req.SessionId,
         "GWCL Bill Payment",
-        accountInfo + "\nEnter Payment Amount:"
+        accountInfo + "\n\nEnter Payment Amount:"
       );
     }
   }
@@ -272,10 +271,12 @@ export class UtilityHandler {
     this.updateAndLog(req, state);
 
     const title = state.utilityProvider === UtilityProvider.ECG ? "Utility Top-Up" : "Bill Payment Summary";
-    return this.responseBuilder.createDisplayResponse(
+    return this.responseBuilder.createResponse(
       req.SessionId,
       title,
-      this.formatUtilityOrderSummary(state) + "\n\n"
+      this.formatUtilityOrderSummary(state),
+      "input",
+      "text"
     );
   }
 
@@ -347,7 +348,7 @@ export class UtilityHandler {
     } else {
       return `GWCL Bill Payment\n` +
         `Account: ${state.meterNumber}\n` +
-        `Payment Amount: GHS${amount?.toFixed(2)}\n\n` +
+        `Amount: GHS${amount?.toFixed(2)}\n\n` +
         `1. Confirm\n2. Cancel`;
     }
   }
