@@ -80,7 +80,7 @@ export class AirtimeHandler {
       return this.responseBuilder.createDecimalInputResponse(
         req.SessionId,
         "Enter Amount",
-        "Enter amount to pay"
+        "Enter amount"
       );
     }
 
@@ -107,7 +107,7 @@ export class AirtimeHandler {
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
       "Enter Amount",
-      "Enter amount to pay"
+      "Enter amount"
     );
   }
 
