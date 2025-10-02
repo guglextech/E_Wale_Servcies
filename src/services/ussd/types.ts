@@ -50,17 +50,6 @@ export interface UssdResponse {
   FieldType: string;
 }
 
-export interface CommissionServiceRequest {
-  clientReference: string;
-  amount: number;
-  callbackUrl: string;
-  serviceType: 'bundle' | 'airtime' | 'tv_bill' | 'utility';
-  network?: NetworkProvider;
-  destination: string;
-  tvProvider?: TVProvider;
-  utilityProvider?: UtilityProvider;
-  extraData: Record<string, any>;
-}
 
 export interface MobileValidationResult {
   isValid: boolean;

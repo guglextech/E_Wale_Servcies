@@ -29,7 +29,8 @@ import { TransactionStatusCheckService } from "../transaction-status-check.servi
 // Import types
 import { SessionState, UssdLogData } from "./types";
 import { UtilityProvider } from "../../models/dto/utility.dto";
-import { CommissionTransactionLogData, CommissionServiceRequest } from "../../models/dto/commission-transaction-log.dto";
+import { CommissionTransactionLogData } from "../../models/dto/commission-transaction-log.dto";
+import { CommissionServiceRequest } from "../commission.service";
 
 @Injectable()
 export class UssdService {
@@ -824,7 +825,8 @@ export class UssdService {
           selectedBundle: sessionState.selectedBundle,
           accountNumber: sessionState.accountNumber,
           meterNumber: sessionState.meterNumber,
-          bundleValue: sessionState.bundleValue
+          bundleValue: sessionState.bundleValue,
+          email: sessionState.email
         }
       };
 
