@@ -1,9 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { HbEnums } from "../../models/dto/hubtel/hb-enums";
 import { CheckOutItem } from "../../models/dto/hubtel/hb-ussd.dto";
-import { SessionState, CommissionServiceRequest } from "./types";
-import { NetworkProvider } from "../../models/dto/airtime.dto";
-import { TVProvider } from "../../models/dto/tv-bills.dto";
+import { SessionState } from "./types";
+import { CommissionServiceRequest } from "../commission.service";
 import { UtilityProvider } from "../../models/dto/utility.dto";
 
 @Injectable()

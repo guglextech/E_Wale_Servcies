@@ -1,12 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { HttpService } from "@nestjs/axios";
 import { ConfigService } from "@nestjs/config";
 import { firstValueFrom } from "rxjs";
 import { 
   TransactionStatusResponse, 
-  CommissionServiceRequest, 
   CommissionServiceResponse 
 } from "../models/dto/commission-transaction-log.dto";
+import { CommissionService, CommissionServiceRequest } from "./commission.service";
 
 @Injectable()
 export class TransactionStatusCheckService {
@@ -17,7 +17,9 @@ export class TransactionStatusCheckService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => CommissionService))
+    private readonly commissionService: CommissionService
   ) {
     this.posSalesId = this.configService.get<string>('HUBTEL_POS_SALES_ID') || '11684';
     this.baseUrl = 'https://api-txnstatus.hubtel.com';
@@ -107,21 +109,13 @@ export class TransactionStatusCheckService {
    */
   async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
     try {
-      const commissionServiceUrl = this.configService.get<string>('COMMISSION_SERVICE_URL');
-      if (!commissionServiceUrl) {
-        throw new Error('Commission service URL not configured');
-      }
-
-      const response = await firstValueFrom(
-        this.httpService.post(commissionServiceUrl, request, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-      );
-
+      this.logger.log(`Processing commission service request for clientReference: ${request.clientReference}`);
+      
+      // Use the internal CommissionService instead of external URL
+      const response = await this.commissionService.processCommissionService(request);
+      
       this.logger.log(`Commission service request successful for clientReference: ${request.clientReference}`);
-      return response.data as CommissionServiceResponse;
+      return response as CommissionServiceResponse;
     } catch (error) {
       this.logger.error(`Error processing commission service for clientReference: ${request.clientReference}`, error);
       return null;

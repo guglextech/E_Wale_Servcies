@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios from 'axios';
@@ -204,19 +204,20 @@ export class CommissionService {
       const TransactionId = Data?.TransactionId;
       const Commission = Data?.Meta?.Commission;
 
-      // Update transaction status
+      // Update transaction status using OrderId (which contains the clientReference)
       await this.transactionModel.findOneAndUpdate(
-        { clientReference: ClientReference },
+        { OrderId: ClientReference },
         {
           $set: {
-            status: ResponseCode === '0000' ? 'success' : 'failed',
+            Status: ResponseCode === '0000' ? 'success' : 'failed',
             transactionId: TransactionId,
             finalAmount: Data?.Amount,
             commission: Commission,
             callbackReceived: true,
             callbackDate: new Date(),
             responseCode: ResponseCode,
-            responseMessage: Message
+            responseMessage: Message,
+            IsSuccessful: ResponseCode === '0000'
           }
         }
       );
@@ -273,8 +274,11 @@ export class CommissionService {
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 8);
       
+      // Create unique SessionId to avoid duplicate key errors
+      const uniqueSessionId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
+      
       const transaction = new this.transactionModel({
-        SessionId: request.clientReference,
+        SessionId: uniqueSessionId,
         OrderId: request.clientReference,
         ExtraData: {
           type: 'commission_service',
@@ -285,7 +289,8 @@ export class CommissionService {
           destination: request.destination,
           amount: request.amount,
           extraData: request.extraData,
-          response: response
+          response: response,
+          originalClientReference: request.clientReference
         },
         CustomerMobileNumber: request.destination,
         Status: response.ResponseCode === '0000' ? 'success' : 'pending',
@@ -300,6 +305,7 @@ export class CommissionService {
       });
 
       await transaction.save();
+      this.logger.log(`Commission transaction logged with SessionId: ${uniqueSessionId}`);
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
     }
