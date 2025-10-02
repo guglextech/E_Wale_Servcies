@@ -178,7 +178,7 @@ export class CommissionService {
           return {
             ...basePayload,
             Extradata: {
-              bundle: request.extraData?.meterNumber, // Meter number goes in bundle field per Hubtel docs
+              bundle: request.extraData?.meterNumber, 
               Email: request.extraData?.email,
               SessionId: request.extraData?.sessionId
             }
