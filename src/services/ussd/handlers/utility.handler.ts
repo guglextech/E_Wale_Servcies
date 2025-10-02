@@ -198,18 +198,14 @@ export class UtilityHandler {
       mobile: mobileNumber,
       meterNumber: req.Message,
       meterInfo: accountResponse.Data,
-      // amount: validationResult.amount,
-      // totalAmount: validationResult.amount,
       email: "guglextechnologies@gmail.com",
       sessionId: accountResponse.Data?.find(item => item.Display === 'sessionId')?.Value
     });
 
     this.updateAndLog(req, state);
-
     const accountInfo = this.formatGhanaWaterAccountInfo(accountResponse.Data);
 
     if (state.ghanaWaterService === "check_bill") {
-      // For check bill, just display the information
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
         "Bill Summary",
@@ -296,7 +292,6 @@ export class UtilityHandler {
   private formatGhanaWaterAccountInfo(data: any[]): string {
     const nameData = data.find(item => item.Display === 'name');
     const amountDueData = data.find(item => item.Display === 'amountDue');
-
     let info = "GWCL Bill Payment\n";
     info += `Account: ${nameData?.Value || 'N/A'}\n`;
 
@@ -340,7 +335,7 @@ export class UtilityHandler {
         `Provider: ${provider}\n` +
         `Meter Type: ${meterTypeDisplay}\n` +
         `Meter: ${meter?.Display}\n` +
-        `Amount: GHS${amount?.toFixed(2)}\n\n` +
+        `Amount: GHS${amount?.toFixed(2)}\n` +
         `1. Confirm\n2. Cancel`;
     } else {
       // Extract account name from meterInfo for Ghana Water
@@ -350,7 +345,7 @@ export class UtilityHandler {
       return `GWCL Bill Payment\n` +
         `Customer: ${accountName}\n` +
         `Account No: ${state.meterNumber}\n` +
-        `Amount: GHS${amount?.toFixed(2)}\n\n` +
+        `Amount: GHS${amount?.toFixed(2)}\n` +
         `1. Confirm\n2. Cancel`;
     }
   }
