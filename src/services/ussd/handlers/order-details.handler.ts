@@ -20,7 +20,6 @@ export class OrderDetailsHandler {
   async handleOrderDetails(req: HBussdReq, state: SessionState): Promise<string> {
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
     return this.responseBuilder.createDisplayResponse(
       req.SessionId,
       "Order Summary",
@@ -60,14 +59,14 @@ export class OrderDetailsHandler {
     const price = this.getServicePrice(service);
 
     if (flow === 'self') {
-      return `Voucher Order:\n\n` +
+      return `Voucher Details:\n\n` +
              `Service: ${service}\n` +
              `Quantity: ${quantity}\n` +
              `Mobile: ${mobile}\n` +
              `Total: GH₵${(price * quantity).toFixed(2)}\n\n` +
              `Press 1 to confirm payment`;
     } else {
-      return `Voucher Order:\n\n` +
+      return `Voucher Details:\n\n` +
              `Service: ${service}\n` +
              `Quantity: ${quantity}\n` +
              `For: ${name} (${mobile})\n` +

@@ -94,8 +94,8 @@ export class PaymentProcessor {
             destination: sessionState.meterNumber,
             extraData: {
               meterNumber: sessionState.meterNumber,
-              email: sessionState.email || 'customer@example.com', // Default email if not provided
-              sessionId: sessionState.sessionId || sessionId // Use sessionId from query or fallback to USSD sessionId
+              email: sessionState.email || 'guglextechnologies@gmail.com', 
+              sessionId: sessionState.sessionId || sessionId  
             }
           };
         }

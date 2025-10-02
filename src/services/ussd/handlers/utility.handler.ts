@@ -297,7 +297,7 @@ export class UtilityHandler {
     const nameData = data.find(item => item.Display === 'name');
     const amountDueData = data.find(item => item.Display === 'amountDue');
 
-    let info = "GWCL Bill Payment\n\n";
+    let info = "GWCL Bill Payment\n";
     info += `Account: ${nameData?.Value || 'N/A'}\n`;
 
     if (amountDueData) {
