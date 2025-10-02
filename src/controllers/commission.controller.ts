@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { CommissionService, CommissionServiceRequest } from '../services/commission.service';
+import { Public } from '../utils/validators';
 
 @Controller('commission')
 export class CommissionController {
@@ -27,16 +28,20 @@ export class CommissionController {
 
   /**
    * Handle commission service callback
+   * This endpoint must be public for Hubtel to access it
    */
+  @Public()
   @Post('callback')
   async handleCommissionCallback(@Body() callbackData: any) {
     try {
+      console.log('COMMISSION CALLBACK RECEIVED:::::', JSON.stringify(callbackData, null, 2));
       await this.commissionService.handleCommissionCallback(callbackData);
       return {
         success: true,
         message: 'Commission callback processed successfully'
       };
     } catch (error) {
+      console.error('COMMISSION CALLBACK ERROR:::::', error);
       return {
         success: false,
         message: error.message || 'Failed to process commission callback'
