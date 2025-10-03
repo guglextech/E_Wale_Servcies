@@ -8,5 +8,5 @@ export * from './menu-handler';
 export * from './ussd.service';
 
 // Export handlers
-export * from './handlers/result-checker.handler';
+export * from '../handlers/result-checker.handler';
 

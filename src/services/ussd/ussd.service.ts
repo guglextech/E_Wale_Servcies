@@ -14,11 +14,11 @@ import { ResponseBuilder } from "./response-builder";
 import { UssdLoggingService } from "./logging.service";
 import { PaymentProcessor } from "./payment-processor";
 import { MenuHandler } from "./menu-handler";
-import { ResultCheckerHandler } from "./handlers/result-checker.handler";
-import { BundleHandler } from "./handlers/bundle.handler";
-import { AirtimeHandler } from "./handlers/airtime.handler";
-import { TVBillsHandler } from "./handlers/tv-bills.handler";
-import { UtilityHandler } from "./handlers/utility.handler";
+import { ResultCheckerHandler } from "../handlers/result-checker.handler";
+import { BundleHandler } from "../handlers/bundle.handler";
+import { AirtimeHandler } from "../handlers/airtime.handler";
+import { TVBillsHandler } from "../handlers/tv-bills.handler";
+import { UtilityHandler } from "../handlers/utility.handler";
 
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";

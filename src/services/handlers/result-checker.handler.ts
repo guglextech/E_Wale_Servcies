@@ -1,15 +1,15 @@
 import { Injectable } from "@nestjs/common";
-import { HBussdReq } from "../../../models/dto/hubtel/hb-ussd.dto";
-import { SessionState, ServiceType, FlowType } from "../types";
-import { ResponseBuilder } from "../response-builder";
-import { SessionManager } from "../session-manager";
-import { UssdLoggingService } from "../logging.service";
-import { PaymentProcessor } from "../payment-processor";
-import { VouchersService } from "../../vouchers.service";
-import { sendVoucherSms } from "../../../utils/sendSMS";
+import { HBussdReq } from "../../models/dto/hubtel/hb-ussd.dto";
+import { SessionState, ServiceType, FlowType } from "../ussd/types";
+import { ResponseBuilder } from "../ussd/response-builder";
+import { SessionManager } from "../ussd/session-manager";
+import { UssdLoggingService } from "../ussd/logging.service";
+import { PaymentProcessor } from "../ussd/payment-processor";
+import { VouchersService } from "../vouchers.service";
+import { sendVoucherSms } from "../../utils/sendSMS";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Voucher } from "../../../models/schemas/voucher.schema";
+import { Voucher } from "../../models/schemas/voucher.schema";
 
 @Injectable()
 export class ResultCheckerHandler {
