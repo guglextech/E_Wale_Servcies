@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { HBussdReq } from '../../../models/dto/hubtel/hb-ussd.dto';
-import { SessionState } from '../types';
-import { ResponseBuilder } from '../response-builder';
-import { SessionManager } from '../session-manager';
-import { UssdLoggingService } from '../logging.service';
-import { UtilityProvider } from '../../../models/dto/utility.dto';
+import { HBussdReq } from '../../models/dto/hubtel/hb-ussd.dto';
+import { SessionState } from '../ussd/types';
+import { ResponseBuilder } from '../ussd/response-builder';
+import { SessionManager } from '../ussd/session-manager';
+import { UssdLoggingService } from '../ussd/logging.service';
+import { UtilityProvider } from '../../models/dto/utility.dto';
 
 @Injectable()
 export class OrderDetailsHandler {

@@ -14,11 +14,11 @@ import { ResponseBuilder } from "./response-builder";
 import { UssdLoggingService } from "./logging.service";
 import { PaymentProcessor } from "./payment-processor";
 import { MenuHandler } from "./menu-handler";
-import { ResultCheckerHandler } from "./handlers/result-checker.handler";
-import { BundleHandler } from "./handlers/bundle.handler";
-import { AirtimeHandler } from "./handlers/airtime.handler";
-import { TVBillsHandler } from "./handlers/tv-bills.handler";
-import { UtilityHandler } from "./handlers/utility.handler";
+import { ResultCheckerHandler } from "../handlers/result-checker.handler";
+import { BundleHandler } from "../handlers/bundle.handler";
+import { AirtimeHandler } from "../handlers/airtime.handler";
+import { TVBillsHandler } from "../handlers/tv-bills.handler";
+import { UtilityHandler } from "../handlers/utility.handler";
 
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
@@ -98,7 +98,7 @@ export class UssdService {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Welcome to E-Wale",
-      "Welcome to E-Wale(IPhone for Grab!)\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers\n0. Contact us"
+      "Welcome to E-Wale\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers \n6. Earnings \n0. Contact us"
     );
   }
 

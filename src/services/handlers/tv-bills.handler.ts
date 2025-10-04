@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { HBussdReq } from '../../../models/dto/hubtel/hb-ussd.dto';
-import { TVProvider, TVAccountQueryResponse } from '../../../models/dto/tv-bills.dto';
-import { SessionState } from '../types';
-import { ResponseBuilder } from '../response-builder';
-import { TVBillsService } from '../../tv-bills.service';
-import { SessionManager } from '../session-manager';
-import { UssdLoggingService } from '../logging.service';
-import { PaymentProcessor } from '../payment-processor';
+import { HBussdReq } from '../../models/dto/hubtel/hb-ussd.dto';
+import { TVProvider, TVAccountQueryResponse } from '../../models/dto/tv-bills.dto';
+import { SessionState } from '../ussd/types';
+import { ResponseBuilder } from '../ussd/response-builder';
+import { TVBillsService } from '../tv-bills.service';
+import { SessionManager } from '../ussd/session-manager';
+import { UssdLoggingService } from '../ussd/logging.service';
+import { PaymentProcessor } from '../ussd/payment-processor';
 
 @Injectable()
 export class TVBillsHandler {

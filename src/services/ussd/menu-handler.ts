@@ -4,9 +4,9 @@ import { SessionState, ServiceType } from "./types";
 import { ResponseBuilder } from "./response-builder";
 import { SessionManager } from "./session-manager";
 import { UssdLoggingService } from "./logging.service";
-import { TVBillsHandler } from "./handlers/tv-bills.handler";
-import { AirtimeHandler } from "./handlers/airtime.handler";
-import { UtilityHandler } from "./handlers/utility.handler";
+import { TVBillsHandler } from "../handlers/tv-bills.handler";
+import { AirtimeHandler } from "../handlers/airtime.handler";
+import { UtilityHandler } from "../handlers/utility.handler";
 
 @Injectable()
 export class MenuHandler {
