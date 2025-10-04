@@ -23,7 +23,7 @@ export class TransactionStatusCheckService {
   ) {
     this.posSalesId = this.configService.get<string>('HUBTEL_POS_SALES_ID') || '11684';
     this.baseUrl = 'https://api-txnstatus.hubtel.com';
-    this.authHeader = this.configService.get<string>('HUBTEL_AUTH_HEADER') || '';
+    this.authHeader = this.configService.get<string>('HUBTEL_AUTH_TOKEN') || '';
   }
 
   /**
