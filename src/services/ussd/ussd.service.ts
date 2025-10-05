@@ -822,7 +822,7 @@ export class UssdService {
       const commissionRequest: CommissionServiceRequest = {
         clientReference: req.OrderId,
         amount: req.OrderInfo?.Payment?.AmountPaid || 0,
-        callbackUrl: `${process.env.APP_URL}/api/commission/callback`,
+        callbackUrl: process.env.HB_CALLBACK_URL,
         serviceType: this.mapServiceType(sessionState.serviceType),
         network: sessionState.network,
         destination: sessionState.mobile || req.OrderInfo?.CustomerMobileNumber || '',
