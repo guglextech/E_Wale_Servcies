@@ -237,38 +237,22 @@ export class CommissionService {
       const TransactionId = Data?.TransactionId;
       const Commission = Data?.Meta?.Commission;
 
-      // Update the commission transaction with callback data
-      const transaction = await this.transactionModel.findOne({ OrderId: ClientReference });
+      // Update commission transaction log with callback data
+      await this.commissionTransactionLogService.updateCommissionServiceStatus(
+        ClientReference,
+        ResponseCode === '0000' ? 'delivered' : 'failed',
+        Message,
+        ResponseCode === '0000',
+        ResponseCode !== '0000' ? Message : undefined
+      );
 
-      if (transaction) {
-        await this.transactionModel.findOneAndUpdate(
-          { OrderId: ClientReference },
-          {
-            $set: {
-              Status: ResponseCode === '0000' ? 'success' : 'failed',
-              IsSuccessful: ResponseCode === '0000',
-              'ExtraData.commissionTransactionId': TransactionId,
-              'ExtraData.commissionAmount': Commission,
-              'ExtraData.commissionStatus': ResponseCode === '0000' ? 'success' : 'failed',
-              'ExtraData.callbackReceived': true,
-              'ExtraData.callbackDate': new Date(),
-              'ExtraData.responseCode': ResponseCode,
-              'ExtraData.responseMessage': Message
-            }
-          }
-        );
-        this.logger.log(`Updated commission transaction ${ClientReference} with callback data`);
-      } else {
-        this.logger.warn(`No commission transaction found for OrderId: ${ClientReference}`);
-      }
+      this.logger.log(`Updated commission transaction log for ${ClientReference} with callback data`);
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
-        console.log('=== CALLING USER COMMISSION SERVICE ===');
         await this.userCommissionService.addCommissionEarningsToUser(callbackData);
-        console.log('=== USER COMMISSION SERVICE COMPLETED ===');
       } else {
-        console.log(`Commission callback failed with ResponseCode: ${ResponseCode}`);
+        this.logger.warn(`Commission callback failed with ResponseCode: ${ResponseCode}`);
       }
       this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
     } catch (error) {
@@ -312,59 +296,45 @@ export class CommissionService {
   }
 
   /**
-   * Log commission transaction separately (not updating payment transaction)
+   * Log commission transaction in commission transaction log service
    */
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
-      console.log('=== CREATING COMMISSION TRANSACTION ===');
-      console.log('Request clientReference:', request.clientReference);
-      console.log('Response data:', JSON.stringify(response, null, 2));
-      
-      // Create a separate commission transaction record
-      const commissionTransaction = new this.transactionModel({
-        SessionId: `comm_${request.clientReference}_${Date.now()}`,
-        OrderId: request.clientReference,
-        ExtraData: {
-          type: 'commission_service',
-          serviceType: request.serviceType,
-          network: request.network,
-          tvProvider: request.tvProvider,
-          utilityProvider: request.utilityProvider,
-          destination: request.destination,
-          amount: request.amount,
-          extraData: request.extraData,
-          response: response,
-          originalClientReference: request.clientReference,
-          commissionTransactionId: response.Data?.TransactionId,
-          commissionAmount: response.Data?.Meta?.Commission,
-          commissionStatus: response.ResponseCode === '0000' ? 'success' : 'pending'
-        },
-        CustomerMobileNumber: request.destination,
-        Status: 'pending', // Always start as pending, will be updated by callback
-        OrderDate: new Date(),
-        Currency: 'GHS',
-        Subtotal: request.amount,
-        PaymentType: 'commission_service',
-        AmountPaid: request.amount,
-        PaymentDate: new Date(),
-        IsSuccessful: false, // Will be updated by callback
-        createdAt: new Date()
-      });
+      // Log commission transaction in commission transaction log service
+      const commissionLogData = {
+        clientReference: request.clientReference,
+        hubtelTransactionId: response.Data?.TransactionId,
+        externalTransactionId: response.Data?.TransactionId,
+        mobileNumber: request.destination,
+        sessionId: request.clientReference,
+        serviceType: request.serviceType,
+        network: request.network,
+        tvProvider: request.tvProvider,
+        utilityProvider: request.utilityProvider,
+        bundleValue: request.extraData?.bundleValue,
+        selectedBundle: request.extraData?.selectedBundle,
+        accountNumber: request.extraData?.accountNumber,
+        meterNumber: request.extraData?.meterNumber,
+        amount: request.amount,
+        charges: 0,
+        amountAfterCharges: request.amount,
+        currencyCode: 'GHS',
+        paymentMethod: 'commission_service',
+        status: 'Pending',
+        isFulfilled: false,
+        responseCode: response.ResponseCode,
+        message: response.Message,
+        commissionServiceStatus: 'pending',
+        commissionServiceMessage: response.Message,
+        transactionDate: new Date(),
+        retryCount: 0,
+        isRetryable: true
+      };
 
-      const savedTransaction = await commissionTransaction.save();
-      this.logger.log(`Commission transaction logged with SessionId: ${savedTransaction.SessionId}, OrderId: ${savedTransaction.OrderId}`);
-      
-      // Verify the transaction was saved successfully
-      const verifyTransaction = await this.transactionModel.findOne({ OrderId: request.clientReference }).exec();
-      if (!verifyTransaction) {
-        throw new Error(`Failed to verify commission transaction save for OrderId: ${request.clientReference}`);
-      }
-      
-      this.logger.log(`Commission transaction verified in database`);
-      console.log('=== COMMISSION TRANSACTION CREATED SUCCESSFULLY ===');
+      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
+      this.logger.log(`Commission transaction logged with clientReference: ${request.clientReference}`);
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
-      console.log('=== COMMISSION TRANSACTION CREATION FAILED ===', error);
       throw error; // Re-throw to prevent callback processing if transaction save fails
     }
   }
