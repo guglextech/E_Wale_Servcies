@@ -31,15 +31,12 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
       
-      console.log(`Looking for commission transaction log with clientReference: ${ClientReference}`);
       
       // Find the commission transaction log using clientReference
       const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(ClientReference);
-      console.log('Found commission log:', commissionLog ? 'YES' : 'NO');
       
       if (!commissionLog) {
         this.logger.error(`Could not find commission transaction log for clientReference ${ClientReference}`);
-        console.log('=== COMMISSION CALLBACK PROCESSING FAILED - NO COMMISSION LOG ===');
         return;
       }
 
@@ -58,10 +55,9 @@ export class UserCommissionService {
       });
 
       this.logger.log(`Added commission GH ${commissionAmount} to user ${mobileNumber}`);
-      console.log('=== COMMISSION CALLBACK PROCESSING SUCCESS ===');
+      
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
-      console.log('=== COMMISSION CALLBACK PROCESSING ERROR ===', error);
     }
   }
 
@@ -151,7 +147,7 @@ export class UserCommissionService {
       this.logger.log('Starting to process existing commission transactions...');
       
       // Get all commission transaction logs that are delivered but haven't been processed
-      const commissionLogs = await this.commissionTransactionLogService.getAllCommissionLogs(1, 1000, 'Paid', 'delivered');
+      const commissionLogs = await this.commissionTransactionLogService.getAllCommissionLogs(1, 10, 'Paid', 'delivered');
 
       let processed = 0;
       let errors = 0;
@@ -166,7 +162,7 @@ export class UserCommissionService {
 
           const user = await this.findUserByMobile(mobileNumber);
           if (user?.commissionTransactions.find(ct => ct.clientReference === log.clientReference)) {
-            continue; // Already processed
+            continue; 
           }
 
           // Calculate commission amount (this would need to be stored in the commission log)
@@ -228,8 +224,7 @@ export class UserCommissionService {
     }
   }
 
-  // ==================== PRIVATE HELPER METHODS ====================
-
+ 
   private async findUserByMobile(mobileNumber: string): Promise<User | null> {
     try {
       return await this.userModel.findOne({ phone: mobileNumber }).exec();
