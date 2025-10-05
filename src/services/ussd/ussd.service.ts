@@ -23,6 +23,7 @@ import { EarningHandler } from "../handlers/earning.handler";
 
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
+import { CommissionService } from "../commission.service";
 
 // Import types
 import { SessionState, UssdLogData } from "./types";
@@ -52,6 +53,8 @@ export class UssdService {
     
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
+    private readonly commissionService: CommissionService,
+
   ) {}
 
   /**
@@ -581,7 +584,10 @@ export class UssdService {
           sessionId, 
           `${process.env.HB_CALLBACK_URL}`
         );
-        // Commission service processing removed - earnings are now calculated directly from transactions
+         
+        if (commissionRequest) {
+          await this.commissionService.processCommissionService(commissionRequest);
+        }
       }
     } catch (error) {
       console.error("Error processing commission service after payment:", error);
