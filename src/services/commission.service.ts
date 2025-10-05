@@ -23,10 +23,19 @@ export interface CommissionServiceRequest {
 
 export interface CommissionServiceResponse {
   ResponseCode: string;
-  Message: string;
-  Data?: any;
-  TransactionId?: string;
-  Commission?: string;
+  Data: {
+    AmountDebited: number;
+    TransactionId: string;
+    ClientReference: string;
+    Description: string;
+    ExternalTransactionId: string;
+    Amount: number;
+    Charges: number;
+    Meta: {
+      Commission: string;
+    };
+    RecipientName?: string;
+  };
 }
 
 @Injectable()
@@ -78,7 +87,6 @@ export class CommissionService {
       if (!endpoint) {
         throw new Error(`No endpoint found for service type: ${request.serviceType}`);
       }
-
 
       const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
       if (!hubtelPrepaidDepositID) {
@@ -194,21 +202,16 @@ export class CommissionService {
   }
 
   /**
-   * Handle commission service callback
+   * Process commission service callback
    * This processes the callback from Hubtel commission services
    */
-  async handleCommissionCallback(callbackData: any): Promise<void> {
+  async processCommissionServiceCallback(callbackData: any): Promise<void> {
     try {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
-      const { ClientReference, ResponseCode, Data } = callbackData;
-      
-      // Extract commission amount from callback data
+      const { ResponseCode, Data } = callbackData;
       const commissionAmount = Data?.Meta?.Commission ? parseFloat(Data.Meta.Commission) : 0;
-      
-      // Update commission amount in commission logs
-      await this.commissionTransactionLogService.updateCommissionAmount(ClientReference, commissionAmount);
-      
-      this.logger.log(`Updated commission transaction log for ${ClientReference} with callback data`);
+      await this.commissionTransactionLogService.updateCommissionAmount(Data.ClientReference, commissionAmount);
+      this.logger.log(`Updated commission transaction log for ${Data.ClientReference} with callback data`);
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
@@ -216,7 +219,7 @@ export class CommissionService {
       } else {
         this.logger.warn(`Commission callback failed with ResponseCode: ${ResponseCode}`);
       }
-      this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
+      this.logger.log(`Commission callback processed for ${Data.ClientReference} - Status: ${ResponseCode}`);
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
       throw error;
@@ -271,18 +274,19 @@ export class CommissionService {
         await this.commissionTransactionLogService.updateCommissionServiceStatus(
           request.clientReference,
           'pending',
-          response.Message,
+          response.Data?.Description || 'Processing',
           false
         );
         this.logger.log(`Updated existing commission log for ${request.clientReference}`);
       } else {
         // Fallback: create new log if none exists (shouldn't happen in normal flow)
         const commissionLogData = {
+          SessionId: request.extraData?.sessionId || request.clientReference,
+          OrderId: request.clientReference,
           clientReference: request.clientReference,
           hubtelTransactionId: response.Data?.TransactionId,
           externalTransactionId: null,
           mobileNumber: request.destination,
-          sessionId: request.clientReference,
           serviceType: request.serviceType,
           network: request.network,
           tvProvider: request.tvProvider,
@@ -300,12 +304,9 @@ export class CommissionService {
           status: 'Pending',
           isFulfilled: false,
           responseCode: response.ResponseCode,
-          message: response.Message,
-          commissionServiceStatus: 'pending',
-          commissionServiceMessage: response.Message,
-          transactionDate: new Date(),
-          retryCount: 0,
-          isRetryable: true
+          message: response.Data?.Description || 'Processing',
+          description: response.Data?.Description,
+          transactionDate: new Date()
         };
         await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
         this.logger.log(`Created fallback commission log for ${request.clientReference}`);

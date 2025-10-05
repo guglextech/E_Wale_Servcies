@@ -6,6 +6,12 @@ export type CommissionTransactionLogDocument = CommissionTransactionLog & Docume
 @Schema({ timestamps: true })
 export class CommissionTransactionLog {
   @Prop({ required: true })
+  SessionId: string;
+
+  @Prop({ required: true })
+  OrderId: string;
+
+  @Prop({ required: true })
   clientReference: string;
 
   @Prop()
@@ -16,9 +22,6 @@ export class CommissionTransactionLog {
 
   @Prop({ required: true })
   mobileNumber: string;
-
-  @Prop({ required: true })
-  sessionId: string;
 
   @Prop({ required: true })
   serviceType: string; // 'bundle', 'airtime', 'tv_bill', 'utility'
@@ -75,31 +78,16 @@ export class CommissionTransactionLog {
   message: string;
 
   @Prop()
-  commissionServiceStatus: string; // 'delivered', 'failed', 'pending'
-
-  @Prop()
-  commissionServiceMessage: string;
+  description: string;
 
   @Prop({ type: Date })
   transactionDate: Date;
 
-  @Prop({ type: Date })
-  commissionServiceDate: Date;
-
   @Prop()
   errorMessage: string;
 
-  @Prop()
-  retryCount: number;
-
-  @Prop({ default: false })
-  isRetryable: boolean;
-
-  @Prop()
-  lastRetryAt: Date;
-
   @Prop({ default: 'active' })
-  logStatus: string; // 'active', 'archived', 'deleted'
+  logStatus: string;
 }
 
 export const CommissionTransactionLogSchema = SchemaFactory.createForClass(CommissionTransactionLog);
@@ -108,8 +96,8 @@ export const CommissionTransactionLogSchema = SchemaFactory.createForClass(Commi
 CommissionTransactionLogSchema.index({ clientReference: 1 });
 CommissionTransactionLogSchema.index({ hubtelTransactionId: 1 });
 CommissionTransactionLogSchema.index({ mobileNumber: 1, createdAt: -1 });
-CommissionTransactionLogSchema.index({ sessionId: 1 });
+CommissionTransactionLogSchema.index({ SessionId: 1 });
+CommissionTransactionLogSchema.index({ OrderId: 1 });
 CommissionTransactionLogSchema.index({ status: 1 });
-CommissionTransactionLogSchema.index({ commissionServiceStatus: 1 });
 CommissionTransactionLogSchema.index({ serviceType: 1 });
 CommissionTransactionLogSchema.index({ createdAt: -1 });

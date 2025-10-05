@@ -11,6 +11,7 @@ import {
   TVAccountQueryResponse
 } from '../models/dto/tv-bills.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
+import { CommissionService } from './commission.service';
 
 // Types for better type safety
 interface HubtelEndpoints {
@@ -49,6 +50,7 @@ export class TVBillsService {
 
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    private readonly commissionService: CommissionService,
   ) {}
 
   // ==================== PUBLIC METHODS ====================
@@ -151,6 +153,9 @@ export class TVBillsService {
           }
         }
       );
+
+      // Also process through commission service callback handler
+      await this.commissionService.processCommissionServiceCallback(callbackData);
 
       this.logger.log(`TV bill callback processed for ${ClientReference}`);
     } catch (error) {

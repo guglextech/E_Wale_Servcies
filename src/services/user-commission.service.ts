@@ -29,12 +29,6 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
 
-      console.log(`=== COMMISSION CALLBACK PROCESSING ===`);
-      console.log(`ClientReference: ${ClientReference}`);
-      console.log(`TransactionId: ${TransactionId}`);
-      console.log(`Amount: ${Amount}`);
-      console.log(`Commission from callback: ${Commission}`);
-      console.log(`Commission amount (parsed): ${commissionAmount}`);
 
       // Update the commission log with the actual commission amount and status
       const updatedLog = await this.commissionLogModel.findOneAndUpdate(
@@ -43,8 +37,8 @@ export class UserCommissionService {
           $set: {
             commission: commissionAmount,
             status: 'Paid',
-            isFulfilled: true,
-            commissionServiceStatus: 'delivered',
+            // isFulfilled: true,
+            // commissionServiceStatus: 'delivered',
             commissionServiceDate: new Date(),
             updatedAt: new Date()
           }
@@ -56,15 +50,7 @@ export class UserCommissionService {
         this.logger.error(`Could not find commission log for clientReference ${ClientReference}`);
         return;
       }
-
-      console.log(`=== COMMISSION LOG UPDATED ===`);
-      console.log(`Mobile Number: ${updatedLog.mobileNumber}`);
-      console.log(`Commission stored in DB: ${updatedLog.commission}`);
-      console.log(`Status: ${updatedLog.status}`);
-      console.log(`IsFulfilled: ${updatedLog.isFulfilled}`);
-      console.log(`Commission Service Status: ${updatedLog.commissionServiceStatus}`);
-      console.log(`==========================================`);
-
+      
       this.logger.log(`Added commission GH ${commissionAmount} to mobile ${updatedLog.mobileNumber}`);
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
@@ -158,7 +144,7 @@ export class UserCommissionService {
         sessionId: `withdrawal_${Date.now()}`,
         serviceType: 'withdrawal',
         amount: amount,
-        commission: -amount, // Negative commission for withdrawal
+        commission: -amount,
         charges: 0,
         amountAfterCharges: amount,
         currencyCode: 'GHS',
@@ -201,12 +187,13 @@ export class UserCommissionService {
       return commissionLogs.map(log => ({
         transactionId: log.hubtelTransactionId,
         clientReference: log.clientReference,
-        externalTransactionId: log.externalTransactionId,
         amount: log.amount,
-        commission: log.commission,
+        commission: log.commission || 0,
         serviceType: log.serviceType,
         transactionDate: log.transactionDate,
-        status: log.status
+        status: log.status,
+        charges: log.charges || 0,
+        amountAfterCharges: log.amountAfterCharges || log.amount
       }));
     } catch (error) {
       this.logger.error(`Error getting user transaction history: ${error.message}`);

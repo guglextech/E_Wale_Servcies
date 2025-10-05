@@ -13,6 +13,7 @@ import {
   UtilityQueryResponse
 } from '../models/dto/utility.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
+import { CommissionService } from './commission.service';
 
 // Types for better type safety
 interface HubtelEndpoints {
@@ -58,6 +59,7 @@ export class UtilityService {
 
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    private readonly commissionService: CommissionService,
   ) {}
 
   // Hubtel Commission Service endpoints for different utility providers
@@ -268,6 +270,9 @@ export class UtilityService {
           }
         }
       );
+
+      // Also process through commission service callback handler
+      await this.commissionService.processCommissionServiceCallback(callbackData);
 
       this.logger.log(`Utility callback processed for ${ClientReference}`);
     } catch (error) {

@@ -25,7 +25,8 @@ export class CommissionTransactionLogService {
         hubtelTransactionId: logData.hubtelTransactionId,
         externalTransactionId: logData.externalTransactionId,
         mobileNumber: logData.mobileNumber,
-        sessionId: logData.sessionId,
+        sessionId: logData.SessionId,
+        orderId: logData.OrderId,
         serviceType: logData.serviceType,
         network: logData.network,
         tvProvider: logData.tvProvider,
@@ -44,14 +45,8 @@ export class CommissionTransactionLogService {
         isFulfilled: logData.isFulfilled,
         responseCode: logData.responseCode,
         message: logData.message,
-        commissionServiceStatus: logData.commissionServiceStatus || 'pending',
-        commissionServiceMessage: logData.commissionServiceMessage,
         transactionDate: logData.transactionDate || new Date(),
-        commissionServiceDate: logData.commissionServiceDate,
         errorMessage: logData.errorMessage,
-        retryCount: logData.retryCount || 0,
-        isRetryable: logData.isRetryable || true,
-        lastRetryAt: logData.lastRetryAt,
         logStatus: 'active'
       };
 
