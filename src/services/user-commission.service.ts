@@ -28,13 +28,16 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
       
-      const mobileNumber = await this.getMobileNumberFromTransaction(ClientReference);
-      if (!mobileNumber) {
-        this.logger.error(`Could not find mobile number for transaction ${ClientReference}`);
+      // Find the payment transaction using SessionId (ClientReference)
+      const transaction = await this.transactionModel.findOne({ SessionId: ClientReference }).exec();
+      if (!transaction) {
+        this.logger.error(`Could not find payment transaction for SessionId ${ClientReference}`);
         return;
       }
 
+      const mobileNumber = transaction.CustomerMobileNumber;
       const user = await this.findOrCreateUser(mobileNumber);
+      
       await this.addCommissionToUser(user, {
         transactionId: TransactionId,
         clientReference: ClientReference,
@@ -277,20 +280,10 @@ export class UserCommissionService {
     );
   }
 
-  private async getMobileNumberFromTransaction(clientReference: string): Promise<string | null> {
-    try {
-      const transaction = await this.transactionModel.findOne({ OrderId: clientReference }).exec();
-      return transaction?.CustomerMobileNumber || null;
-    } catch (error) {
-      this.logger.error(`Error getting mobile number from transaction: ${error.message}`);
-      return null;
-    }
-  }
-
   private async getServiceType(clientReference: string): Promise<string> {
     try {
-      const transaction = await this.transactionModel.findOne({ OrderId: clientReference }).exec();
-      return transaction?.ExtraData?.serviceType || 'unknown';
+      const transaction = await this.transactionModel.findOne({ SessionId: clientReference }).exec();
+      return transaction?.ExtraData?.commissionService?.serviceType || 'unknown';
     } catch (error) {
       this.logger.error(`Error determining service type: ${error.message}`);
       return 'unknown';
