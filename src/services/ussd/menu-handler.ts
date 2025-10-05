@@ -35,7 +35,7 @@ export class MenuHandler {
       "3": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
       "4": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Power\n2. Ghana Water"),
       "5": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE"),
-      "6": () => this.handleServiceSelection(req, state, ServiceType.EARNING, "Earnings Menu", "My Earnings\n\n1 My Balance\n2  Withdraw money\n3 T& C")
+      "6": () => this.handleServiceSelection(req, state, ServiceType.EARNING, "Earnings Menu", "My Earnings\n1. My Balance\n2. Withdraw money\n3. T& C")
     };
 
     const handler = menuHandlers[req.Message];
