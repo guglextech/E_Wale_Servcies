@@ -122,9 +122,7 @@ export class ResultCheckerHandler {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Order Details",
-      `Service: ${state.service}\n
-       Bought For: ${displayMobile}\n
-       Quantity: ${quantity}\n
+      `Service: ${state.service}\nBought For: ${displayMobile}\nQuantity: ${quantity}\n
        Amount: ${this.paymentProcessor.formatAmount(state.totalAmount)}\n\n1. Confirm\n2. Cancel`
     );
   }
