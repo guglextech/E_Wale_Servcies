@@ -179,7 +179,7 @@ export class UssdService {
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
   }
-  
+
 
   /**
    * Handle step 5 - Additional input
@@ -589,6 +589,7 @@ export class UssdService {
           sessionId, 
           `${process.env.HB_CALLBACK_URL}`
         );
+        console.error("LOGGING COMMISSION REQUEST AFTER PAYMENT :::", commissionRequest);
         if (commissionRequest) {
           await this.commissionService.processCommissionService(commissionRequest);
         }

@@ -73,6 +73,7 @@ export class CommissionService {
   async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
     try {
       this.logger.log(`Processing commission service - Type: ${request.serviceType}, Amount: ${request.amount}, Destination: ${request.destination}`);
+      console.error("LOGGING COMMISSION REQUEST :::", request);
 
       // Get the appropriate endpoint
       const endpoint = this.getEndpoint(request);
@@ -258,11 +259,9 @@ export class CommissionService {
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
-        await this.userCommissionService.processUserCommissionCallback(callbackData);
+        await this.userCommissionService.addCommissionEarningsToUser(callbackData);
       }
-
       this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
-
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
       throw error;

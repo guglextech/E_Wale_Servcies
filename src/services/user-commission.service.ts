@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, CommissionTransaction } from '../models/schemas/user.shema';
+import { Transactions } from '../models/schemas/transaction.schema';
 import { CommissionTransactionLogService } from './commission-transaction-log.service';
 
 @Injectable()
@@ -10,75 +11,92 @@ export class UserCommissionService {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly commissionTransactionLogService: CommissionTransactionLogService,
   ) {}
 
   /**
-   * Process commission callback and update user earnings
+   * Add commission earnings to user account from callback
    */
-  async processUserCommissionCallback(callbackData: any): Promise<void> {
+  async addCommissionEarningsToUser(callbackData: any): Promise<void> {
     try {
-      this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
-
-      const { 
-        ResponseCode, 
-        Data: { 
-          TransactionId, 
-          ClientReference, 
-          ExternalTransactionId, 
-          Amount, 
-          Meta: { Commission },
-          Description 
-        } 
-      } = callbackData;
-
+      const { ResponseCode, Data } = callbackData;
+      
       if (ResponseCode !== '0000') {
-        this.logger.warn(`Commission callback failed for ${ClientReference}: ${Description}`);
+        this.logger.warn(`Commission callback failed: ${Data?.Description}`);
         return;
       }
 
-      this.logger.log(`Extracting mobile number for client reference: ${ClientReference}`);
+      const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
+      const commissionAmount = parseFloat(Commission);
       
-      // Extract mobile number from client reference or transaction data
-      const mobileNumber = await this.extractMobileNumberFromTransaction(ClientReference);
-      this.logger.log(`Extracted mobile number: ${mobileNumber}`);
-      
+      // Get mobile number directly from transaction record
+      const mobileNumber = await this.getMobileNumberFromTransaction(ClientReference);
       if (!mobileNumber) {
-        this.logger.error(`Could not extract mobile number for transaction ${ClientReference}`);
+        this.logger.error(`Could not find mobile number for transaction ${ClientReference}`);
         return;
       }
 
-      // Find or create user by mobile number
+      // Find or create user
       let user = await this.findUserByMobile(mobileNumber);
-      this.logger.log(`Found user: ${user ? 'Yes' : 'No'}`);
-      
       if (!user) {
-        this.logger.log(`Creating new user for mobile: ${mobileNumber}`);
         user = await this.createUserFromMobile(mobileNumber);
       }
 
-      // Create commission transaction record
-      const commissionTransaction: CommissionTransaction = {
+      // Add commission to user earnings
+      await this.addCommissionToUser(user, {
         transactionId: TransactionId,
         clientReference: ClientReference,
-        externalTransactionId: ExternalTransactionId,
         amount: Amount,
-        commission: parseFloat(Commission),
-        serviceType: await this.determineServiceType(ClientReference),
-        transactionDate: new Date(),
-        status: 'completed'
-      };
+        commission: commissionAmount,
+        transactionDate: new Date()
+      });
 
-      this.logger.log(`Updating user commission: ${JSON.stringify(commissionTransaction)}`);
-
-      // Update user's commission data
-      await this.updateUserCommission(user, commissionTransaction);
-
-      this.logger.log(`Commission processed for ${mobileNumber}: GH ${Commission}`);
+      this.logger.log(`Added commission GH ${commissionAmount} to user ${mobileNumber}`);
 
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
-      this.logger.error(`Error stack: ${error.stack}`);
+    }
+  }
+
+  /**
+   * Add commission to user earnings
+   */
+  private async addCommissionToUser(user: any, commissionData: any): Promise<void> {
+    const serviceType = await this.determineServiceType(commissionData.clientReference);
+    
+    const commissionTransaction: CommissionTransaction = {
+      transactionId: commissionData.transactionId,
+      clientReference: commissionData.clientReference,
+      externalTransactionId: commissionData.transactionId,
+      amount: commissionData.amount,
+      commission: commissionData.commission,
+      serviceType: serviceType,
+      transactionDate: commissionData.transactionDate,
+      status: 'completed'
+    };
+
+    await this.updateUserCommission(user, commissionTransaction);
+  }
+
+  /**
+   * Get user commission transaction history
+   */
+  async getUserTransactionHistory(mobileNumber: string, limit: number = 20): Promise<CommissionTransaction[]> {
+    try {
+      const user = await this.findUserByMobile(mobileNumber);
+      
+      if (!user) {
+        return [];
+      }
+
+      // Return recent transactions (most recent first)
+      return user.commissionTransactions
+        .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+        .slice(0, limit);
+    } catch (error) {
+      this.logger.error(`Error getting user transaction history: ${error.message}`);
+      return [];
     }
   }
 
@@ -248,24 +266,28 @@ export class UserCommissionService {
   }
 
   /**
-   * Extract mobile number from transaction data
-   * This method extracts mobile number from commission transaction logs
+   * Get mobile number directly from transaction record
+   * This method gets mobile number from the main transaction collection
    */
-  private async extractMobileNumberFromTransaction(clientReference: string): Promise<string | null> {
+  private async getMobileNumberFromTransaction(clientReference: string): Promise<string | null> {
     try {
-      this.logger.log(`Looking for commission log with client reference: ${clientReference}`);
+      this.logger.log(`Looking for transaction with client reference: ${clientReference}`);
       
-      // Query commission transaction logs to get mobile number
-      const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(clientReference);
+      // Query transaction collection directly using OrderId (which contains clientReference)
+      const transaction = await this.transactionModel.findOne({ 
+        OrderId: { $regex: clientReference }
+      }).exec();
       
-      this.logger.log(`Found commission log: ${commissionLog ? 'Yes' : 'No'}`);
-      if (commissionLog) {
-        this.logger.log(`Commission log mobile number: ${commissionLog.mobileNumber}`);
+      if (transaction) {
+        const mobileNumber = transaction.CustomerMobileNumber;
+        this.logger.log(`Found transaction with mobile number: ${mobileNumber}`);
+        return mobileNumber;
       }
       
-      return commissionLog?.mobileNumber || null;
+      this.logger.warn(`No transaction found for client reference: ${clientReference}`);
+      return null;
     } catch (error) {
-      this.logger.error(`Error extracting mobile number: ${error.message}`);
+      this.logger.error(`Error getting mobile number from transaction: ${error.message}`);
       return null;
     }
   }
@@ -275,9 +297,12 @@ export class UserCommissionService {
    */
   private async determineServiceType(clientReference: string): Promise<string> {
     try {
-      // Query commission transaction logs to determine the service type
-      const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(clientReference);
-      return commissionLog?.serviceType || 'unknown';
+      // Query transaction collection directly
+      const transaction = await this.transactionModel.findOne({ 
+        OrderId: { $regex: clientReference }
+      }).exec();
+      
+      return transaction?.ExtraData?.serviceType || 'unknown';
     } catch (error) {
       this.logger.error(`Error determining service type: ${error.message}`);
       return 'unknown';
