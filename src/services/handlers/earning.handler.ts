@@ -101,7 +101,7 @@ export class EarningHandler {
    * Handle Terms and Conditions
    */
   private handleTermsAndConditions(req: HBussdReq, state: SessionState): string {
-    const message = `Terms & Conditions\n\nApplies to:\n- Data Bundle\n- Airtime\n- ECG Prepaid\n- Utility payments\n\nCommission rates vary by service type.`;
+    const message = `Terms & Conditions\n\nApplies to:\nData Bundle\nAirtime\nECG Prepaid\nUtility payments\n\nCommission rates vary by service type.`;
     
     return this.responseBuilder.createReleaseResponse(
       req.SessionId,
@@ -119,9 +119,7 @@ export class EarningHandler {
       try {
         // Process withdrawal request
         await this.processWithdrawalRequest(req.Mobile, state.totalEarnings);
-        
         const message = `Withdrawal request submitted successfully!\nAmount: GH ${state.totalEarnings.toFixed(2)}\nYou will receive payment within 24 hours.`;
-        
         return this.responseBuilder.createReleaseResponse(
           req.SessionId,
           "Withdrawal Confirmed",
