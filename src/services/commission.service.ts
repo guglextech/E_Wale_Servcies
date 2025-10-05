@@ -6,6 +6,7 @@ import { Transactions } from '../models/schemas/transaction.schema';
 import { NetworkProvider } from '../models/dto/airtime.dto';
 import { TVProvider } from '../models/dto/tv-bills.dto';
 import { UtilityProvider } from '../models/dto/utility.dto';
+import { UserCommissionService } from './user-commission.service';
 
 export interface CommissionServiceRequest {
   serviceType: 'airtime' | 'bundle' | 'tv_bill' | 'utility';
@@ -33,6 +34,7 @@ export class CommissionService {
 
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    private readonly userCommissionService: UserCommissionService,
   ) {}
 
   // Hubtel Commission Service endpoints
@@ -220,6 +222,11 @@ export class CommissionService {
           }
         }
       );
+
+      // Process commission for user earnings if successful
+      if (ResponseCode === '0000') {
+        await this.userCommissionService.processCommissionCallback(callbackData);
+      }
 
       this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
 
