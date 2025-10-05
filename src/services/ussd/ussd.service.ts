@@ -179,6 +179,7 @@ export class UssdService {
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
   }
+  
 
   /**
    * Handle step 5 - Additional input
