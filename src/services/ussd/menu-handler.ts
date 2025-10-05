@@ -7,6 +7,7 @@ import { UssdLoggingService } from "./logging.service";
 import { TVBillsHandler } from "../handlers/tv-bills.handler";
 import { AirtimeHandler } from "../handlers/airtime.handler";
 import { UtilityHandler } from "../handlers/utility.handler";
+import { EarningHandler } from "../handlers/earning.handler";
 
 @Injectable()
 export class MenuHandler {
@@ -16,7 +17,8 @@ export class MenuHandler {
     private readonly loggingService: UssdLoggingService,
     private readonly tvBillsHandler: TVBillsHandler,
     private readonly airtimeHandler: AirtimeHandler,
-    private readonly utilityHandler: UtilityHandler
+    private readonly utilityHandler: UtilityHandler,
+    private readonly earningHandler: EarningHandler
   ) { }
 
   /**
@@ -33,7 +35,7 @@ export class MenuHandler {
       "3": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
       "4": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Power\n2. Ghana Water"),
       "5": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE"),
-      "6": () => this.handleComingSoon(req, state)
+      "6": () => this.handleServiceSelection(req, state, ServiceType.EARNING, "Earnings Menu", "My Earnings\n\n1 - My Balance\n2 - Withdraw money\n3 - T& C")
     };
 
     const handler = menuHandlers[req.Message];
@@ -88,7 +90,8 @@ export class MenuHandler {
       [ServiceType.DATA_BUNDLE]: () => this.handleDataBundleServiceSelection(req, state),
       [ServiceType.AIRTIME_TOPUP]: () => this.handleAirtimeServiceSelection(req, state),
       [ServiceType.PAY_BILLS]: () => this.handlePayBillsServiceSelection(req, state),
-      [ServiceType.UTILITY_SERVICE]: () => this.handleUtilityServiceSelection(req, state)
+      [ServiceType.UTILITY_SERVICE]: () => this.handleUtilityServiceSelection(req, state),
+      [ServiceType.EARNING]: () => this.handleEarningServiceSelection(req, state)
     };
 
     const handler = handlers[state.serviceType];
@@ -155,6 +158,13 @@ export class MenuHandler {
    */
   private async handleUtilityServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
     return await this.utilityHandler.handleUtilityProviderSelection(req, state);
+  }
+
+  /**
+   * Handle earning service selection - delegates to earning handler
+   */
+  private async handleEarningServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+    return await this.earningHandler.handleEarningMenuSelection(req, state);
   }
 
 

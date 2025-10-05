@@ -39,6 +39,9 @@ export interface SessionState {
   selectedMeter?: UtilityMeterInfo;
   email?: string;
   sessionId?: string;
+  // Earning specific fields
+  earningFlow?: 'withdrawal' | 'earnings' | 'terms';
+  totalEarnings?: number;
 }
 
 export interface UssdResponse {
@@ -120,7 +123,8 @@ export enum ServiceType {
   VOICE_BUNDLE = 'voice_bundle',
   AIRTIME_TOPUP = 'airtime_topup',
   PAY_BILLS = 'pay_bills',
-  UTILITY_SERVICE = 'utility_service'
+  UTILITY_SERVICE = 'utility_service',
+  EARNING = 'earning'
 }
 
 export enum FlowType {

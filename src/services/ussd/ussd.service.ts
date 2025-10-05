@@ -19,6 +19,7 @@ import { BundleHandler } from "../handlers/bundle.handler";
 import { AirtimeHandler } from "../handlers/airtime.handler";
 import { TVBillsHandler } from "../handlers/tv-bills.handler";
 import { UtilityHandler } from "../handlers/utility.handler";
+import { EarningHandler } from "../handlers/earning.handler";
 
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
@@ -50,6 +51,7 @@ export class UssdService {
     private readonly airtimeHandler: AirtimeHandler,
     private readonly tvBillsHandler: TVBillsHandler,
     private readonly utilityHandler: UtilityHandler,
+    private readonly earningHandler: EarningHandler,
     
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
@@ -98,7 +100,7 @@ export class UssdService {
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Welcome to E-Wale",
-      "Welcome to E-Wale\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers \n6. Earnings \n0. Contact us"
+      "Welcome to E-Wale\n1. Buy Airtime\n2. Data/Voice Bundle\n3. Pay Bills\n4. Utilities\n5. Results Vouchers\n6. Earnings\n0. Contact us"
     );
   }
 
@@ -167,6 +169,12 @@ export class UssdService {
         } else {
           return await this.handleUtilityQuery(req, state);
         }
+      case 'earning':
+        // Handle withdrawal confirmation for earning service
+        if (state.earningFlow === 'withdrawal') {
+          return await this.earningHandler.handleWithdrawalConfirmation(req, state);
+        }
+        return this.releaseSession(req.SessionId);
       default:
         return this.responseBuilder.createErrorResponse(req.SessionId, 'Invalid service type');
     }
