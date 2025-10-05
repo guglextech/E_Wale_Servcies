@@ -109,6 +109,27 @@ export class CommissionController {
   }
 
   /**
+   * Handle commission service callback from Hubtel
+   * This endpoint receives callbacks automatically from Hubtel commission services
+   */
+  @Public()
+  @Post('callback')
+  async handleCommissionCallback(@Body() callbackData: any) {
+    try {
+      await this.commissionService.processCommissionServiceCallback(callbackData);
+      return {
+        success: true,
+        message: 'Commission callback processed successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to process commission callback'
+      };
+    }
+  }
+
+  /**
    * Process existing commission transactions
    * This endpoint can be used to backfill commission earnings for transactions that weren't processed
    */

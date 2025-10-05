@@ -88,7 +88,6 @@ export class CommissionService {
         throw new Error(`No endpoint found for service type: ${request.serviceType}`);
       }
 
-
       const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
       if (!hubtelPrepaidDepositID) {
         throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');

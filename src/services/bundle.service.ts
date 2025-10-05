@@ -13,6 +13,7 @@ import {
 } from '../models/dto/bundle.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
 import { TransactionStatusService } from './transaction-status.service';
+import { CommissionService } from './commission.service';
 
 // Types for better type safety
 interface HubtelEndpoints {
@@ -58,6 +59,7 @@ export class BundleService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly transactionStatusService: TransactionStatusService,
+    private readonly commissionService: CommissionService,
   ) { }
 
   // Hubtel Commission Service endpoints for different networks and services
@@ -204,6 +206,9 @@ export class BundleService {
           }
         }
       );
+
+      // Also process through commission service callback handler
+      await this.commissionService.processCommissionServiceCallback(callbackData);
 
       this.logger.log(`Bundle callback processed for ${callbackData.ClientReference}`);
     } catch (error) {

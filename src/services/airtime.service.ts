@@ -9,6 +9,7 @@ import {
   AirtimeCallbackDto 
 } from '../models/dto/airtime.dto';
 import { Transactions } from '../models/schemas/transaction.schema';
+import { CommissionService } from './commission.service';
 
 // Types for better type safety
 interface HubtelEndpoints {
@@ -71,6 +72,7 @@ export class AirtimeService {
 
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    private readonly commissionService: CommissionService,
   ) {}
 
 
@@ -136,6 +138,9 @@ export class AirtimeService {
           }
         }
       );
+
+      // Also process through commission service callback handler
+      await this.commissionService.processCommissionServiceCallback(callbackData);
 
       this.logger.log(`Airtime callback processed for ${callbackData.ClientReference}`);
     } catch (error) {
