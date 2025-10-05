@@ -7,6 +7,7 @@ import { NetworkProvider } from '../models/dto/airtime.dto';
 import { TVProvider } from '../models/dto/tv-bills.dto';
 import { UtilityProvider } from '../models/dto/utility.dto';
 import { UserCommissionService } from './user-commission.service';
+import { CommissionTransactionLogService } from './commission-transaction-log.service';
 
 export interface CommissionServiceRequest {
   serviceType: 'airtime' | 'bundle' | 'tv_bill' | 'utility';
@@ -35,7 +36,8 @@ export class CommissionService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly userCommissionService: UserCommissionService,
-  ) {}
+    private readonly commissionTransactionLogService: CommissionTransactionLogService,
+  ) { }
 
   // Hubtel Commission Service endpoints
   private readonly commissionEndpoints = {
@@ -77,7 +79,7 @@ export class CommissionService {
         throw new Error(`No endpoint found for service type: ${request.serviceType}`);
       }
 
-      // Get Hubtel Prepaid Deposit ID
+
       const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
       if (!hubtelPrepaidDepositID) {
         throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
@@ -102,9 +104,6 @@ export class CommissionService {
 
       // Log the transaction
       await this.logCommissionTransaction(request, response.data);
-
-      // Commission transaction logging removed - earnings are now calculated directly from transactions
-
       return response.data;
 
     } catch (error) {
@@ -113,9 +112,6 @@ export class CommissionService {
         this.logger.error(`Hubtel response status: ${error.response.status}`);
         this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
       }
-      
-      // Commission transaction logging removed - earnings are now calculated directly from transactions
-      
       return null;
     }
   }
@@ -184,7 +180,7 @@ export class CommissionService {
           return {
             ...basePayload,
             Extradata: {
-              bundle: request.extraData?.meterNumber, 
+              bundle: request.extraData?.meterNumber,
               Email: request.extraData?.email,
               SessionId: request.extraData?.sessionId
             }
@@ -204,10 +200,14 @@ export class CommissionService {
   async handleCommissionCallback(callbackData: any): Promise<void> {
     try {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
-
-      const { ClientReference, ResponseCode, Message, Data } = callbackData;
-      // Commission transaction logging removed - earnings are now calculated directly from transactions
-
+      const { ClientReference, ResponseCode, Data } = callbackData;
+      
+      // Extract commission amount from callback data
+      const commissionAmount = Data?.Meta?.Commission ? parseFloat(Data.Meta.Commission) : 0;
+      
+      // Update commission amount in commission logs
+      await this.commissionTransactionLogService.updateCommissionAmount(ClientReference, commissionAmount);
+      
       this.logger.log(`Updated commission transaction log for ${ClientReference} with callback data`);
 
       // Process commission for user earnings if successful
@@ -278,6 +278,7 @@ export class CommissionService {
         accountNumber: request.extraData?.accountNumber,
         meterNumber: request.extraData?.meterNumber,
         amount: request.amount,
+        commission: 0, 
         charges: 0,
         amountAfterCharges: request.amount,
         currencyCode: 'GHS',
@@ -292,11 +293,11 @@ export class CommissionService {
         retryCount: 0,
         isRetryable: true
       };
-
-      // Commission transaction logging removed - earnings are now calculated directly from transactions
+      // Log commission transaction using the commission transaction log service
+      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
-      throw error; // Re-throw to prevent callback processing if transaction save fails
+      throw error;
     }
   }
 
@@ -313,7 +314,7 @@ export class CommissionService {
 
 
 
-    
+
   /**
    * Get commission service statistics
    */

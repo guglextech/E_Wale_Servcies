@@ -48,6 +48,9 @@ export class CommissionTransactionLog {
   amount: number;
 
   @Prop()
+  commission: number;
+
+  @Prop()
   charges: number;
 
   @Prop()

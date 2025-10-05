@@ -35,6 +35,7 @@ export class CommissionTransactionLogService {
         accountNumber: logData.accountNumber,
         meterNumber: logData.meterNumber,
         amount: logData.amount,
+        commission: logData.commission,
         charges: logData.charges,
         amountAfterCharges: logData.amountAfterCharges,
         currencyCode: logData.currencyCode,
@@ -66,6 +67,26 @@ export class CommissionTransactionLogService {
       );
     } catch (error) {
       console.error('Error logging commission transaction:', error);
+    }
+  }
+
+  /**
+   * Update commission amount in commission log
+   */
+  async updateCommissionAmount(clientReference: string, commissionAmount: number): Promise<void> {
+    try {
+      await this.commissionLogModel.findOneAndUpdate(
+        { clientReference },
+        { 
+          $set: { 
+            commission: commissionAmount,
+            updatedAt: new Date()
+          } 
+        }
+      );
+      console.log(`Updated commission amount for ${clientReference}: ${commissionAmount}`);
+    } catch (error) {
+      console.error('Error updating commission amount:', error);
     }
   }
 

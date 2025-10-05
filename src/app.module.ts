@@ -43,6 +43,7 @@ import { PaymentController } from "./controllers/payment.controller";
 import { CommissionService } from "./services/commission.service";
 import { CommissionController } from "./controllers/commission.controller";
 import { UserCommissionService } from "./services/user-commission.service";
+import { CommissionTransactionLogService } from "./services/commission-transaction-log.service";
 import { CommissionTransactionLog, CommissionTransactionLogSchema } from "./models/schemas/commission-transaction-log.schema";
 
 // Import USSD modular services
@@ -117,6 +118,7 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
     TransactionStatusService,
     CommissionService,
     UserCommissionService,
+    CommissionTransactionLogService,
     // USSD modular services
     SessionManager,
     ResponseBuilder,

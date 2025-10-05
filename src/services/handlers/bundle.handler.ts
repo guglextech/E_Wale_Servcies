@@ -221,8 +221,8 @@ export class BundleHandler {
       `Network: ${state.network}\n` +
       `Bundle: ${bundle?.Display}\n` +
       `Mobile: ${mobileDisplay} ${flow}\n` +
-      `Amount: GH${state.amount || bundle?.Amount || 0}\n\n` +
-      `1. Confirm\n2. Cancel`;
+      `Amount: GH${state.amount || bundle?.Amount || 0}\n` +
+      `1.Confirm\n2. Cancel`;
   }
 
   // Pagination handlers

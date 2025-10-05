@@ -24,6 +24,7 @@ import { EarningHandler } from "../handlers/earning.handler";
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
 import { CommissionService } from "../commission.service";
+import { CommissionTransactionLogService } from "../commission-transaction-log.service";
 
 // Import types
 import { SessionState, UssdLogData } from "./types";
@@ -54,6 +55,7 @@ export class UssdService {
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
     private readonly commissionService: CommissionService,
+    private readonly commissionTransactionLogService: CommissionTransactionLogService,
 
   ) {}
 
@@ -579,12 +581,7 @@ export class UssdService {
       if (sessionState.serviceType === "result_checker") {
         await this.resultCheckerHandler.processVoucherPurchase(sessionState, orderInfo);
       } else {
-        const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(
-          sessionState, 
-          sessionId, 
-          `${process.env.HB_CALLBACK_URL}`
-        );
-         
+        const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(sessionState,  sessionId, `${process.env.HB_CALLBACK_URL}`);
         if (commissionRequest) {
           await this.commissionService.processCommissionService(commissionRequest);
         }
@@ -774,7 +771,7 @@ export class UssdService {
       const commissionLogData: CommissionTransactionLogData = {
         clientReference: req.OrderId,
         hubtelTransactionId: req.OrderId,
-        externalTransactionId: null, // ExternalTransactionId not available in Payment interface
+        externalTransactionId: null, 
         mobileNumber: req.OrderInfo?.CustomerMobileNumber || sessionState.mobile || '',
         sessionId: req.SessionId,
         serviceType: sessionState.serviceType || 'unknown',
@@ -800,7 +797,8 @@ export class UssdService {
         isRetryable: true
       };
 
-      // Commission transaction logging removed - earnings are now calculated directly from transactions
+      // Log commission transaction using the commission transaction log service
+      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
     } catch (error) {
       console.error('Error logging commission transaction:', error);
     }

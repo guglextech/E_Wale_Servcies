@@ -13,6 +13,7 @@ export interface CommissionTransactionLogData {
   accountNumber?: string;
   meterNumber?: string;
   amount: number;
+  commission?: number;
   charges?: number;
   amountAfterCharges?: number;
   currencyCode?: string;
