@@ -116,12 +116,20 @@ export class CommissionController {
   @Post('callback')
   async handleCommissionCallback(@Body() callbackData: any) {
     try {
+      console.log(`=== COMMISSION CONTROLLER CALLBACK RECEIVED ===`);
+      console.log(`Callback data: ${JSON.stringify(callbackData, null, 2)}`);
+      
       await this.commissionService.processCommissionServiceCallback(callbackData);
+      
+      console.log(`=== COMMISSION CONTROLLER CALLBACK PROCESSED ===`);
       return {
         success: true,
         message: 'Commission callback processed successfully'
       };
     } catch (error) {
+      console.error(`=== COMMISSION CONTROLLER CALLBACK ERROR ===`);
+      console.error(`Error: ${error.message}`);
+      console.error(`Stack: ${error.stack}`);
       return {
         success: false,
         message: error.message || 'Failed to process commission callback'

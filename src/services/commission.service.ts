@@ -95,7 +95,7 @@ export class CommissionService {
 
       // Build request payload
       const requestPayload = this.buildRequestPayload(request);
-
+      
       // Make the commission service request
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
       this.logger.log(`Making commission service request to: ${url}`);
