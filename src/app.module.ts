@@ -59,6 +59,7 @@ import { BundleHandler } from "./services/handlers/bundle.handler";
 import { AirtimeHandler } from "./services/handlers/airtime.handler";
 import { TVBillsHandler } from "./services/handlers/tv-bills.handler";
 import { UtilityHandler } from "./services/handlers/utility.handler";
+import { EarningHandler } from "./services/handlers/earning.handler";
 import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
 
 @Module({
@@ -133,6 +134,7 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
     AirtimeHandler,
     TVBillsHandler,
     UtilityHandler,
+    EarningHandler,
     OrderDetailsHandler,
     // {
     //   provide: APP_GUARD,
