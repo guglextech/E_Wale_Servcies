@@ -788,12 +788,12 @@ export class UssdService {
         currencyCode: req.OrderInfo?.Currency || 'GHS',
         paymentMethod: req.OrderInfo?.Payment?.PaymentType || 'mobile_money',
         status: isSuccessful ? 'Paid' : 'Unpaid',
-        isFulfilled: false,
         responseCode: isSuccessful ? '0000' : '2000',
         message: isSuccessful ? 'Payment successful' : 'Payment failed',
         commissionServiceStatus: 'pending',
         transactionDate: new Date(),
         retryCount: 0,
+        isFulfilled: false,
         isRetryable: true
       };
 

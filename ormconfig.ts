@@ -4,7 +4,6 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 const mongooseConfig: MongooseModuleOptions = {
   uri: process.env.MONGO_DB_URI || 'mongodb://127.0.0.1:27017/e-services', 
-  // uri : 'mongodb+srv://samuel-acquah:ys3bcXNtAgIRX5Zt@e-tickets-cluster.itu8q.mongodb.net/production-db',
   // uri:  'mongodb://127.0.0.1:27017/e-tickets-ussd', 
 };
  
