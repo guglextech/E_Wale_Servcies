@@ -180,6 +180,7 @@ export class UssdService {
     }
   }
 
+
   /**
    * Handle step 5 - Additional input
    */
@@ -491,7 +492,7 @@ export class UssdService {
    * Handle USSD callback
    */
   async handleUssdCallback(req: HbPayments): Promise<void> {
-    console.error("LOGGING CALLBACK::::::", req);
+    console.error("LOGGING CALLBACK AFTER PAYMENT :::", req);
 
     if (!req.OrderInfo || !req.OrderInfo.Payment) return;
 
@@ -588,6 +589,7 @@ export class UssdService {
           sessionId, 
           `${process.env.HB_CALLBACK_URL}`
         );
+        console.error("LOGGING COMMISSION REQUEST AFTER PAYMENT :::", commissionRequest);
         if (commissionRequest) {
           await this.commissionService.processCommissionService(commissionRequest);
         }
@@ -794,7 +796,7 @@ export class UssdService {
         currencyCode: req.OrderInfo?.Currency || 'GHS',
         paymentMethod: req.OrderInfo?.Payment?.PaymentType || 'mobile_money',
         status: isSuccessful ? 'Paid' : 'Unpaid',
-        isFulfilled: false, // Will be updated when commission service responds
+        isFulfilled: false,
         responseCode: isSuccessful ? '0000' : '2000',
         message: isSuccessful ? 'Payment successful' : 'Payment failed',
         commissionServiceStatus: 'pending',
@@ -804,90 +806,11 @@ export class UssdService {
       };
 
       await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
-
-      // If payment is successful, trigger commission service
-      // if (isSuccessful) {
-      //   await this.processCommissionService(req, sessionState);
-      // }
     } catch (error) {
       console.error('Error logging commission transaction:', error);
     }
   }
 
-  /**
-   * Process commission service request
-   */
-  private async processCommissionService(req: HbPayments, sessionState: SessionState): Promise<void> {
-    try {
-      const commissionRequest: CommissionServiceRequest = {
-        clientReference: req.OrderId,
-        amount: req.OrderInfo?.Payment?.AmountPaid || 0,
-        callbackUrl: process.env.HB_CALLBACK_URL,
-        serviceType: this.mapServiceType(sessionState.serviceType),
-        network: sessionState.network,
-        destination: sessionState.mobile || req.OrderInfo?.CustomerMobileNumber || '',
-        tvProvider: sessionState.tvProvider,
-        utilityProvider: sessionState.utilityProvider,
-        extraData: {
-          sessionId: req.SessionId,
-          selectedBundle: sessionState.selectedBundle,
-          accountNumber: sessionState.accountNumber,
-          meterNumber: sessionState.meterNumber,
-          bundleValue: sessionState.bundleValue,
-          email: sessionState.email
-        }
-      };
-
-      const commissionResponse = await this.transactionStatusCheckService.processCommissionService(commissionRequest);
-      
-      if (commissionResponse) {
-        const isDelivered = commissionResponse.IsSuccessful && commissionResponse.IsFulfilled;
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          req.OrderId,
-          isDelivered ? 'delivered' : 'failed',
-          commissionResponse.Message,
-          commissionResponse.IsFulfilled,
-          isDelivered ? undefined : commissionResponse.Message
-        );
-      } else {
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          req.OrderId,
-          'failed',
-          'Commission service request failed',
-          false,
-          'Commission service request failed'
-        );
-      }
-    } catch (error) {
-      console.error('Error processing commission service:', error);
-      await this.commissionTransactionLogService.updateCommissionServiceStatus(
-        req.OrderId,
-        'failed',
-        'Commission service error',
-        false,
-        error.message || 'Commission service error'
-      );
-    }
-  }
-
-  /**
-   * Map service type to commission service format
-   */
-  private mapServiceType(serviceType?: string): 'bundle' | 'airtime' | 'tv_bill' | 'utility' {
-    switch (serviceType) {
-      case 'data_bundle':
-      case 'voice_bundle':
-        return 'bundle';
-      case 'airtime_topup':
-        return 'airtime';
-      case 'pay_bills':
-        return 'tv_bill';
-      case 'utility_service':
-        return 'utility';
-      default:
-        return 'bundle';
-    }
-  }
 
   // Expose logging service methods for external use
   async getUssdLogsByMobile(mobileNumber: string, limit: number = 50) {

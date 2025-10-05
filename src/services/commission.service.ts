@@ -7,6 +7,7 @@ import { NetworkProvider } from '../models/dto/airtime.dto';
 import { TVProvider } from '../models/dto/tv-bills.dto';
 import { UtilityProvider } from '../models/dto/utility.dto';
 import { UserCommissionService } from './user-commission.service';
+import { CommissionTransactionLogService } from './commission-transaction-log.service';
 
 export interface CommissionServiceRequest {
   serviceType: 'airtime' | 'bundle' | 'tv_bill' | 'utility';
@@ -35,6 +36,7 @@ export class CommissionService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly userCommissionService: UserCommissionService,
+    private readonly commissionTransactionLogService: CommissionTransactionLogService,
   ) {}
 
   // Hubtel Commission Service endpoints
@@ -66,11 +68,12 @@ export class CommissionService {
 
   /**
    * Process commission service request
-   * This is the main method that handles all commission service transactions
+   * This is the unified method that handles all commission service transactions with complete flow
    */
-  async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse> {
+  async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
     try {
       this.logger.log(`Processing commission service - Type: ${request.serviceType}, Amount: ${request.amount}, Destination: ${request.destination}`);
+      console.error("LOGGING COMMISSION REQUEST :::", request);
 
       // Get the appropriate endpoint
       const endpoint = this.getEndpoint(request);
@@ -104,7 +107,28 @@ export class CommissionService {
       // Log the transaction
       await this.logCommissionTransaction(request, response.data);
 
-      return response.data;
+      // Update commission transaction log status
+      const commissionResponse = response.data;
+      if (commissionResponse) {
+        const isDelivered = commissionResponse.ResponseCode === '0000' && commissionResponse.Data?.IsFulfilled;
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          isDelivered ? 'delivered' : 'failed',
+          commissionResponse.Message,
+          commissionResponse.Data?.IsFulfilled,
+          isDelivered ? undefined : commissionResponse.Message
+        );
+      } else {
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          'failed',
+          'Commission service request failed',
+          false,
+          'Commission service request failed'
+        );
+      }
+
+      return commissionResponse;
 
     } catch (error) {
       this.logger.error(`Error processing commission service: ${error.message}`);
@@ -112,7 +136,17 @@ export class CommissionService {
         this.logger.error(`Hubtel response status: ${error.response.status}`);
         this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
       }
-      throw error;
+      
+      // Update commission transaction log status on error
+      await this.commissionTransactionLogService.updateCommissionServiceStatus(
+        request.clientReference,
+        'failed',
+        'Commission service error',
+        false,
+        error.message || 'Commission service error'
+      );
+      
+      return null;
     }
   }
 
@@ -225,11 +259,9 @@ export class CommissionService {
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
-        await this.userCommissionService.processCommissionCallback(callbackData);
+        await this.userCommissionService.addCommissionEarningsToUser(callbackData);
       }
-
       this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
-
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
       throw error;
@@ -250,7 +282,6 @@ export class CommissionService {
       }
 
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/status/${clientReference}`;
-
       const response = await axios.get(url, {
         headers: {
           'Accept': 'application/json',
@@ -259,7 +290,6 @@ export class CommissionService {
       });
 
       this.logger.log(`Commission status response: ${JSON.stringify(response.data)}`);
-
       return response.data;
 
     } catch (error) {
@@ -280,12 +310,13 @@ export class CommissionService {
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 8);
       
-      // Create unique SessionId to avoid duplicate key errors
+      // Create unique SessionId and OrderId to avoid duplicate key errors
       const uniqueSessionId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
+      const uniqueOrderId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
       
       const transaction = new this.transactionModel({
         SessionId: uniqueSessionId,
-        OrderId: request.clientReference,
+        OrderId: uniqueOrderId,
         ExtraData: {
           type: 'commission_service',
           serviceType: request.serviceType,
