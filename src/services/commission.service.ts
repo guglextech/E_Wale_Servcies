@@ -234,9 +234,6 @@ export class CommissionService {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
 
       const { ClientReference, ResponseCode, Message, Data } = callbackData;
-      const TransactionId = Data?.TransactionId;
-      const Commission = Data?.Meta?.Commission;
-
       // Update commission transaction log with callback data
       await this.commissionTransactionLogService.updateCommissionServiceStatus(
         ClientReference,
