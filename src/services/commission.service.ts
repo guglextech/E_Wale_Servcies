@@ -67,53 +67,10 @@ export class CommissionService {
   };
 
   /**
-   * Process commission service request with complete flow
-   * This handles the entire commission service flow including logging and status updates
-   */
-  async processCommissionServiceWithFlow(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
-    try {
-      this.logger.log(`Processing commission service with flow - Type: ${request.serviceType}, Amount: ${request.amount}, Destination: ${request.destination}`);
-
-      const commissionResponse = await this.processCommissionService(request);
-      
-      if (commissionResponse) {
-        const isDelivered = commissionResponse.ResponseCode === '0000' && commissionResponse.Data?.IsFulfilled;
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          request.clientReference,
-          isDelivered ? 'delivered' : 'failed',
-          commissionResponse.Message,
-          commissionResponse.Data?.IsFulfilled,
-          isDelivered ? undefined : commissionResponse.Message
-        );
-      } else {
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          request.clientReference,
-          'failed',
-          'Commission service request failed',
-          false,
-          'Commission service request failed'
-        );
-      }
-
-      return commissionResponse;
-    } catch (error) {
-      this.logger.error(`Error processing commission service with flow: ${error.message}`);
-      await this.commissionTransactionLogService.updateCommissionServiceStatus(
-        request.clientReference,
-        'failed',
-        'Commission service error',
-        false,
-        error.message || 'Commission service error'
-      );
-      return null;
-    }
-  }
-
-  /**
    * Process commission service request
-   * This is the main method that handles all commission service transactions
+   * This is the unified method that handles all commission service transactions with complete flow
    */
-  async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse> {
+  async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
     try {
       this.logger.log(`Processing commission service - Type: ${request.serviceType}, Amount: ${request.amount}, Destination: ${request.destination}`);
 
@@ -149,7 +106,28 @@ export class CommissionService {
       // Log the transaction
       await this.logCommissionTransaction(request, response.data);
 
-      return response.data;
+      // Update commission transaction log status
+      const commissionResponse = response.data;
+      if (commissionResponse) {
+        const isDelivered = commissionResponse.ResponseCode === '0000' && commissionResponse.Data?.IsFulfilled;
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          isDelivered ? 'delivered' : 'failed',
+          commissionResponse.Message,
+          commissionResponse.Data?.IsFulfilled,
+          isDelivered ? undefined : commissionResponse.Message
+        );
+      } else {
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          'failed',
+          'Commission service request failed',
+          false,
+          'Commission service request failed'
+        );
+      }
+
+      return commissionResponse;
 
     } catch (error) {
       this.logger.error(`Error processing commission service: ${error.message}`);
@@ -157,7 +135,17 @@ export class CommissionService {
         this.logger.error(`Hubtel response status: ${error.response.status}`);
         this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
       }
-      throw error;
+      
+      // Update commission transaction log status on error
+      await this.commissionTransactionLogService.updateCommissionServiceStatus(
+        request.clientReference,
+        'failed',
+        'Commission service error',
+        false,
+        error.message || 'Commission service error'
+      );
+      
+      return null;
     }
   }
 
@@ -270,7 +258,7 @@ export class CommissionService {
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
-        await this.userCommissionService.processCommissionCallback(callbackData);
+        await this.userCommissionService.processUserCommissionCallback(callbackData);
       }
 
       this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
@@ -295,7 +283,6 @@ export class CommissionService {
       }
 
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/status/${clientReference}`;
-
       const response = await axios.get(url, {
         headers: {
           'Accept': 'application/json',
@@ -304,7 +291,6 @@ export class CommissionService {
       });
 
       this.logger.log(`Commission status response: ${JSON.stringify(response.data)}`);
-
       return response.data;
 
     } catch (error) {
