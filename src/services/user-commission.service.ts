@@ -16,7 +16,7 @@ export class UserCommissionService {
   /**
    * Process commission callback and update user earnings
    */
-  async processCommissionCallback(callbackData: any): Promise<void> {
+  async processUserCommissionCallback(callbackData: any): Promise<void> {
     try {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
 
