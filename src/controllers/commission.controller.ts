@@ -159,11 +159,10 @@ export class CommissionController {
   @Post('process-existing')
   async processExistingCommissionTransactions() {
     try {
-      const result = await this.userCommissionService.processExistingCommissionTransactions();
+      // This method is no longer needed since earnings are calculated directly from transactions
       return {
         success: true,
-        data: result,
-        message: `Processed ${result.processed} transactions with ${result.errors} errors`
+        message: 'Earnings are now calculated directly from transaction history. No processing needed.'
       };
     } catch (error) {
       return {
