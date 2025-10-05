@@ -266,7 +266,6 @@ export class CommissionService {
       const commissionLogData = {
         clientReference: request.clientReference,
         hubtelTransactionId: response.Data?.TransactionId,
-        externalTransactionId: response.Data?.TransactionId,
         mobileNumber: request.destination,
         sessionId: request.clientReference,
         serviceType: request.serviceType,

@@ -41,14 +41,16 @@ export class EarningHandler {
     try {
       console.log(`Fetching earnings for mobile: ${req.Mobile}`);
       
-      // Get user's earnings from user commission service
+      // Get cumulative commission earnings for this mobile number
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
       console.log(`Earnings data for ${req.Mobile}:`, earnings);
-      const message = `Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}`;
+      
+      // Format earnings display
+      const message = `My Earnings\n\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}\nTransactions: ${earnings.transactionCount}`;
       
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
-        "My Balance",
+        "My Earnings",
         message
       );
     } catch (error) {
@@ -65,13 +67,12 @@ export class EarningHandler {
    */
   private async handleWithdrawMoney(req: HBussdReq, state: SessionState): Promise<string> {
     try {
-
-      // Get user's earnings
+      // Get cumulative commission earnings for this mobile number
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
       const MIN_WITHDRAWAL_AMOUNT = 10;
       
-      if (earnings.availableBalance < 10) {
-        const message = `Insufficient balance. You need GH ${MIN_WITHDRAWAL_AMOUNT} minimum to withdraw.\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}`;
+      if (earnings.availableBalance < MIN_WITHDRAWAL_AMOUNT) {
+        const message = `Insufficient Balance\n\nAvailable: GH ${earnings.availableBalance.toFixed(2)}\nMinimum: GH ${MIN_WITHDRAWAL_AMOUNT}.00\n\nPlease earn more commission first.`;
         return this.responseBuilder.createReleaseResponse(
           req.SessionId,
           "Withdrawal Failed",
@@ -85,7 +86,7 @@ export class EarningHandler {
       state.totalEarnings = earnings.availableBalance;
       this.sessionManager.updateSession(req.SessionId, state);
 
-      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMin Withdrawal: GH 10.00\n\n1. Confirm withdrawal\n2. Cancel`;
+      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMinimum Withdrawal: GH 10.00\n\n1. Confirm withdrawal\n2. Cancel`;
       
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,

@@ -16,11 +16,10 @@ export class UserCommissionService {
   ) { }
 
   /**
-   * Process commission callback and add earnings to user
+   * Process commission callback and update commission log
    */
   async addCommissionEarningsToUser(callbackData: any): Promise<void> {
     try {
-
       const { ResponseCode, Data } = callbackData;
       if (ResponseCode !== '0000') {
         this.logger.warn(`Commission callback failed: ${Data?.Description}`);
@@ -32,31 +31,29 @@ export class UserCommissionService {
 
       console.log(`Processing commission for clientReference: ${ClientReference}, amount: ${commissionAmount}`);
 
-      // Find the commission log using clientReference to get the mobile number
-      const commissionLog = await this.commissionLogModel.findOne({ 
-        clientReference: ClientReference
-      });
-      
-      if (!commissionLog) {
+      // Update the commission log with the actual commission amount and status
+      const updatedLog = await this.commissionLogModel.findOneAndUpdate(
+        { clientReference: ClientReference },
+        {
+          $set: {
+            commission: commissionAmount,
+            status: 'Paid',
+            isFulfilled: true,
+            commissionServiceStatus: 'delivered',
+            commissionServiceDate: new Date(),
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+
+      if (!updatedLog) {
         this.logger.error(`Could not find commission log for clientReference ${ClientReference}`);
         return;
       }
 
-      const mobileNumber = commissionLog.mobileNumber;
-      console.log(`Processing commission for mobile: ${mobileNumber}, amount: ${commissionAmount}`);
-
-      const user = await this.findOrCreateUser(mobileNumber);
-      console.log('User found/created:', user ? 'YES' : 'NO');
-
-      await this.addCommissionToUser(user, {
-        transactionId: TransactionId,
-        clientReference: ClientReference,
-        amount: Amount,
-        commission: commissionAmount,
-        transactionDate: new Date()
-      });
-
-      this.logger.log(`Added commission GH ${commissionAmount} to user ${mobileNumber}`);
+      console.log(`Updated commission log for mobile: ${updatedLog.mobileNumber}, commission: ${commissionAmount}`);
+      this.logger.log(`Added commission GH ${commissionAmount} to mobile ${updatedLog.mobileNumber}`);
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
     }
@@ -120,13 +117,10 @@ export class UserCommissionService {
    */
   async processWithdrawalRequest(mobileNumber: string, amount: number) {
     try {
-      const user = await this.findUserByMobile(mobileNumber);
+      // Get current earnings from commission logs
+      const earnings = await this.getUserEarnings(mobileNumber);
 
-      if (!user) {
-        return { success: false, message: 'User not found' };
-      }
-
-      if (user.availableBalance < amount) {
+      if (earnings.availableBalance < amount) {
         return { success: false, message: 'Insufficient balance' };
       }
 
@@ -134,20 +128,34 @@ export class UserCommissionService {
         return { success: false, message: 'Minimum withdrawal amount is GH 10.00' };
       }
 
-      const newBalance = user.availableBalance - amount;
-      const newPendingWithdrawals = user.pendingWithdrawals + amount;
+      // Create a withdrawal record in commission logs
+      const withdrawalLog = {
+        clientReference: `withdrawal_${Date.now()}`,
+        hubtelTransactionId: null,
+        externalTransactionId: null,
+        mobileNumber: mobileNumber,
+        sessionId: `withdrawal_${Date.now()}`,
+        serviceType: 'withdrawal',
+        amount: amount,
+        commission: -amount, // Negative commission for withdrawal
+        charges: 0,
+        amountAfterCharges: amount,
+        currencyCode: 'GHS',
+        paymentMethod: 'withdrawal',
+        status: 'Paid',
+        isFulfilled: true,
+        responseCode: '0000',
+        message: 'Withdrawal processed',
+        commissionServiceStatus: 'delivered',
+        transactionDate: new Date(),
+        retryCount: 0,
+        isRetryable: false,
+        logStatus: 'active'
+      };
 
-      await this.userModel.findOneAndUpdate(
-        { phone: mobileNumber },
-        {
-          $set: {
-            availableBalance: newBalance,
-            pendingWithdrawals: newPendingWithdrawals,
-            updatedAt: new Date()
-          }
-        }
-      );
+      await this.commissionLogModel.create(withdrawalLog);
 
+      const newBalance = earnings.availableBalance - amount;
       this.logger.log(`Withdrawal request processed for ${mobileNumber}: GH ${amount}`);
       return { success: true, message: 'Withdrawal request submitted successfully', newBalance };
     } catch (error) {
@@ -157,16 +165,28 @@ export class UserCommissionService {
   }
 
   /**
-   * Get user transaction history
+   * Get user transaction history from commission logs
    */
-  async getUserTransactionHistory(mobileNumber: string, limit: number = 20): Promise<CommissionTransaction[]> {
+  async getUserTransactionHistory(mobileNumber: string, limit: number = 20): Promise<any[]> {
     try {
-      const user = await this.findUserByMobile(mobileNumber);
-      if (!user) return [];
+      const commissionLogs = await this.commissionLogModel.find({
+        mobileNumber: mobileNumber,
+        logStatus: 'active'
+      })
+      .sort({ transactionDate: -1 })
+      .limit(limit)
+      .exec();
 
-      return user.commissionTransactions
-        .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
-        .slice(0, limit);
+      return commissionLogs.map(log => ({
+        transactionId: log.hubtelTransactionId,
+        clientReference: log.clientReference,
+        externalTransactionId: log.externalTransactionId,
+        amount: log.amount,
+        commission: log.commission,
+        serviceType: log.serviceType,
+        transactionDate: log.transactionDate,
+        status: log.status
+      }));
     } catch (error) {
       this.logger.error(`Error getting user transaction history: ${error.message}`);
       return [];
@@ -206,79 +226,6 @@ export class UserCommissionService {
     }
   }
 
-  private async findUserByMobile(mobileNumber: string): Promise<User | null> {
-    try {
-      return await this.userModel.findOne({ phone: mobileNumber }).exec();
-    } catch (error) {
-      this.logger.error(`Error finding user by mobile: ${error.message}`);
-      return null;
-    }
-  }
-
-  private async findOrCreateUser(mobileNumber: string): Promise<User> {
-    let user = await this.findUserByMobile(mobileNumber);
-    if (!user) {
-      user = await this.userModel.create({
-        username: mobileNumber,
-        phone: mobileNumber,
-        role: 'user',
-        permissions: [],
-        commissionTransactions: [],
-        totalEarnings: 0,
-        availableBalance: 0,
-        totalWithdrawn: 0,
-        pendingWithdrawals: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      console.log(`Created new user for mobile: ${mobileNumber}`);
-    }
-    return user;
-  }
-
-  private async addCommissionToUser(user: User, commissionData: any): Promise<void> {
-    console.log('=== ADDING COMMISSION TO USER ===');
-    console.log('User phone:', user.phone);
-    console.log('Commission data:', commissionData);
-
-    const commissionTransaction: CommissionTransaction = {
-      transactionId: commissionData.transactionId,
-      clientReference: commissionData.clientReference,
-      externalTransactionId: commissionData.transactionId,
-      amount: commissionData.amount,
-      commission: commissionData.commission,
-      serviceType: 'commission_service',
-      transactionDate: commissionData.transactionDate,
-      status: 'completed'
-    };
-
-    console.log('Commission transaction object:', commissionTransaction);
-
-    const updatedTransactions = [...user.commissionTransactions, commissionTransaction];
-    const newTotalEarnings = user.totalEarnings + commissionTransaction.commission;
-    const newAvailableBalance = user.availableBalance + commissionTransaction.commission;
-
-    console.log('Updated totals:', {
-      oldTotalEarnings: user.totalEarnings,
-      newTotalEarnings,
-      oldAvailableBalance: user.availableBalance,
-      newAvailableBalance
-    });
-
-    await this.userModel.findOneAndUpdate(
-      { phone: user.phone },
-      {
-        $set: {
-          commissionTransactions: updatedTransactions,
-          totalEarnings: newTotalEarnings,
-          availableBalance: newAvailableBalance,
-          updatedAt: new Date()
-        }
-      }
-    );
-
-    console.log('=== COMMISSION ADDED TO USER SUCCESSFULLY ===');
-  }
 
   private getDefaultEarnings() {
     return {
