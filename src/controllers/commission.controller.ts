@@ -130,6 +130,26 @@ export class CommissionController {
   }
 
   /**
+   * Manually update commission for a specific transaction
+   * This endpoint can be used to fix transactions that didn't get proper commission processing
+   */
+  @Post('update-commission')
+  async updateTransactionCommission(@Body() body: { clientReference: string; commissionAmount: number }) {
+    try {
+      await this.userCommissionService.updateTransactionCommission(body.clientReference, body.commissionAmount);
+      return {
+        success: true,
+        message: 'Commission updated successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to update commission'
+      };
+    }
+  }
+
+  /**
    * Process existing commission transactions
    * This endpoint can be used to backfill commission earnings for transactions that weren't processed
    */

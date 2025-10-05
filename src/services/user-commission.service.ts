@@ -21,14 +21,14 @@ export class UserCommissionService {
   async addCommissionEarningsToUser(callbackData: any): Promise<void> {
     try {
       const { ResponseCode, Data } = callbackData;
+      
+      // Process commission regardless of response code, but log warnings for failures
       if (ResponseCode !== '0000') {
-        this.logger.warn(`Commission callback failed: ${Data?.Description}`);
-        return;
+        this.logger.warn(`Commission callback failed with ResponseCode: ${ResponseCode}, Description: ${Data?.Description}`);
       }
 
-      const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
-      const commissionAmount = parseFloat(Commission);
-
+      const { TransactionId, ClientReference, Amount, Meta } = Data;
+      const commissionAmount = Meta?.Commission ? parseFloat(Meta.Commission) : 0;
 
       // Update the commission log with the actual commission amount and status
       const updatedLog = await this.commissionLogModel.findOneAndUpdate(
@@ -36,9 +36,7 @@ export class UserCommissionService {
         {
           $set: {
             commission: commissionAmount,
-            status: 'Paid',
-            // isFulfilled: true,
-            // commissionServiceStatus: 'delivered',
+            status: ResponseCode === '0000' ? 'Paid' : 'Failed',
             commissionServiceDate: new Date(),
             updatedAt: new Date()
           }
@@ -51,7 +49,7 @@ export class UserCommissionService {
         return;
       }
       
-      this.logger.log(`Added commission GH ${commissionAmount} to mobile ${updatedLog.mobileNumber}`);
+      this.logger.log(`Updated commission log for ${ClientReference}: Commission = ${commissionAmount}, Status = ${ResponseCode === '0000' ? 'Paid' : 'Failed'}`);
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
     }
@@ -80,14 +78,9 @@ export class UserCommissionService {
       console.log(`Found ${commissionLogs.length} commission logs`);
       
       const totalEarnings = commissionLogs.reduce((sum, log) => {
-        if (log.status === 'Paid') {
-          const commission = log.commission || 0;
-          console.log(`Log ${log.clientReference}: Commission = ${commission}, Status = ${log.status}`);
-          return sum + commission;
-        } else {
-          console.log(`Log ${log.clientReference}: Commission = ${log.commission || 0}, Status = ${log.status} (SKIPPED)`);
-        }
-        return sum;
+        const commission = log.commission || 0;
+        console.log(`Log ${log.clientReference}: Commission = ${commission}, Status = ${log.status}`);
+        return sum + commission;
       }, 0);
       
       console.log(`Total earnings calculated: ${totalEarnings}`);
@@ -168,6 +161,34 @@ export class UserCommissionService {
     } catch (error) {
       this.logger.error(`Error processing withdrawal: ${error.message}`);
       return { success: false, message: 'Withdrawal processing failed' };
+    }
+  }
+
+  /**
+   * Manually update commission for a specific transaction
+   * This can be used to fix transactions that didn't get proper commission processing
+   */
+  async updateTransactionCommission(clientReference: string, commissionAmount: number): Promise<void> {
+    try {
+      const updatedLog = await this.commissionLogModel.findOneAndUpdate(
+        { clientReference },
+        {
+          $set: {
+            commission: commissionAmount,
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+
+      if (!updatedLog) {
+        this.logger.error(`Could not find commission log for clientReference ${clientReference}`);
+        return;
+      }
+      
+      this.logger.log(`Manually updated commission for ${clientReference}: ${commissionAmount}`);
+    } catch (error) {
+      this.logger.error(`Error updating commission for ${clientReference}: ${error.message}`);
     }
   }
 
