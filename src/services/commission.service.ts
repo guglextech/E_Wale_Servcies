@@ -210,16 +210,19 @@ export class CommissionService {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
       const { ResponseCode, Data } = callbackData;
       const commissionAmount = Data?.Meta?.Commission ? parseFloat(Data.Meta.Commission) : 0;
+      
+      // Always update commission amount regardless of response code
       await this.commissionTransactionLogService.updateCommissionAmount(Data.ClientReference, commissionAmount);
-      this.logger.log(`Updated commission transaction log for ${Data.ClientReference} with callback data`);
+      this.logger.log(`Updated commission transaction log for ${Data.ClientReference} with commission: ${commissionAmount}`);
 
-      // Process commission for user earnings if successful
-      if (ResponseCode === '0000') {
-        await this.userCommissionService.addCommissionEarningsToUser(callbackData);
-      } else {
+      // Process commission for user earnings regardless of response code
+      await this.userCommissionService.addCommissionEarningsToUser(callbackData);
+      
+      if (ResponseCode !== '0000') {
         this.logger.warn(`Commission callback failed with ResponseCode: ${ResponseCode}`);
+      } else {
+        this.logger.log(`Commission callback processed successfully for ${Data.ClientReference}`);
       }
-      this.logger.log(`Commission callback processed for ${Data.ClientReference} - Status: ${ResponseCode}`);
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
       throw error;
@@ -265,10 +268,7 @@ export class CommissionService {
    */
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
-      // Only update existing commission log, don't create new one
-      // The USSD service already created the initial log
       const existingLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(request.clientReference);
-      
       if (existingLog) {
         // Update the existing log with commission service response
         await this.commissionTransactionLogService.updateCommissionServiceStatus(
@@ -326,56 +326,5 @@ export class CommissionService {
       throw new InternalServerErrorException(`${key} environment variable is required`);
     }
     return value;
-  }
-
-
-
-
-  /**
-   * Get commission service statistics
-   */
-  async getCommissionStatistics(): Promise<any> {
-    try {
-      const totalTransactions = await this.transactionModel.countDocuments({
-        'ExtraData.type': 'commission_service'
-      });
-
-      const successfulTransactions = await this.transactionModel.countDocuments({
-        'ExtraData.type': 'commission_service',
-        IsSuccessful: true
-      });
-
-      const failedTransactions = await this.transactionModel.countDocuments({
-        'ExtraData.type': 'commission_service',
-        IsSuccessful: false
-      });
-
-      const totalAmount = await this.transactionModel.aggregate([
-        {
-          $match: {
-            'ExtraData.type': 'commission_service',
-            IsSuccessful: true
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$AmountPaid' }
-          }
-        }
-      ]);
-
-      return {
-        totalTransactions,
-        successfulTransactions,
-        failedTransactions,
-        successRate: totalTransactions > 0 ? (successfulTransactions / totalTransactions * 100).toFixed(2) : 0,
-        totalAmount: totalAmount[0]?.total || 0
-      };
-
-    } catch (error) {
-      this.logger.error(`Error getting commission statistics: ${error.message}`);
-      return {};
-    }
   }
 }
