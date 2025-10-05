@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, CommissionTransaction } from '../models/schemas/user.shema';
-import { CommissionTransactionLogService } from './commission-transaction-log.service';
+import { Transactions } from '../models/schemas/transaction.schema';
 
 @Injectable()
 export class UserCommissionService {
@@ -10,7 +10,7 @@ export class UserCommissionService {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
-    private readonly commissionTransactionLogService: CommissionTransactionLogService,
+    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
   ) {}
 
   /**
@@ -31,16 +31,20 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
       
+      console.log(`Processing commission for clientReference: ${ClientReference}, amount: ${commissionAmount}`);
       
-      // Find the commission transaction log using clientReference
-      const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(ClientReference);
+      // Find the transaction using clientReference to get the mobile number
+      const transaction = await this.transactionModel.findOne({ 
+        SessionId: ClientReference,
+        IsSuccessful: true 
+      });
       
-      if (!commissionLog) {
-        this.logger.error(`Could not find commission transaction log for clientReference ${ClientReference}`);
+      if (!transaction) {
+        this.logger.error(`Could not find transaction for clientReference ${ClientReference}`);
         return;
       }
 
-      const mobileNumber = commissionLog.mobileNumber;
+      const mobileNumber = transaction.CustomerMobileNumber;
       console.log(`Processing commission for mobile: ${mobileNumber}, amount: ${commissionAmount}`);
       
       const user = await this.findOrCreateUser(mobileNumber);
@@ -66,11 +70,22 @@ export class UserCommissionService {
    */
   async getUserEarnings(mobileNumber: string) {
     try {
+      console.log(`Getting earnings for mobile: ${mobileNumber}`);
+      
       const user = await this.findUserByMobile(mobileNumber);
       
       if (!user) {
+        console.log(`No user found for mobile: ${mobileNumber}, returning default earnings`);
         return this.getDefaultEarnings();
       }
+
+      console.log(`User earnings for ${mobileNumber}:`, {
+        totalEarnings: user.totalEarnings,
+        availableBalance: user.availableBalance,
+        totalWithdrawn: user.totalWithdrawn,
+        pendingWithdrawals: user.pendingWithdrawals,
+        transactionCount: user.commissionTransactions.length
+      });
 
       return {
         totalEarnings: user.totalEarnings,
@@ -98,6 +113,10 @@ export class UserCommissionService {
 
       if (user.availableBalance < amount) {
         return { success: false, message: 'Insufficient balance' };
+      }
+
+      if (amount < 10) {
+        return { success: false, message: 'Minimum withdrawal amount is GH 10.00' };
       }
 
       const newBalance = user.availableBalance - amount;
@@ -140,68 +159,16 @@ export class UserCommissionService {
   }
 
   /**
-   * Process existing commission transactions (backfill)
-   */
-  async processExistingCommissionTransactions() {
-    try {
-      this.logger.log('Starting to process existing commission transactions...');
-      
-      // Get all commission transaction logs that are delivered but haven't been processed
-      const commissionLogs = await this.commissionTransactionLogService.getAllCommissionLogs(1, 10, 'Paid', 'delivered');
-
-      let processed = 0;
-      let errors = 0;
-
-      for (const log of commissionLogs.logs) {
-        try {
-          const mobileNumber = log.mobileNumber;
-          if (!mobileNumber) {
-            errors++;
-            continue;
-          }
-
-          const user = await this.findUserByMobile(mobileNumber);
-          if (user?.commissionTransactions.find(ct => ct.clientReference === log.clientReference)) {
-            continue; 
-          }
-
-          // Calculate commission amount (this would need to be stored in the commission log)
-          const commissionAmount = 0.01; // Placeholder - you'd need to store actual commission in the log
-          if (commissionAmount > 0) {
-            const userToUpdate = await this.findOrCreateUser(mobileNumber);
-            await this.addCommissionToUser(userToUpdate, {
-              transactionId: log.hubtelTransactionId || log.clientReference,
-              clientReference: log.clientReference,
-              amount: log.amount,
-              commission: commissionAmount,
-              transactionDate: log.transactionDate
-            });
-            processed++;
-          }
-        } catch (error) {
-          this.logger.error(`Error processing commission log ${log.clientReference}: ${error.message}`);
-          errors++;
-        }
-      }
-
-      this.logger.log(`Commission processing completed. Processed: ${processed}, Errors: ${errors}`);
-      return { processed, errors };
-    } catch (error) {
-      this.logger.error(`Error processing existing commission transactions: ${error.message}`);
-      return { processed: 0, errors: 1 };
-    }
-  }
-
-  /**
    * Get commission statistics
    */
   async getCommissionStatistics() {
     try {
+      const totalUsers = await this.userModel.countDocuments();
+      
       const stats = await this.userModel.aggregate([
         {
           $group: {
             _id: null,
-            totalUsers: { $sum: 1 },
             totalEarnings: { $sum: '$totalEarnings' },
             totalWithdrawn: { $sum: '$totalWithdrawn' },
             pendingWithdrawals: { $sum: '$pendingWithdrawals' },
@@ -212,7 +179,7 @@ export class UserCommissionService {
 
       const result = stats[0] || this.getDefaultStats();
       return {
-        totalUsers: result.totalUsers,
+        totalUsers,
         totalEarnings: result.totalEarnings,
         totalWithdrawn: result.totalWithdrawn,
         pendingWithdrawals: result.pendingWithdrawals,
@@ -224,7 +191,6 @@ export class UserCommissionService {
     }
   }
 
- 
   private async findUserByMobile(mobileNumber: string): Promise<User | null> {
     try {
       return await this.userModel.findOne({ phone: mobileNumber }).exec();
@@ -250,6 +216,7 @@ export class UserCommissionService {
         createdAt: new Date(),
         updatedAt: new Date()
       });
+      console.log(`Created new user for mobile: ${mobileNumber}`);
     }
     return user;
   }
@@ -259,16 +226,13 @@ export class UserCommissionService {
     console.log('User phone:', user.phone);
     console.log('Commission data:', commissionData);
     
-    const serviceType = await this.getServiceType(commissionData.clientReference);
-    console.log('Service type:', serviceType);
-    
     const commissionTransaction: CommissionTransaction = {
       transactionId: commissionData.transactionId,
       clientReference: commissionData.clientReference,
       externalTransactionId: commissionData.transactionId,
       amount: commissionData.amount,
       commission: commissionData.commission,
-      serviceType: serviceType,
+      serviceType: 'commission_service',
       transactionDate: commissionData.transactionDate,
       status: 'completed'
     };
@@ -299,16 +263,6 @@ export class UserCommissionService {
     );
     
     console.log('=== COMMISSION ADDED TO USER SUCCESSFULLY ===');
-  }
-
-  private async getServiceType(clientReference: string): Promise<string> {
-    try {
-      const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(clientReference);
-      return commissionLog?.serviceType || 'unknown';
-    } catch (error) {
-      this.logger.error(`Error determining service type: ${error.message}`);
-      return 'unknown';
-    }
   }
 
   private getDefaultEarnings() {
