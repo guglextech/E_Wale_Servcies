@@ -239,23 +239,30 @@ export class CommissionService {
       const TransactionId = Data?.TransactionId;
       const Commission = Data?.Meta?.Commission;
 
-      // Update transaction status using OrderId (which contains the clientReference)
-      await this.transactionModel.findOneAndUpdate(
-        { OrderId: ClientReference },
-        {
-          $set: {
-            Status: ResponseCode === '0000' ? 'success' : 'failed',
-            transactionId: TransactionId,
-            finalAmount: Data?.Amount,
-            commission: Commission,
-            callbackReceived: true,
-            callbackDate: new Date(),
-            responseCode: ResponseCode,
-            responseMessage: Message,
-            IsSuccessful: ResponseCode === '0000'
+      // Update transaction status using the clientReference as OrderId
+      const transaction = await this.transactionModel.findOne({ OrderId: ClientReference });
+
+      if (transaction) {
+        await this.transactionModel.findOneAndUpdate(
+          { _id: transaction._id },
+          {
+            $set: {
+              Status: ResponseCode === '0000' ? 'success' : 'failed',
+              IsSuccessful: ResponseCode === '0000',
+              'ExtraData.transactionId': TransactionId,
+              'ExtraData.finalAmount': Data?.Amount,
+              'ExtraData.commission': Commission,
+              'ExtraData.callbackReceived': true,
+              'ExtraData.callbackDate': new Date(),
+              'ExtraData.responseCode': ResponseCode,
+              'ExtraData.responseMessage': Message
+            }
           }
-        }
-      );
+        );
+        this.logger.log(`Updated transaction ${transaction.OrderId} with callback data`);
+      } else {
+        this.logger.warn(`No transaction found for client reference: ${ClientReference}`);
+      }
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
@@ -307,42 +314,45 @@ export class CommissionService {
    */
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      
-      // Create unique SessionId and OrderId to avoid duplicate key errors
-      const uniqueSessionId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
-      const uniqueOrderId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
-      
-      const transaction = new this.transactionModel({
-        SessionId: uniqueSessionId,
-        OrderId: uniqueOrderId,
-        ExtraData: {
-          type: 'commission_service',
-          serviceType: request.serviceType,
-          network: request.network,
-          tvProvider: request.tvProvider,
-          utilityProvider: request.utilityProvider,
-          destination: request.destination,
-          amount: request.amount,
-          extraData: request.extraData,
-          response: response,
-          originalClientReference: request.clientReference
+      // Use upsert to handle potential duplicate OrderIds
+      await this.transactionModel.findOneAndUpdate(
+        { OrderId: request.clientReference },
+        {
+          $set: {
+            SessionId: request.clientReference,
+            OrderId: request.clientReference,
+            ExtraData: {
+              type: 'commission_service',
+              serviceType: request.serviceType,
+              network: request.network,
+              tvProvider: request.tvProvider,
+              utilityProvider: request.utilityProvider,
+              destination: request.destination,
+              amount: request.amount,
+              extraData: request.extraData,
+              response: response,
+              originalClientReference: request.clientReference
+            },
+            CustomerMobileNumber: request.destination,
+            Status: response.ResponseCode === '0000' ? 'success' : 'pending',
+            OrderDate: new Date(),
+            Currency: 'GHS',
+            Subtotal: request.amount,
+            PaymentType: 'commission_service',
+            AmountPaid: request.amount,
+            PaymentDate: new Date(),
+            IsSuccessful: response.ResponseCode === '0000',
+            createdAt: new Date()
+          }
         },
-        CustomerMobileNumber: request.destination,
-        Status: response.ResponseCode === '0000' ? 'success' : 'pending',
-        OrderDate: new Date(),
-        Currency: 'GHS',
-        Subtotal: request.amount,
-        PaymentType: 'commission_service',
-        AmountPaid: request.amount,
-        PaymentDate: new Date(),
-        IsSuccessful: response.ResponseCode === '0000',
-        createdAt: new Date()
-      });
+        { 
+          upsert: true, 
+          new: true,
+          setDefaultsOnInsert: true
+        }
+      );
 
-      await transaction.save();
-      this.logger.log(`Commission transaction logged with SessionId: ${uniqueSessionId}`);
+      this.logger.log(`Commission transaction logged with OrderId: ${request.clientReference}`);
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
     }

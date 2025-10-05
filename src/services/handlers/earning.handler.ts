@@ -39,8 +39,12 @@ export class EarningHandler {
    */
   private async handleMyEarnings(req: HBussdReq, state: SessionState): Promise<string> {
     try {
+      console.log(`Fetching earnings for mobile: ${req.Mobile}`);
+      
       // Get user's earnings from user commission service
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
+      
+      console.log(`Earnings data for ${req.Mobile}:`, earnings);
       
       const message = `My Balance\n\nTotal Earnings: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nTotal Withdrawn: GH ${earnings.totalWithdrawn.toFixed(2)}\nPending Withdrawals: GH ${earnings.pendingWithdrawals.toFixed(2)}\n\nMinimum withdrawal: GH 10.00`;
       
@@ -63,11 +67,13 @@ export class EarningHandler {
    */
   private async handleWithdrawMoney(req: HBussdReq, state: SessionState): Promise<string> {
     try {
+
       // Get user's earnings
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
+      const MIN_WITHDRAWAL_AMOUNT = 10;
       
       if (earnings.availableBalance < 10) {
-        const message = `Insufficient balance. You need GH 10.00 minimum to withdraw.\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}`;
+        const message = `Insufficient balance. You need GH ${MIN_WITHDRAWAL_AMOUNT} minimum to withdraw.\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}`;
         return this.responseBuilder.createReleaseResponse(
           req.SessionId,
           "Withdrawal Failed",

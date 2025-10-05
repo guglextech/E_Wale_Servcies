@@ -153,6 +153,27 @@ export class CommissionController {
   }
 
   /**
+   * Process existing commission transactions
+   * This endpoint can be used to backfill commission earnings for transactions that weren't processed
+   */
+  @Post('process-existing')
+  async processExistingCommissionTransactions() {
+    try {
+      const result = await this.userCommissionService.processExistingCommissionTransactions();
+      return {
+        success: true,
+        data: result,
+        message: `Processed ${result.processed} transactions with ${result.errors} errors`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to process existing commission transactions'
+      };
+    }
+  }
+
+  /**
    * Get commission service statistics
    */
   @Get('service-statistics')
