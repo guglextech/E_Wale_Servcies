@@ -10,13 +10,20 @@ export class TransactionStatusController {
   async checkTransactionStatus(@Query() queryDto: TransactionStatusQueryDto) {
     try {
       const result = await this.transactionStatusService.checkTransactionStatus(queryDto);
+      
+      if (!result) {
+        return {
+          success: false,
+          message: 'Transaction not found or error occurred'
+        };
+      }
+
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
       
       return {
         success: true,
         data: result,
         summary: summary,
-        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(result),
         message: 'Transaction status check completed'
       };
     } catch (error) {
@@ -38,13 +45,20 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByClientReference(clientReference);
+      
+      if (!result) {
+        return {
+          success: false,
+          message: 'Transaction not found or error occurred'
+        };
+      }
+
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
       
       return {
         success: true,
         data: result,
         summary: summary,
-        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(result),
         message: 'Transaction status check completed'
       };
     } catch (error) {
@@ -66,13 +80,20 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByHubtelTransactionId(hubtelTransactionId);
+      
+      if (!result) {
+        return {
+          success: false,
+          message: 'Transaction not found or error occurred'
+        };
+      }
+
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
       
       return {
         success: true,
         data: result,
         summary: summary,
-        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(result),
         message: 'Transaction status check completed'
       };
     } catch (error) {
@@ -94,13 +115,20 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByNetworkTransactionId(networkTransactionId);
+      
+      if (!result) {
+        return {
+          success: false,
+          message: 'Transaction not found or error occurred'
+        };
+      }
+
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
       
       return {
         success: true,
         data: result,
         summary: summary,
-        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(result),
         message: 'Transaction status check completed'
       };
     } catch (error) {
@@ -125,16 +153,15 @@ export class TransactionStatusController {
         throw new Error('Maximum 10 client references allowed per batch check');
       }
 
-      const results = await this.transactionStatusService.batchCheckTransactionStatus(body.clientReferences);
+      const results = await this.transactionStatusService.batchCheckTransactionStatuses(body.clientReferences);
       
       // Process results to include summaries
       const processedResults = {};
-      for (const [clientReference, result] of Object.entries(results)) {
+      for (const [clientReference, result] of results.entries()) {
         const summary = this.transactionStatusService.getTransactionStatusSummary(result);
         processedResults[clientReference] = {
           data: result,
-          summary: summary,
-          formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(result)
+          summary: summary
         };
       }
 
@@ -188,6 +215,14 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByClientReference(clientReference);
+      
+      if (!result) {
+        return {
+          success: false,
+          message: 'Transaction not found or error occurred'
+        };
+      }
+
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
       
       return {
