@@ -536,13 +536,8 @@ export class UssdService {
         isSuccessful: isSuccessful
       });
 
-      // Log commission transaction
-      await this.logCommissionTransaction(req, isSuccessful);
-
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
-
-        // Get the session state to process after successful payment
         const sessionState = this.sessionManager.getSession(req.SessionId);
         if (sessionState) {
           // Process commission service for all service types
@@ -757,51 +752,6 @@ export class UssdService {
       console.log('Pending transaction status check completed');
     } catch (error) {
       console.error('Error in pending transaction status check:', error);
-    }
-  }
-
-  /**
-   * Log commission transaction after payment
-   */
-  private async logCommissionTransaction(req: HbPayments, isSuccessful: boolean): Promise<void> {
-    try {
-      const sessionState = this.sessionManager.getSession(req.SessionId);
-      if (!sessionState) return;
-
-      const commissionLogData: CommissionTransactionLogData = {
-        clientReference: req.SessionId, // Use SessionId to match Commission Service
-        hubtelTransactionId: req.OrderId,
-        externalTransactionId: null, 
-        mobileNumber: req.OrderInfo?.CustomerMobileNumber || sessionState.mobile || '',
-        sessionId: req.SessionId,
-        serviceType: sessionState.serviceType || 'unknown',
-        network: sessionState.network,
-        tvProvider: sessionState.tvProvider,
-        utilityProvider: sessionState.utilityProvider,
-        bundleValue: sessionState.bundleValue,
-        selectedBundle: sessionState.selectedBundle,
-        accountNumber: sessionState.accountNumber,
-        meterNumber: sessionState.meterNumber,
-        amount: req.OrderInfo?.Payment?.AmountPaid || 0,
-        commission: 0, // Initial commission amount, will be updated by callback
-        charges: (req.OrderInfo?.Payment?.AmountPaid || 0) - (req.OrderInfo?.Payment?.AmountAfterCharges || 0),
-        amountAfterCharges: req.OrderInfo?.Payment?.AmountAfterCharges || 0,
-        currencyCode: req.OrderInfo?.Currency || 'GHS',
-        paymentMethod: req.OrderInfo?.Payment?.PaymentType || 'mobile_money',
-        status: isSuccessful ? 'Paid' : 'Unpaid',
-        responseCode: isSuccessful ? '0000' : '2000',
-        message: isSuccessful ? 'Payment successful' : 'Payment failed',
-        commissionServiceStatus: 'pending',
-        transactionDate: new Date(),
-        retryCount: 0,
-        isFulfilled: false,
-        isRetryable: true
-      };
-
-      // Log commission transaction using the commission transaction log service
-      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
-    } catch (error) {
-      console.error('Error logging commission transaction:', error);
     }
   }
 

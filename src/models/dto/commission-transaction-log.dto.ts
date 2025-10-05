@@ -1,9 +1,10 @@
 export interface CommissionTransactionLogData {
+  SessionId: string;
+  OrderId: string;
   clientReference: string;
   hubtelTransactionId?: string;
   externalTransactionId?: string;
   mobileNumber: string;
-  sessionId: string;
   serviceType: string;
   network?: string;
   tvProvider?: string;
@@ -22,14 +23,9 @@ export interface CommissionTransactionLogData {
   isFulfilled?: boolean;
   responseCode?: string;
   message?: string;
-  commissionServiceStatus?: string;
-  commissionServiceMessage?: string;
+  description?: string;
   transactionDate?: Date;
-  commissionServiceDate?: Date;
   errorMessage?: string;
-  retryCount?: number;
-  isRetryable?: boolean;
-  lastRetryAt?: Date;
 }
 
 export interface TransactionStatusResponse {
@@ -64,23 +60,19 @@ export interface CommissionServiceRequest {
 
 export interface CommissionServiceResponse {
   ResponseCode: string;
-  Status: string;
   Data: {
-    ClientReference: string;
+    AmountDebited: number;
     TransactionId: string;
+    ClientReference: string;
+    Description: string;
     ExternalTransactionId: string;
     Amount: number;
     Charges: number;
-    AmountAfterCharges: number;
-    CurrencyCode: string;
-    PaymentMethod: string;
-    IsSuccessful: boolean;
-    IsFulfilled: boolean;
-    Message: string;
+    Meta: {
+      Commission: string;
+    };
+    RecipientName?: string;
   };
-  IsSuccessful: boolean;
-  IsFulfilled: boolean;
-  Message: string;
 }
 
 export interface CommissionTransactionStats {

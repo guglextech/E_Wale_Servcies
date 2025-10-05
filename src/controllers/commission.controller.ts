@@ -31,50 +31,6 @@ export class CommissionController {
   }
 
   /**
-   * Handle commission service callback from Hubtel
-   */
-  @Post('callback')
-  @Public()
-  async handleCommissionCallback(@Body() callbackData: any) {
-    try {
-      console.log('COMMISSION CALLBACK RECEIVED:', JSON.stringify(callbackData, null, 2));
-      await this.commissionService.handleCommissionCallback(callbackData);
-      return {
-        success: true,
-        message: 'Commission callback processed successfully'
-      };
-    } catch (error) {
-      console.error('COMMISSION CALLBACK ERROR:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to process commission callback'
-      };
-    }
-  }
-
-  /**
-   * Test commission callback processing
-   * This is for debugging purposes
-   */
-  @Post('test-callback')
-  async testCommissionCallback(@Body() testData: any) {
-    try {
-      console.log('TEST COMMISSION CALLBACK RECEIVED:', JSON.stringify(testData, null, 2));
-      await this.commissionService.handleCommissionCallback(testData);
-      return {
-        success: true,
-        message: 'Test commission callback processed successfully'
-      };
-    } catch (error) {
-      console.error('TEST COMMISSION CALLBACK ERROR:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to process test commission callback'
-      };
-    }
-  }
-
-  /**
    * Get user transaction history
    */
   @Get('history/:mobileNumber')
