@@ -81,7 +81,7 @@ export class EarningHandler {
       state.totalEarnings = earnings.availableBalance;
       this.sessionManager.updateSession(req.SessionId, state);
 
-      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMinimum Withdrawal: GH 10.00\n\n1. Confirm withdrawal\n2. Cancel`;
+      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMin Withdrawal: GH 10.00\n\n1. Confirm withdrawal\n2. Cancel`;
       
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
