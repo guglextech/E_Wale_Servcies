@@ -43,10 +43,8 @@ export class EarningHandler {
       
       // Get user's earnings from user commission service
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
-      
       console.log(`Earnings data for ${req.Mobile}:`, earnings);
-      
-      const message = `My Balance\n\nTotal Earnings: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nTotal Withdrawn: GH ${earnings.totalWithdrawn.toFixed(2)}\nPending Withdrawals: GH ${earnings.pendingWithdrawals.toFixed(2)}\nTransactions: ${earnings.transactionCount}\n\nMinimum withdrawal: GH 10.00\n\nNote: Earnings calculated from your transaction history`;
+      const message = `Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}`;
       
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
