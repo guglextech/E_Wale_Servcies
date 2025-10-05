@@ -37,8 +37,8 @@ export class UserCommissionService {
           $set: {
             commission: commissionAmount,
             status: 'Paid',
-            isFulfilled: true,
-            commissionServiceStatus: 'delivered',
+            // isFulfilled: true,
+            // commissionServiceStatus: 'delivered',
             commissionServiceDate: new Date(),
             updatedAt: new Date()
           }
@@ -144,7 +144,7 @@ export class UserCommissionService {
         sessionId: `withdrawal_${Date.now()}`,
         serviceType: 'withdrawal',
         amount: amount,
-        commission: -amount, // Negative commission for withdrawal
+        commission: -amount,
         charges: 0,
         amountAfterCharges: amount,
         currencyCode: 'GHS',
