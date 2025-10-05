@@ -188,10 +188,12 @@ export class UserCommissionService {
         transactionId: log.hubtelTransactionId,
         clientReference: log.clientReference,
         amount: log.amount,
-        commission: log.commission,
+        commission: log.commission || 0,
         serviceType: log.serviceType,
         transactionDate: log.transactionDate,
-        status: log.status
+        status: log.status,
+        charges: log.charges || 0,
+        amountAfterCharges: log.amountAfterCharges || log.amount
       }));
     } catch (error) {
       this.logger.error(`Error getting user transaction history: ${error.message}`);
