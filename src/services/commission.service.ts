@@ -237,27 +237,29 @@ export class CommissionService {
       const TransactionId = Data?.TransactionId;
       const Commission = Data?.Meta?.Commission;
 
-      // Update the existing payment transaction with commission callback data
-      const transaction = await this.transactionModel.findOne({ SessionId: ClientReference });
+      // Update the commission transaction with callback data
+      const transaction = await this.transactionModel.findOne({ OrderId: ClientReference });
 
       if (transaction) {
         await this.transactionModel.findOneAndUpdate(
-          { SessionId: ClientReference },
+          { OrderId: ClientReference },
           {
             $set: {
-              'ExtraData.commissionService.commissionTransactionId': TransactionId,
-              'ExtraData.commissionService.commissionAmount': Commission,
-              'ExtraData.commissionService.commissionStatus': ResponseCode === '0000' ? 'success' : 'failed',
-              'ExtraData.commissionService.callbackReceived': true,
-              'ExtraData.commissionService.callbackDate': new Date(),
-              'ExtraData.commissionService.responseCode': ResponseCode,
-              'ExtraData.commissionService.responseMessage': Message
+              Status: ResponseCode === '0000' ? 'success' : 'failed',
+              IsSuccessful: ResponseCode === '0000',
+              'ExtraData.commissionTransactionId': TransactionId,
+              'ExtraData.commissionAmount': Commission,
+              'ExtraData.commissionStatus': ResponseCode === '0000' ? 'success' : 'failed',
+              'ExtraData.callbackReceived': true,
+              'ExtraData.callbackDate': new Date(),
+              'ExtraData.responseCode': ResponseCode,
+              'ExtraData.responseMessage': Message
             }
           }
         );
-        this.logger.log(`Updated payment transaction ${ClientReference} with commission callback data`);
+        this.logger.log(`Updated commission transaction ${ClientReference} with callback data`);
       } else {
-        this.logger.warn(`No payment transaction found for SessionId: ${ClientReference}`);
+        this.logger.warn(`No commission transaction found for OrderId: ${ClientReference}`);
       }
 
       // Process commission for user earnings if successful
@@ -306,36 +308,45 @@ export class CommissionService {
   }
 
   /**
-   * Update existing payment transaction with commission data
+   * Log commission transaction separately (not updating payment transaction)
    */
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
-      // Update the existing payment transaction with commission data
-      await this.transactionModel.findOneAndUpdate(
-        { SessionId: request.clientReference },
-        {
-          $set: {
-            'ExtraData.commissionService': {
-              type: 'commission_service',
-              serviceType: request.serviceType,
-              network: request.network,
-              tvProvider: request.tvProvider,
-              utilityProvider: request.utilityProvider,
-              destination: request.destination,
-              amount: request.amount,
-              extraData: request.extraData,
-              response: response,
-              commissionTransactionId: response.Data?.TransactionId,
-              commissionAmount: response.Data?.Meta?.Commission,
-              commissionStatus: response.ResponseCode === '0000' ? 'success' : 'pending'
-            }
-          }
-        }
-      );
+      // Create a separate commission transaction record
+      const commissionTransaction = new this.transactionModel({
+        SessionId: `comm_${request.clientReference}_${Date.now()}`,
+        OrderId: request.clientReference,
+        ExtraData: {
+          type: 'commission_service',
+          serviceType: request.serviceType,
+          network: request.network,
+          tvProvider: request.tvProvider,
+          utilityProvider: request.utilityProvider,
+          destination: request.destination,
+          amount: request.amount,
+          extraData: request.extraData,
+          response: response,
+          originalClientReference: request.clientReference,
+          commissionTransactionId: response.Data?.TransactionId,
+          commissionAmount: response.Data?.Meta?.Commission,
+          commissionStatus: response.ResponseCode === '0000' ? 'success' : 'pending'
+        },
+        CustomerMobileNumber: request.destination,
+        Status: response.ResponseCode === '0000' ? 'success' : 'pending',
+        OrderDate: new Date(),
+        Currency: 'GHS',
+        Subtotal: request.amount,
+        PaymentType: 'commission_service',
+        AmountPaid: request.amount,
+        PaymentDate: new Date(),
+        IsSuccessful: response.ResponseCode === '0000',
+        createdAt: new Date()
+      });
 
-      this.logger.log(`Commission data added to payment transaction: ${request.clientReference}`);
+      await commissionTransaction.save();
+      this.logger.log(`Commission transaction logged with SessionId: ${commissionTransaction.SessionId}`);
     } catch (error) {
-      this.logger.error(`Error updating payment transaction with commission data: ${error.message}`);
+      this.logger.error(`Error logging commission transaction: ${error.message}`);
     }
   }
 
