@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios from 'axios';
@@ -7,7 +7,6 @@ import { NetworkProvider } from '../models/dto/airtime.dto';
 import { TVProvider } from '../models/dto/tv-bills.dto';
 import { UtilityProvider } from '../models/dto/utility.dto';
 import { UserCommissionService } from './user-commission.service';
-import { CommissionTransactionLogService } from './commission-transaction-log.service';
 
 export interface CommissionServiceRequest {
   serviceType: 'airtime' | 'bundle' | 'tv_bill' | 'utility';
@@ -36,7 +35,6 @@ export class CommissionService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly userCommissionService: UserCommissionService,
-    private readonly commissionTransactionLogService: CommissionTransactionLogService,
   ) {}
 
   // Hubtel Commission Service endpoints
@@ -105,28 +103,9 @@ export class CommissionService {
       // Log the transaction
       await this.logCommissionTransaction(request, response.data);
 
-      // Update commission transaction log status
-      const commissionResponse = response.data;
-      if (commissionResponse) {
-        const isDelivered = commissionResponse.ResponseCode === '0000' && commissionResponse.Data?.IsFulfilled;
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          request.clientReference,
-          isDelivered ? 'delivered' : 'failed',
-          commissionResponse.Message,
-          commissionResponse.Data?.IsFulfilled,
-          isDelivered ? undefined : commissionResponse.Message
-        );
-      } else {
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          request.clientReference,
-          'failed',
-          'Commission service request failed',
-          false,
-          'Commission service request failed'
-        );
-      }
+      // Commission transaction logging removed - earnings are now calculated directly from transactions
 
-      return commissionResponse;
+      return response.data;
 
     } catch (error) {
       this.logger.error(`Error processing commission service: ${error.message}`);
@@ -135,14 +114,7 @@ export class CommissionService {
         this.logger.error(`Hubtel response data: ${JSON.stringify(error.response.data)}`);
       }
       
-      // Update commission transaction log status on error
-      await this.commissionTransactionLogService.updateCommissionServiceStatus(
-        request.clientReference,
-        'failed',
-        'Commission service error',
-        false,
-        error.message || 'Commission service error'
-      );
+      // Commission transaction logging removed - earnings are now calculated directly from transactions
       
       return null;
     }
@@ -234,14 +206,7 @@ export class CommissionService {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
 
       const { ClientReference, ResponseCode, Message, Data } = callbackData;
-      // Update commission transaction log with callback data
-      await this.commissionTransactionLogService.updateCommissionServiceStatus(
-        ClientReference,
-        ResponseCode === '0000' ? 'delivered' : 'failed',
-        Message,
-        ResponseCode === '0000',
-        ResponseCode !== '0000' ? Message : undefined
-      );
+      // Commission transaction logging removed - earnings are now calculated directly from transactions
 
       this.logger.log(`Updated commission transaction log for ${ClientReference} with callback data`);
 
@@ -328,8 +293,7 @@ export class CommissionService {
         isRetryable: true
       };
 
-      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
-      this.logger.log(`Commission transaction logged with clientReference: ${request.clientReference}`);
+      // Commission transaction logging removed - earnings are now calculated directly from transactions
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
       throw error; // Re-throw to prevent callback processing if transaction save fails

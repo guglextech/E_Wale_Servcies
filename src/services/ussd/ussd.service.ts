@@ -23,9 +23,6 @@ import { EarningHandler } from "../handlers/earning.handler";
 
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
-import { CommissionService } from "../commission.service";
-import { CommissionTransactionLogService } from "../commission-transaction-log.service";
-import { TransactionStatusCheckService } from "../transaction-status-check.service";
 
 // Import types
 import { SessionState, UssdLogData } from "./types";
@@ -55,9 +52,6 @@ export class UssdService {
     
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
-    private readonly commissionService: CommissionService,
-    private readonly commissionTransactionLogService: CommissionTransactionLogService,
-    private readonly transactionStatusCheckService: TransactionStatusCheckService,
   ) {}
 
   /**
@@ -589,10 +583,7 @@ export class UssdService {
           sessionId, 
           `${process.env.HB_CALLBACK_URL}`
         );
-        console.error("LOGGING COMMISSION REQUEST AFTER PAYMENT :::", commissionRequest);
-        if (commissionRequest) {
-          await this.commissionService.processCommissionService(commissionRequest);
-        }
+        // Commission service processing removed - earnings are now calculated directly from transactions
       }
     } catch (error) {
       console.error("Error processing commission service after payment:", error);
@@ -744,7 +735,7 @@ export class UssdService {
         summary: summary,
         isSuccessful: this.transactionStatusService.isTransactionSuccessful(statusResponse),
         shouldRetry: this.transactionStatusService.shouldRetryTransaction(statusResponse),
-        formattedDetails: this.transactionStatusService.getFormattedTransactionDetails(statusResponse)
+        formattedDetails: 'Transaction status checked'
       };
     } catch (error) {
       console.error('Error checking USSD transaction status:', error);
@@ -805,7 +796,7 @@ export class UssdService {
         isRetryable: true
       };
 
-      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
+      // Commission transaction logging removed - earnings are now calculated directly from transactions
     } catch (error) {
       console.error('Error logging commission transaction:', error);
     }

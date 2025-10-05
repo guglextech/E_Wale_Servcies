@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import axios from 'axios';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 import { 
   TransactionStatusQueryDto,
   TransactionStatusResponseDto,
-  TransactionStatusDataDto,
   TransactionStatus,
   ResponseCode
 } from '../models/dto/transaction-status.dto';
@@ -14,97 +15,81 @@ import { Transactions } from '../models/schemas/transaction.schema';
 @Injectable()
 export class TransactionStatusService {
   private readonly logger = new Logger(TransactionStatusService.name);
+  private readonly posSalesId: string;
+  private readonly baseUrl: string;
+  private readonly authHeader: string;
 
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
-  ) {}
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.posSalesId = this.configService.get<string>('HUBTEL_POS_SALES_ID') || '11684';
+    this.baseUrl = 'https://api-txnstatus.hubtel.com';
+    this.authHeader = this.configService.get<string>('HUBTEL_AUTH_TOKEN') || '';
+  }
 
   /**
-   * Check transaction status using Hubtel Transaction Status API
+   * Check transaction status using Hubtel API
    */
-  async checkTransactionStatus(queryDto: TransactionStatusQueryDto): Promise<TransactionStatusResponseDto> {
+  async checkTransactionStatus(queryDto: TransactionStatusQueryDto): Promise<TransactionStatusResponseDto | null> {
     try {
-      const posSalesId = process.env.HUBTEL_POS_SALES_ID || '11684';
-      const hubtelAuthToken = process.env.HUBTEL_AUTH_TOKEN;
-
-      if (!hubtelAuthToken) {
-        throw new Error('HUBTEL_AUTH_TOKEN is not configured');
-      }
-
       // Build query parameters
-      const queryParams = new URLSearchParams();
-      if (queryDto.clientReference) {
-        queryParams.append('clientReference', queryDto.clientReference);
-      }
-      if (queryDto.hubtelTransactionId) {
-        queryParams.append('hubtelTransactionId', queryDto.hubtelTransactionId);
-      }
-      if (queryDto.networkTransactionId) {
-        queryParams.append('networkTransactionId', queryDto.networkTransactionId);
-      }
+      const params: any = {};
+      if (queryDto.clientReference) params.clientReference = queryDto.clientReference;
+      if (queryDto.hubtelTransactionId) params.hubtelTransactionId = queryDto.hubtelTransactionId;
+      if (queryDto.networkTransactionId) params.networkTransactionId = queryDto.networkTransactionId;
 
       // Ensure at least one parameter is provided
-      if (queryParams.toString() === '') {
+      if (Object.keys(params).length === 0) {
         throw new Error('At least one transaction identifier must be provided');
       }
 
-      const url = `https://api-txnstatus.hubtel.com/transactions/${posSalesId}/status?${queryParams.toString()}`;
+      const url = `${this.baseUrl}/transactions/${this.posSalesId}/status`;
+      
+      this.logger.log(`Checking transaction status: ${url}`, params);
 
-      this.logger.log(`Checking transaction status: ${url}`);
-
-      const response = await axios.get(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${hubtelAuthToken}`
-        },
-        timeout: 30000 // 30 seconds timeout
-      });
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': this.authHeader
+          }
+        })
+      );
 
       const statusResponse: TransactionStatusResponseDto = response.data;
-
-      // Log the status check
-      await this.logTransactionStatusCheck(queryDto, statusResponse);
-
-      // Update local transaction record if found
+      
+      // Update local transaction record
       await this.updateLocalTransactionStatus(statusResponse);
-
+      
       return statusResponse;
     } catch (error) {
       this.logger.error(`Error checking transaction status: ${error.message}`);
-      
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          this.logger.error(`Hubtel API Error: ${error.response.status} - ${error.response.data}`);
-          throw new Error(`Hubtel API Error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
-        } else if (error.request) {
-          this.logger.error('No response received from Hubtel API');
-          throw new Error('No response received from Hubtel API. Please try again later.');
-        }
-      }
-      
-      throw error;
+      return null;
     }
   }
 
   /**
-   * Check transaction status by client reference (recommended method)
+   * Check transaction status by client reference
    */
-  async checkStatusByClientReference(clientReference: string): Promise<TransactionStatusResponseDto> {
+  async checkStatusByClientReference(clientReference: string): Promise<TransactionStatusResponseDto | null> {
     return this.checkTransactionStatus({ clientReference });
   }
 
   /**
    * Check transaction status by Hubtel transaction ID
    */
-  async checkStatusByHubtelTransactionId(hubtelTransactionId: string): Promise<TransactionStatusResponseDto> {
+  async checkStatusByHubtelTransactionId(hubtelTransactionId: string): Promise<TransactionStatusResponseDto | null> {
     return this.checkTransactionStatus({ hubtelTransactionId });
   }
 
   /**
    * Check transaction status by network transaction ID
    */
-  async checkStatusByNetworkTransactionId(networkTransactionId: string): Promise<TransactionStatusResponseDto> {
+  async checkStatusByNetworkTransactionId(networkTransactionId: string): Promise<TransactionStatusResponseDto | null> {
     return this.checkTransactionStatus({ networkTransactionId });
   }
 
@@ -220,24 +205,96 @@ export class TransactionStatusService {
   }
 
   /**
-   * Get formatted transaction details for display
+   * Get error message based on response code
    */
-  getFormattedTransactionDetails(statusResponse: TransactionStatusResponseDto): string {
-    const { data } = statusResponse;
-    const summary = this.getTransactionStatusSummary(statusResponse);
+  getErrorMessage(responseCode: string, message: string): string {
+    const errorMessages: { [key: string]: string } = {
+      '0000': 'Success',
+      '0001': 'Transaction pending. Expect callback request for final state',
+      '0005': 'HTTP failure/exception. Transaction state unknown. Contact support.',
+      '2000': 'General Failure Error',
+      '2001': 'General Failure Error. Check response description for details.',
+      '4000': 'Error occurred. Try again later or check mobile value.',
+      '4010': 'Validation Errors. Check required parameters.',
+      '4101': 'Authorization denied or prepaid account not found.',
+      '4103': 'Permission denied. Check API keys.',
+      '4075': 'Insufficient prepaid balance. Top-up required.'
+    };
 
-    return `
-Transaction Status: ${summary.status}
-Amount: GHS ${data.amount.toFixed(2)}
-Charges: GHS ${data.charges.toFixed(2)}
-Net Amount: GHS ${data.amountAfterCharges.toFixed(2)}
-Payment Method: ${data.paymentMethod}
-Date: ${new Date(data.date).toLocaleString()}
-Status: ${summary.message}
-Transaction ID: ${data.transactionId}
-${data.externalTransactionId ? `External ID: ${data.externalTransactionId}` : ''}
-Fulfilled: ${data.isFulfilled ? 'Yes' : 'No'}
-    `.trim();
+    return errorMessages[responseCode] || message || 'Unknown error occurred';
+  }
+
+  /**
+   * Check if response code indicates retryable error
+   */
+  isRetryableError(responseCode: string): boolean {
+    const retryableCodes = ['0001', '0005', '4000'];
+    return retryableCodes.includes(responseCode);
+  }
+
+  /**
+   * Batch check multiple transaction statuses
+   */
+  async batchCheckTransactionStatuses(clientReferences: string[]): Promise<Map<string, TransactionStatusResponseDto>> {
+    const results = new Map<string, TransactionStatusResponseDto>();
+    
+    // Process in batches of 5 to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < clientReferences.length; i += batchSize) {
+      const batch = clientReferences.slice(i, i + batchSize);
+      
+      const promises = batch.map(async (clientReference) => {
+        const result = await this.checkStatusByClientReference(clientReference);
+        if (result) {
+          results.set(clientReference, result);
+        }
+      });
+
+      await Promise.all(promises);
+      
+      // Add delay between batches to respect rate limits
+      if (i + batchSize < clientReferences.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get pending transactions that need status check
+   */
+  async getPendingTransactions(olderThanMinutes: number = 5): Promise<Transactions[]> {
+    const cutoffTime = new Date(Date.now() - (olderThanMinutes * 60 * 1000));
+    
+    return this.transactionModel.find({
+      Status: { $in: ['pending', 'processing'] },
+      OrderDate: { $lt: cutoffTime }
+    }).exec();
+  }
+
+  /**
+   * Automatically check status for pending transactions
+   */
+  async checkPendingTransactions(): Promise<void> {
+    try {
+      const pendingTransactions = await this.getPendingTransactions();
+      
+      this.logger.log(`Found ${pendingTransactions.length} pending transactions to check`);
+
+      for (const transaction of pendingTransactions) {
+        try {
+          if (transaction.OrderId) {
+            await this.checkStatusByClientReference(transaction.OrderId);
+            this.logger.log(`Checked status for transaction: ${transaction.OrderId}`);
+          }
+        } catch (error) {
+          this.logger.error(`Error checking status for transaction ${transaction.OrderId}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error in automatic pending transaction check: ${error.message}`);
+    }
   }
 
   /**
@@ -272,91 +329,6 @@ Fulfilled: ${data.isFulfilled ? 'Yes' : 'No'}
       this.logger.log(`Updated local transaction status for ${data.clientReference}`);
     } catch (error) {
       this.logger.error(`Error updating local transaction status: ${error.message}`);
-    }
-  }
-
-  /**
-   * Log transaction status check for audit purposes
-   */
-  private async logTransactionStatusCheck(
-    queryDto: TransactionStatusQueryDto, 
-    statusResponse: TransactionStatusResponseDto
-  ): Promise<void> {
-    try {
-      const logEntry = {
-        type: 'transaction_status_check',
-        query: queryDto,
-        response: statusResponse,
-        timestamp: new Date(),
-        summary: this.getTransactionStatusSummary(statusResponse)
-      };
-
-      // You can log this to a separate collection or file
-      this.logger.log(`Transaction status check logged: ${JSON.stringify(logEntry)}`);
-    } catch (error) {
-      this.logger.error(`Error logging transaction status check: ${error.message}`);
-    }
-  }
-
-  /**
-   * Batch check multiple transaction statuses
-   */
-  async batchCheckTransactionStatus(clientReferences: string[]): Promise<{
-    [clientReference: string]: TransactionStatusResponseDto
-  }> {
-    const results: { [clientReference: string]: TransactionStatusResponseDto } = {};
-
-    // Check each transaction status sequentially to avoid overwhelming the API
-    for (const clientReference of clientReferences) {
-      try {
-        const status = await this.checkTransactionStatus({ clientReference });
-        results[clientReference] = status;
-        
-        // Add a small delay between requests
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        this.logger.error(`Error checking status for ${clientReference}: ${error.message}`);
-        // You might want to handle this differently based on your requirements
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Get pending transactions that need status check
-   */
-  async getPendingTransactions(olderThanMinutes: number = 5): Promise<Transactions[]> {
-    const cutoffTime = new Date(Date.now() - (olderThanMinutes * 60 * 1000));
-    
-    return this.transactionModel.find({
-      Status: { $in: ['pending', 'processing'] },
-      OrderDate: { $lt: cutoffTime },
-      lastStatusCheck: { $exists: false }
-    }).exec();
-  }
-
-  /**
-   * Automatically check status for pending transactions
-   */
-  async checkPendingTransactions(): Promise<void> {
-    try {
-      const pendingTransactions = await this.getPendingTransactions();
-      
-      this.logger.log(`Found ${pendingTransactions.length} pending transactions to check`);
-
-      for (const transaction of pendingTransactions) {
-        try {
-          if (transaction.OrderId) {
-            await this.checkStatusByClientReference(transaction.OrderId);
-            this.logger.log(`Checked status for transaction: ${transaction.OrderId}`);
-          }
-        } catch (error) {
-          this.logger.error(`Error checking status for transaction ${transaction.OrderId}: ${error.message}`);
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Error in automatic pending transaction check: ${error.message}`);
     }
   }
 }
