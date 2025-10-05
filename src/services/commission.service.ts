@@ -280,12 +280,13 @@ export class CommissionService {
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 8);
       
-      // Create unique SessionId to avoid duplicate key errors
+      // Create unique SessionId and OrderId to avoid duplicate key errors
       const uniqueSessionId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
+      const uniqueOrderId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
       
       const transaction = new this.transactionModel({
         SessionId: uniqueSessionId,
-        OrderId: request.clientReference,
+        OrderId: uniqueOrderId,
         ExtraData: {
           type: 'commission_service',
           serviceType: request.serviceType,

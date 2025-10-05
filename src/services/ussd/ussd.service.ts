@@ -491,7 +491,7 @@ export class UssdService {
    * Handle USSD callback
    */
   async handleUssdCallback(req: HbPayments): Promise<void> {
-    console.error("LOGGING CALLBACK::::::", req);
+    console.error("LOGGING CALLBACK AFTER PAYMENT :::", req);
 
     if (!req.OrderInfo || !req.OrderInfo.Payment) return;
 
