@@ -73,8 +73,6 @@ export class CommissionService {
   async processCommissionService(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
     try {
       this.logger.log(`Processing commission service - Type: ${request.serviceType}, Amount: ${request.amount}, Destination: ${request.destination}`);
-      console.error("LOGGING COMMISSION REQUEST :::", request);
-
       // Get the appropriate endpoint
       const endpoint = this.getEndpoint(request);
       if (!endpoint) {
@@ -314,12 +312,17 @@ export class CommissionService {
    */
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
+      // Generate unique SessionId to avoid duplicate key errors
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const uniqueSessionId = `${request.clientReference}_${timestamp}_${randomSuffix}`;
+      
       // Use upsert to handle potential duplicate OrderIds
       await this.transactionModel.findOneAndUpdate(
         { OrderId: request.clientReference },
         {
           $set: {
-            SessionId: request.clientReference,
+            SessionId: uniqueSessionId,
             OrderId: request.clientReference,
             ExtraData: {
               type: 'commission_service',
@@ -352,7 +355,7 @@ export class CommissionService {
         }
       );
 
-      this.logger.log(`Commission transaction logged with OrderId: ${request.clientReference}`);
+      this.logger.log(`Commission transaction logged with OrderId: ${request.clientReference}, SessionId: ${uniqueSessionId}`);
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
     }
