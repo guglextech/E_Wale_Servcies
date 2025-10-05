@@ -46,7 +46,7 @@ export class EarningHandler {
       console.log(`Earnings data for ${req.Mobile}:`, earnings);
       
       // Format earnings display
-      const message = `My Earnings\n\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}\nTransactions: ${earnings.transactionCount}`;
+      const message = `My Earnings (Minimum Withdrawal: GH 10.00)\n\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}\nTransactions: ${earnings.transactionCount}`;
       
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
