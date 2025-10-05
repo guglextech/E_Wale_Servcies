@@ -101,7 +101,7 @@ export class EarningHandler {
    * Handle Terms and Conditions
    */
   private handleTermsAndConditions(req: HBussdReq, state: SessionState): string {
-    const message = `Terms & Conditions\n\nApplies to:\nData Bundle\nAirtime\nECG Prepaid\nUtility payments\n\nCommission rates vary by service type.`;
+    const message = `Terms & Conditions applies to:\nData Bundle\nAirtime\nECG Prepaid\nUtility payments\nCommission rates vary by service type.`;
     
     return this.responseBuilder.createReleaseResponse(
       req.SessionId,
