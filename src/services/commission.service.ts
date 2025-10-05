@@ -262,38 +262,54 @@ export class CommissionService {
    */
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
-      // Log commission transaction in commission transaction log service
-      const commissionLogData = {
-        clientReference: request.clientReference,
-        hubtelTransactionId: response.Data?.TransactionId,
-        mobileNumber: request.destination,
-        sessionId: request.clientReference,
-        serviceType: request.serviceType,
-        network: request.network,
-        tvProvider: request.tvProvider,
-        utilityProvider: request.utilityProvider,
-        bundleValue: request.extraData?.bundleValue,
-        selectedBundle: request.extraData?.selectedBundle,
-        accountNumber: request.extraData?.accountNumber,
-        meterNumber: request.extraData?.meterNumber,
-        amount: request.amount,
-        commission: 0, 
-        charges: 0,
-        amountAfterCharges: request.amount,
-        currencyCode: 'GHS',
-        paymentMethod: 'commission_service',
-        status: 'Pending',
-        isFulfilled: false,
-        responseCode: response.ResponseCode,
-        message: response.Message,
-        commissionServiceStatus: 'pending',
-        commissionServiceMessage: response.Message,
-        transactionDate: new Date(),
-        retryCount: 0,
-        isRetryable: true
-      };
-      // Log commission transaction using the commission transaction log service
-      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
+      // Only update existing commission log, don't create new one
+      // The USSD service already created the initial log
+      const existingLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(request.clientReference);
+      
+      if (existingLog) {
+        // Update the existing log with commission service response
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          'pending',
+          response.Message,
+          false
+        );
+        this.logger.log(`Updated existing commission log for ${request.clientReference}`);
+      } else {
+        // Fallback: create new log if none exists (shouldn't happen in normal flow)
+        const commissionLogData = {
+          clientReference: request.clientReference,
+          hubtelTransactionId: response.Data?.TransactionId,
+          externalTransactionId: null,
+          mobileNumber: request.destination,
+          sessionId: request.clientReference,
+          serviceType: request.serviceType,
+          network: request.network,
+          tvProvider: request.tvProvider,
+          utilityProvider: request.utilityProvider,
+          bundleValue: request.extraData?.bundleValue,
+          selectedBundle: request.extraData?.selectedBundle,
+          accountNumber: request.extraData?.accountNumber,
+          meterNumber: request.extraData?.meterNumber,
+          amount: request.amount,
+          commission: 0, 
+          charges: 0,
+          amountAfterCharges: request.amount,
+          currencyCode: 'GHS',
+          paymentMethod: 'commission_service',
+          status: 'Pending',
+          isFulfilled: false,
+          responseCode: response.ResponseCode,
+          message: response.Message,
+          commissionServiceStatus: 'pending',
+          commissionServiceMessage: response.Message,
+          transactionDate: new Date(),
+          retryCount: 0,
+          isRetryable: true
+        };
+        await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
+        this.logger.log(`Created fallback commission log for ${request.clientReference}`);
+      }
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
       throw error;

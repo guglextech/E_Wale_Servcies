@@ -769,7 +769,7 @@ export class UssdService {
       if (!sessionState) return;
 
       const commissionLogData: CommissionTransactionLogData = {
-        clientReference: req.OrderId,
+        clientReference: req.SessionId, // Use SessionId to match Commission Service
         hubtelTransactionId: req.OrderId,
         externalTransactionId: null, 
         mobileNumber: req.OrderInfo?.CustomerMobileNumber || sessionState.mobile || '',
@@ -783,6 +783,7 @@ export class UssdService {
         accountNumber: sessionState.accountNumber,
         meterNumber: sessionState.meterNumber,
         amount: req.OrderInfo?.Payment?.AmountPaid || 0,
+        commission: 0, // Initial commission amount, will be updated by callback
         charges: (req.OrderInfo?.Payment?.AmountPaid || 0) - (req.OrderInfo?.Payment?.AmountAfterCharges || 0),
         amountAfterCharges: req.OrderInfo?.Payment?.AmountAfterCharges || 0,
         currencyCode: req.OrderInfo?.Currency || 'GHS',
