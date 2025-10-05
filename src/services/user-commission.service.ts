@@ -29,7 +29,12 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
 
-      console.log(`Processing commission for clientReference: ${ClientReference}, amount: ${commissionAmount}`);
+      console.log(`=== COMMISSION CALLBACK PROCESSING ===`);
+      console.log(`ClientReference: ${ClientReference}`);
+      console.log(`TransactionId: ${TransactionId}`);
+      console.log(`Amount: ${Amount}`);
+      console.log(`Commission from callback: ${Commission}`);
+      console.log(`Commission amount (parsed): ${commissionAmount}`);
 
       // Update the commission log with the actual commission amount and status
       const updatedLog = await this.commissionLogModel.findOneAndUpdate(
@@ -52,7 +57,14 @@ export class UserCommissionService {
         return;
       }
 
-      console.log(`Updated commission log for mobile: ${updatedLog.mobileNumber}, commission: ${commissionAmount}`);
+      console.log(`=== COMMISSION LOG UPDATED ===`);
+      console.log(`Mobile Number: ${updatedLog.mobileNumber}`);
+      console.log(`Commission stored in DB: ${updatedLog.commission}`);
+      console.log(`Status: ${updatedLog.status}`);
+      console.log(`IsFulfilled: ${updatedLog.isFulfilled}`);
+      console.log(`Commission Service Status: ${updatedLog.commissionServiceStatus}`);
+      console.log(`==========================================`);
+
       this.logger.log(`Added commission GH ${commissionAmount} to mobile ${updatedLog.mobileNumber}`);
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
@@ -78,13 +90,22 @@ export class UserCommissionService {
       }
 
       // Calculate earnings from commission logs
+      console.log(`=== CALCULATING EARNINGS FOR ${mobileNumber} ===`);
+      console.log(`Found ${commissionLogs.length} commission logs`);
+      
       const totalEarnings = commissionLogs.reduce((sum, log) => {
-        if (log.status === 'Paid' && log.isFulfilled === true) {
+        if (log.status === 'Paid') {
           const commission = log.commission || 0;
+          console.log(`Log ${log.clientReference}: Commission = ${commission}, Status = ${log.status}`);
           return sum + commission;
+        } else {
+          console.log(`Log ${log.clientReference}: Commission = ${log.commission || 0}, Status = ${log.status} (SKIPPED)`);
         }
         return sum;
       }, 0);
+      
+      console.log(`Total earnings calculated: ${totalEarnings}`);
+      console.log(`==========================================`);
 
       const transactionCount = commissionLogs.length;
       const availableBalance = totalEarnings;
