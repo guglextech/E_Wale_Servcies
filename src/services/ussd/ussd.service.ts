@@ -579,12 +579,7 @@ export class UssdService {
       if (sessionState.serviceType === "result_checker") {
         await this.resultCheckerHandler.processVoucherPurchase(sessionState, orderInfo);
       } else {
-        const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(
-          sessionState, 
-          sessionId, 
-          `${process.env.HB_CALLBACK_URL}`
-        );
-         
+        const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(sessionState,  sessionId, `${process.env.HB_CALLBACK_URL}`);
         if (commissionRequest) {
           await this.commissionService.processCommissionService(commissionRequest);
         }
