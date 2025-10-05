@@ -147,7 +147,7 @@ export class AirtimeHandler {
            `Network: ${network}\n` +
            `Recipient: ${recipient}\n` +
            `Mobile: ${mobile}\n` +
-           `Amount: GH${amount?.toFixed(2)}\n\n` +
+           `Amount: GH${amount?.toFixed(2)}\n` +
            `1. Confirm\n2. Cancel`;
   }
 
