@@ -7,6 +7,7 @@ import { NetworkProvider } from '../models/dto/airtime.dto';
 import { TVProvider } from '../models/dto/tv-bills.dto';
 import { UtilityProvider } from '../models/dto/utility.dto';
 import { UserCommissionService } from './user-commission.service';
+import { CommissionTransactionLogService } from './commission-transaction-log.service';
 
 export interface CommissionServiceRequest {
   serviceType: 'airtime' | 'bundle' | 'tv_bill' | 'utility';
@@ -35,6 +36,7 @@ export class CommissionService {
   constructor(
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     private readonly userCommissionService: UserCommissionService,
+    private readonly commissionTransactionLogService: CommissionTransactionLogService,
   ) {}
 
   // Hubtel Commission Service endpoints
@@ -63,6 +65,49 @@ export class CommissionService {
       [UtilityProvider.GHANA_WATER]: '6c1e8a82d2e84feeb8bfd6be2790d71d'
     }
   };
+
+  /**
+   * Process commission service request with complete flow
+   * This handles the entire commission service flow including logging and status updates
+   */
+  async processCommissionServiceWithFlow(request: CommissionServiceRequest): Promise<CommissionServiceResponse | null> {
+    try {
+      this.logger.log(`Processing commission service with flow - Type: ${request.serviceType}, Amount: ${request.amount}, Destination: ${request.destination}`);
+
+      const commissionResponse = await this.processCommissionService(request);
+      
+      if (commissionResponse) {
+        const isDelivered = commissionResponse.ResponseCode === '0000' && commissionResponse.Data?.IsFulfilled;
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          isDelivered ? 'delivered' : 'failed',
+          commissionResponse.Message,
+          commissionResponse.Data?.IsFulfilled,
+          isDelivered ? undefined : commissionResponse.Message
+        );
+      } else {
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(
+          request.clientReference,
+          'failed',
+          'Commission service request failed',
+          false,
+          'Commission service request failed'
+        );
+      }
+
+      return commissionResponse;
+    } catch (error) {
+      this.logger.error(`Error processing commission service with flow: ${error.message}`);
+      await this.commissionTransactionLogService.updateCommissionServiceStatus(
+        request.clientReference,
+        'failed',
+        'Commission service error',
+        false,
+        error.message || 'Commission service error'
+      );
+      return null;
+    }
+  }
 
   /**
    * Process commission service request

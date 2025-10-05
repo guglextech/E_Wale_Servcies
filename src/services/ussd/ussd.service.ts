@@ -838,35 +838,9 @@ export class UssdService {
         }
       };
 
-      const commissionResponse = await this.transactionStatusCheckService.processCommissionService(commissionRequest);
-      
-      if (commissionResponse) {
-        const isDelivered = commissionResponse.IsSuccessful && commissionResponse.IsFulfilled;
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          req.OrderId,
-          isDelivered ? 'delivered' : 'failed',
-          commissionResponse.Message,
-          commissionResponse.IsFulfilled,
-          isDelivered ? undefined : commissionResponse.Message
-        );
-      } else {
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          req.OrderId,
-          'failed',
-          'Commission service request failed',
-          false,
-          'Commission service request failed'
-        );
-      }
+      await this.commissionService.processCommissionServiceWithFlow(commissionRequest);
     } catch (error) {
       console.error('Error processing commission service:', error);
-      await this.commissionTransactionLogService.updateCommissionServiceStatus(
-        req.OrderId,
-        'failed',
-        'Commission service error',
-        false,
-        error.message || 'Commission service error'
-      );
     }
   }
 
