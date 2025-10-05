@@ -1,5 +1,19 @@
 import {Prop, Schema, SchemaFactory} from "@nestjs/mongoose";
 
+export interface CommissionTransaction {
+  transactionId: string;
+  clientReference: string;
+  externalTransactionId: string;
+  amount: number;
+  commission: number;
+  serviceType: string;
+  network?: string;
+  tvProvider?: string;
+  utilityProvider?: string;
+  transactionDate: Date;
+  status: 'pending' | 'completed' | 'failed';
+}
+
 @Schema()
 export class User {
   @Prop()
@@ -7,7 +21,6 @@ export class User {
 
   @Prop({required: true, type: String, unique: true})
   username: string;
-
 
   @Prop()
   password: string;
@@ -35,6 +48,22 @@ export class User {
 
   @Prop()
   authType: string;
+
+  // Commission tracking fields
+  @Prop({ type: [Object], default: [] })
+  commissionTransactions: CommissionTransaction[];
+
+  @Prop({ default: 0 })
+  totalEarnings: number;
+
+  @Prop({ default: 0 })
+  availableBalance: number;
+
+  @Prop({ default: 0 })
+  totalWithdrawn: number;
+
+  @Prop({ default: 0 })
+  pendingWithdrawals: number;
 
   @Prop()
   updatedAt: Date
