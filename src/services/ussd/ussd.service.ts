@@ -806,9 +806,9 @@ export class UssdService {
       await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
 
       // If payment is successful, trigger commission service
-      if (isSuccessful) {
-        await this.processCommissionService(req, sessionState);
-      }
+      // if (isSuccessful) {
+      //   await this.processCommissionService(req, sessionState);
+      // }
     } catch (error) {
       console.error('Error logging commission transaction:', error);
     }
