@@ -28,10 +28,10 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
       
-      // Find the payment transaction using SessionId (ClientReference)
-      const transaction = await this.transactionModel.findOne({ SessionId: ClientReference }).exec();
+      // Find the commission transaction using OrderId (ClientReference)
+      const transaction = await this.transactionModel.findOne({ OrderId: ClientReference }).exec();
       if (!transaction) {
-        this.logger.error(`Could not find payment transaction for SessionId ${ClientReference}`);
+        this.logger.error(`Could not find commission transaction for OrderId ${ClientReference}`);
         return;
       }
 
@@ -282,8 +282,8 @@ export class UserCommissionService {
 
   private async getServiceType(clientReference: string): Promise<string> {
     try {
-      const transaction = await this.transactionModel.findOne({ SessionId: clientReference }).exec();
-      return transaction?.ExtraData?.commissionService?.serviceType || 'unknown';
+      const transaction = await this.transactionModel.findOne({ OrderId: clientReference }).exec();
+      return transaction?.ExtraData?.serviceType || 'unknown';
     } catch (error) {
       this.logger.error(`Error determining service type: ${error.message}`);
       return 'unknown';
