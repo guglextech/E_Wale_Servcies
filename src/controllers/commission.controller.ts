@@ -1,10 +1,14 @@
 import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { CommissionService, CommissionServiceRequest } from '../services/commission.service';
+import { UserCommissionService } from '../services/user-commission.service';
 import { Public } from '../utils/validators';
 
 @Controller('commission')
 export class CommissionController {
-  constructor(private readonly commissionService: CommissionService) {}
+  constructor(
+    private readonly commissionService: CommissionService,
+    private readonly userCommissionService: UserCommissionService
+  ) {}
 
   /**
    * Process commission service request
@@ -27,24 +31,61 @@ export class CommissionController {
   }
 
   /**
-   * Handle commission service callback
-   * This endpoint must be public for Hubtel to access it
+   * Test commission callback processing
+   * This is for debugging purposes
    */
-  @Public()
-  @Post('callback')
-  async handleCommissionCallback(@Body() callbackData: any) {
+  @Post('test-callback')
+  async testCommissionCallback(@Body() testData: any) {
     try {
-      // console.log('COMMISSION CALLBACK RECEIVED:::::', JSON.stringify(callbackData, null, 2));
-      await this.commissionService.handleCommissionCallback(callbackData);
+      console.log('TEST COMMISSION CALLBACK RECEIVED:', JSON.stringify(testData, null, 2));
+      await this.commissionService.handleCommissionCallback(testData);
       return {
         success: true,
-        message: 'Commission callback processed successfully'
+        message: 'Test commission callback processed successfully'
       };
     } catch (error) {
-      // console.error('COMMISSION CALLBACK ERROR:::::', error);
+      console.error('TEST COMMISSION CALLBACK ERROR:', error);
       return {
         success: false,
-        message: error.message || 'Failed to process commission callback'
+        message: error.message || 'Failed to process test commission callback'
+      };
+    }
+  }
+
+  /**
+   * Get user earnings by mobile number
+   */
+  @Get('earnings/:mobileNumber')
+  async getUserEarnings(@Param('mobileNumber') mobileNumber: string) {
+    try {
+      const earnings = await this.userCommissionService.getUserEarnings(mobileNumber);
+      return {
+        success: true,
+        data: earnings
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to get user earnings'
+      };
+    }
+  }
+
+  /**
+   * Get commission statistics
+   */
+  @Get('statistics')
+  async getCommissionStatistics() {
+    try {
+      const stats = await this.userCommissionService.getCommissionStatistics();
+      return {
+        success: true,
+        data: stats
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to get commission statistics'
       };
     }
   }
@@ -72,19 +113,19 @@ export class CommissionController {
   /**
    * Get commission service statistics
    */
-  @Get('statistics')
-  async getCommissionStatistics() {
+  @Get('service-statistics')
+  async getCommissionServiceStatistics() {
     try {
       const result = await this.commissionService.getCommissionStatistics();
       return {
         success: true,
         data: result,
-        message: 'Commission statistics retrieved successfully'
+        message: 'Commission service statistics retrieved successfully'
       };
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Failed to get commission statistics'
+        message: error.message || 'Failed to get commission service statistics'
       };
     }
   }
