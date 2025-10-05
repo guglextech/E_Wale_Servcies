@@ -278,7 +278,7 @@ export class CommissionService {
         accountNumber: request.extraData?.accountNumber,
         meterNumber: request.extraData?.meterNumber,
         amount: request.amount,
-        commission: 0, // Will be updated when callback is received
+        commission: 0, 
         charges: 0,
         amountAfterCharges: request.amount,
         currencyCode: 'GHS',
@@ -293,7 +293,8 @@ export class CommissionService {
         retryCount: 0,
         isRetryable: true
       };
-      // await this.transactionModel.create(commissionLogData);
+      // Log commission transaction using the commission transaction log service
+      await this.commissionTransactionLogService.logCommissionTransaction(commissionLogData);
     } catch (error) {
       this.logger.error(`Error logging commission transaction: ${error.message}`);
       throw error;

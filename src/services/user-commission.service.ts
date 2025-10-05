@@ -32,18 +32,17 @@ export class UserCommissionService {
 
       console.log(`Processing commission for clientReference: ${ClientReference}, amount: ${commissionAmount}`);
 
-      // Find the transaction using clientReference to get the mobile number
-      const transaction = await this.transactionModel.findOne({
-        SessionId: ClientReference,
-        IsSuccessful: true
+      // Find the commission log using clientReference to get the mobile number
+      const commissionLog = await this.commissionLogModel.findOne({ 
+        clientReference: ClientReference
       });
-
-      if (!transaction) {
-        this.logger.error(`Could not find transaction for clientReference ${ClientReference}`);
+      
+      if (!commissionLog) {
+        this.logger.error(`Could not find commission log for clientReference ${ClientReference}`);
         return;
       }
 
-      const mobileNumber = transaction.CustomerMobileNumber;
+      const mobileNumber = commissionLog.mobileNumber;
       console.log(`Processing commission for mobile: ${mobileNumber}, amount: ${commissionAmount}`);
 
       const user = await this.findOrCreateUser(mobileNumber);
