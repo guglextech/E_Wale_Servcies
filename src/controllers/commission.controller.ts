@@ -173,23 +173,4 @@ export class CommissionController {
     }
   }
 
-  /**
-   * Get commission service statistics
-   */
-  @Get('service-statistics')
-  async getCommissionServiceStatistics() {
-    try {
-      const result = await this.commissionService.getCommissionStatistics();
-      return {
-        success: true,
-        data: result,
-        message: 'Commission service statistics retrieved successfully'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'Failed to get commission service statistics'
-      };
-    }
-  }
 }

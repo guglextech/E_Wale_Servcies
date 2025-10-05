@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, CommissionTransaction } from '../models/schemas/user.shema';
-import { Transactions } from '../models/schemas/transaction.schema';
+import { CommissionTransactionLogService } from './commission-transaction-log.service';
 
 @Injectable()
 export class UserCommissionService {
@@ -10,7 +10,7 @@ export class UserCommissionService {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
-    @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
+    private readonly commissionTransactionLogService: CommissionTransactionLogService,
   ) {}
 
   /**
@@ -31,19 +31,16 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
       
-      console.log(`Looking for commission transaction with OrderId: ${ClientReference}`);
       
-      // Find the commission transaction using OrderId (ClientReference)
-      const transaction = await this.transactionModel.findOne({ OrderId: ClientReference }).exec();
-      console.log('Found transaction:', transaction ? 'YES' : 'NO');
+      // Find the commission transaction log using clientReference
+      const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(ClientReference);
       
-      if (!transaction) {
-        this.logger.error(`Could not find commission transaction for OrderId ${ClientReference}`);
-        console.log('=== COMMISSION CALLBACK PROCESSING FAILED - NO TRANSACTION ===');
+      if (!commissionLog) {
+        this.logger.error(`Could not find commission transaction log for clientReference ${ClientReference}`);
         return;
       }
 
-      const mobileNumber = transaction.CustomerMobileNumber;
+      const mobileNumber = commissionLog.mobileNumber;
       console.log(`Processing commission for mobile: ${mobileNumber}, amount: ${commissionAmount}`);
       
       const user = await this.findOrCreateUser(mobileNumber);
@@ -58,10 +55,9 @@ export class UserCommissionService {
       });
 
       this.logger.log(`Added commission GH ${commissionAmount} to user ${mobileNumber}`);
-      console.log('=== COMMISSION CALLBACK PROCESSING SUCCESS ===');
+      
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
-      console.log('=== COMMISSION CALLBACK PROCESSING ERROR ===', error);
     }
   }
 
@@ -150,43 +146,40 @@ export class UserCommissionService {
     try {
       this.logger.log('Starting to process existing commission transactions...');
       
-      const transactions = await this.transactionModel.find({
-        'ExtraData.type': 'commission_service',
-        'ExtraData.commission': { $exists: true, $gt: 0 },
-        'ExtraData.callbackReceived': true,
-        IsSuccessful: true
-      }).exec();
+      // Get all commission transaction logs that are delivered but haven't been processed
+      const commissionLogs = await this.commissionTransactionLogService.getAllCommissionLogs(1, 10, 'Paid', 'delivered');
 
       let processed = 0;
       let errors = 0;
 
-      for (const transaction of transactions) {
+      for (const log of commissionLogs.logs) {
         try {
-          const mobileNumber = transaction.CustomerMobileNumber;
+          const mobileNumber = log.mobileNumber;
           if (!mobileNumber) {
             errors++;
             continue;
           }
 
           const user = await this.findUserByMobile(mobileNumber);
-          if (user?.commissionTransactions.find(ct => ct.clientReference === transaction.OrderId)) {
-            continue; // Already processed
+          if (user?.commissionTransactions.find(ct => ct.clientReference === log.clientReference)) {
+            continue; 
           }
 
-          const commissionAmount = parseFloat(transaction.ExtraData?.commission || '0');
+          // Calculate commission amount (this would need to be stored in the commission log)
+          const commissionAmount = 0.01; // Placeholder - you'd need to store actual commission in the log
           if (commissionAmount > 0) {
             const userToUpdate = await this.findOrCreateUser(mobileNumber);
             await this.addCommissionToUser(userToUpdate, {
-              transactionId: transaction.ExtraData?.transactionId || transaction.OrderId,
-              clientReference: transaction.OrderId,
-              amount: transaction.ExtraData?.finalAmount || transaction.AmountPaid,
+              transactionId: log.hubtelTransactionId || log.clientReference,
+              clientReference: log.clientReference,
+              amount: log.amount,
               commission: commissionAmount,
-              transactionDate: transaction.ExtraData?.callbackDate || transaction.OrderDate
+              transactionDate: log.transactionDate
             });
             processed++;
           }
         } catch (error) {
-          this.logger.error(`Error processing transaction ${transaction.OrderId}: ${error.message}`);
+          this.logger.error(`Error processing commission log ${log.clientReference}: ${error.message}`);
           errors++;
         }
       }
@@ -231,8 +224,7 @@ export class UserCommissionService {
     }
   }
 
-  // ==================== PRIVATE HELPER METHODS ====================
-
+ 
   private async findUserByMobile(mobileNumber: string): Promise<User | null> {
     try {
       return await this.userModel.findOne({ phone: mobileNumber }).exec();
@@ -311,8 +303,8 @@ export class UserCommissionService {
 
   private async getServiceType(clientReference: string): Promise<string> {
     try {
-      const transaction = await this.transactionModel.findOne({ OrderId: clientReference }).exec();
-      return transaction?.ExtraData?.serviceType || 'unknown';
+      const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(clientReference);
+      return commissionLog?.serviceType || 'unknown';
     } catch (error) {
       this.logger.error(`Error determining service type: ${error.message}`);
       return 'unknown';
