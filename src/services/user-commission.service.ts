@@ -18,6 +18,8 @@ export class UserCommissionService {
    */
   async processCommissionCallback(callbackData: any): Promise<void> {
     try {
+      this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
+
       const { 
         ResponseCode, 
         Data: { 
@@ -35,8 +37,12 @@ export class UserCommissionService {
         return;
       }
 
+      this.logger.log(`Extracting mobile number for client reference: ${ClientReference}`);
+      
       // Extract mobile number from client reference or transaction data
       const mobileNumber = await this.extractMobileNumberFromTransaction(ClientReference);
+      this.logger.log(`Extracted mobile number: ${mobileNumber}`);
+      
       if (!mobileNumber) {
         this.logger.error(`Could not extract mobile number for transaction ${ClientReference}`);
         return;
@@ -44,7 +50,10 @@ export class UserCommissionService {
 
       // Find or create user by mobile number
       let user = await this.findUserByMobile(mobileNumber);
+      this.logger.log(`Found user: ${user ? 'Yes' : 'No'}`);
+      
       if (!user) {
+        this.logger.log(`Creating new user for mobile: ${mobileNumber}`);
         user = await this.createUserFromMobile(mobileNumber);
       }
 
@@ -60,6 +69,8 @@ export class UserCommissionService {
         status: 'completed'
       };
 
+      this.logger.log(`Updating user commission: ${JSON.stringify(commissionTransaction)}`);
+
       // Update user's commission data
       await this.updateUserCommission(user, commissionTransaction);
 
@@ -67,6 +78,7 @@ export class UserCommissionService {
 
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
+      this.logger.error(`Error stack: ${error.stack}`);
     }
   }
 
@@ -241,8 +253,16 @@ export class UserCommissionService {
    */
   private async extractMobileNumberFromTransaction(clientReference: string): Promise<string | null> {
     try {
+      this.logger.log(`Looking for commission log with client reference: ${clientReference}`);
+      
       // Query commission transaction logs to get mobile number
       const commissionLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(clientReference);
+      
+      this.logger.log(`Found commission log: ${commissionLog ? 'Yes' : 'No'}`);
+      if (commissionLog) {
+        this.logger.log(`Commission log mobile number: ${commissionLog.mobileNumber}`);
+      }
+      
       return commissionLog?.mobileNumber || null;
     } catch (error) {
       this.logger.error(`Error extracting mobile number: ${error.message}`);
