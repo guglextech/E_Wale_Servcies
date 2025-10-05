@@ -264,7 +264,11 @@ export class CommissionService {
 
       // Process commission for user earnings if successful
       if (ResponseCode === '0000') {
+        console.log('=== CALLING USER COMMISSION SERVICE ===');
         await this.userCommissionService.addCommissionEarningsToUser(callbackData);
+        console.log('=== USER COMMISSION SERVICE COMPLETED ===');
+      } else {
+        console.log(`Commission callback failed with ResponseCode: ${ResponseCode}`);
       }
       this.logger.log(`Commission callback processed for ${ClientReference} - Status: ${ResponseCode}`);
     } catch (error) {

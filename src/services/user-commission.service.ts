@@ -18,6 +18,9 @@ export class UserCommissionService {
    */
   async addCommissionEarningsToUser(callbackData: any): Promise<void> {
     try {
+      console.log('=== COMMISSION CALLBACK PROCESSING START ===');
+      console.log('Callback data:', JSON.stringify(callbackData, null, 2));
+      
       const { ResponseCode, Data } = callbackData;
       
       if (ResponseCode !== '0000') {
@@ -28,15 +31,23 @@ export class UserCommissionService {
       const { TransactionId, ClientReference, Amount, Meta: { Commission } } = Data;
       const commissionAmount = parseFloat(Commission);
       
+      console.log(`Looking for commission transaction with OrderId: ${ClientReference}`);
+      
       // Find the commission transaction using OrderId (ClientReference)
       const transaction = await this.transactionModel.findOne({ OrderId: ClientReference }).exec();
+      console.log('Found transaction:', transaction ? 'YES' : 'NO');
+      
       if (!transaction) {
         this.logger.error(`Could not find commission transaction for OrderId ${ClientReference}`);
+        console.log('=== COMMISSION CALLBACK PROCESSING FAILED - NO TRANSACTION ===');
         return;
       }
 
       const mobileNumber = transaction.CustomerMobileNumber;
+      console.log(`Processing commission for mobile: ${mobileNumber}, amount: ${commissionAmount}`);
+      
       const user = await this.findOrCreateUser(mobileNumber);
+      console.log('User found/created:', user ? 'YES' : 'NO');
       
       await this.addCommissionToUser(user, {
         transactionId: TransactionId,
@@ -47,8 +58,10 @@ export class UserCommissionService {
       });
 
       this.logger.log(`Added commission GH ${commissionAmount} to user ${mobileNumber}`);
+      console.log('=== COMMISSION CALLBACK PROCESSING SUCCESS ===');
     } catch (error) {
       this.logger.error(`Error processing commission callback: ${error.message}`);
+      console.log('=== COMMISSION CALLBACK PROCESSING ERROR ===', error);
     }
   }
 
@@ -250,7 +263,12 @@ export class UserCommissionService {
   }
 
   private async addCommissionToUser(user: User, commissionData: any): Promise<void> {
+    console.log('=== ADDING COMMISSION TO USER ===');
+    console.log('User phone:', user.phone);
+    console.log('Commission data:', commissionData);
+    
     const serviceType = await this.getServiceType(commissionData.clientReference);
+    console.log('Service type:', serviceType);
     
     const commissionTransaction: CommissionTransaction = {
       transactionId: commissionData.transactionId,
@@ -263,9 +281,18 @@ export class UserCommissionService {
       status: 'completed'
     };
 
+    console.log('Commission transaction object:', commissionTransaction);
+
     const updatedTransactions = [...user.commissionTransactions, commissionTransaction];
     const newTotalEarnings = user.totalEarnings + commissionTransaction.commission;
     const newAvailableBalance = user.availableBalance + commissionTransaction.commission;
+
+    console.log('Updated totals:', {
+      oldTotalEarnings: user.totalEarnings,
+      newTotalEarnings,
+      oldAvailableBalance: user.availableBalance,
+      newAvailableBalance
+    });
 
     await this.userModel.findOneAndUpdate(
       { phone: user.phone },
@@ -278,6 +305,8 @@ export class UserCommissionService {
         }
       }
     );
+    
+    console.log('=== COMMISSION ADDED TO USER SUCCESSFULLY ===');
   }
 
   private async getServiceType(clientReference: string): Promise<string> {
