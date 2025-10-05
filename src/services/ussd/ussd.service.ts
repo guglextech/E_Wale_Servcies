@@ -574,10 +574,8 @@ export class UssdService {
   private async processCommissionServiceAfterPayment(sessionState: SessionState, sessionId: string, orderInfo: any): Promise<void> {
     try {
       if (sessionState.serviceType === "result_checker") {
-        // Handle voucher assignment (not a commission service)
         await this.resultCheckerHandler.processVoucherPurchase(sessionState, orderInfo);
       } else {
-        // Handle commission services
         const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(
           sessionState, 
           sessionId, 
