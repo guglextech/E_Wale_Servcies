@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios from 'axios';
@@ -141,7 +141,7 @@ export class CommissionService {
     const basePayload = {
       Destination: request.destination,
       Amount: request.amount,
-      CallbackUrl: request.callbackUrl || `${process.env.HB_CALLBACK_URL}`,
+      CallbackUrl: request.callbackUrl || this.getRequiredEnvVar('HB_CALLBACK_URL'),
       ClientReference: request.clientReference
     };
 
@@ -317,6 +317,20 @@ export class CommissionService {
     }
   }
 
+  /**
+   * Get required environment variable or throw error
+   */
+  private getRequiredEnvVar(key: string): string {
+    const value = process.env[key];
+    if (!value) {
+      throw new InternalServerErrorException(`${key} environment variable is required`);
+    }
+    return value;
+  }
+
+
+
+    
   /**
    * Get commission service statistics
    */
