@@ -94,7 +94,7 @@ export class HbPayments {
     // Optional commission callback parameters
     @Prop()
     ResponseCode?: string;
-    @Prop()
+    @Prop({ type: Object })
     Data?: {
         AmountDebited: number;
         TransactionId: string;
