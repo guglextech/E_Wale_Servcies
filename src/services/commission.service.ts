@@ -96,8 +96,6 @@ export class CommissionService {
 
       // Build request payload
       const requestPayload = this.buildRequestPayload(request);
-      
-      // Make the commission service request
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
       this.logger.log(`Making commission service request to: ${url}`);
 
@@ -110,8 +108,7 @@ export class CommissionService {
       });
 
       this.logger.log(`Commission service response: ${JSON.stringify(response.data)}`);
-
-      // Log the transaction
+      console.log("COMMISSION SERVICE RESPONSE :::", response.data);
       await this.logCommissionTransaction(request, response.data);
       return response.data;
 
@@ -214,9 +211,6 @@ export class CommissionService {
       
       // Always update commission amount regardless of response code
       await this.commissionTransactionLogService.updateCommissionAmount(Data.ClientReference, commissionAmount);
-      this.logger.log(`Updated commission transaction log for ${Data.ClientReference} with commission: ${commissionAmount}`);
-
-      // Process commission for user earnings regardless of response code
       await this.userCommissionService.addCommissionEarningsToUser(callbackData);
       
       if (ResponseCode !== '0000') {
@@ -237,7 +231,6 @@ export class CommissionService {
   async checkCommissionStatus(clientReference: string): Promise<any> {
     try {
       this.logger.log(`Checking commission status for: ${clientReference}`);
-
       const hubtelPrepaidDepositID = process.env.HUBTEL_PREPAID_DEPOSIT_ID;
       if (!hubtelPrepaidDepositID) {
         throw new Error('HUBTEL_PREPAID_DEPOSIT_ID environment variable is required');
@@ -270,17 +263,15 @@ export class CommissionService {
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
       const existingLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(request.clientReference);
+      console.log("EXISTING LOG :::", existingLog);
       if (existingLog) {
         // Update the existing log with commission service response
-        await this.commissionTransactionLogService.updateCommissionServiceStatus(
-          request.clientReference,
-          'pending',
-          response.Data?.Description || 'Processing',
-          false
-        );
+        await this.commissionTransactionLogService.updateCommissionServiceStatus(request.clientReference,'pending', response.Data?.Description || 'Processing', false);
         this.logger.log(`Updated existing commission log for ${request.clientReference}`);
       } else {
-        // Fallback: create new log if none exists (shouldn't happen in normal flow)
+        const commissionAmount = response.Data?.Meta?.Commission ? parseFloat(response.Data.Meta.Commission) : 0;
+        console.log(`💰 SETTING COMMISSION IN LOG: ${commissionAmount} for ${request.clientReference}`);
+        
         const commissionLogData = {
           SessionId: request.extraData?.sessionId || request.clientReference,
           OrderId: request.clientReference,
@@ -297,7 +288,7 @@ export class CommissionService {
           accountNumber: request.extraData?.accountNumber,
           meterNumber: request.extraData?.meterNumber,
           amount: request.amount,
-          commission: 0, 
+          commission: commissionAmount, 
           charges: 0,
           amountAfterCharges: request.amount,
           currencyCode: 'GHS',

@@ -70,18 +70,25 @@ export class CommissionTransactionLogService {
    */
   async updateCommissionAmount(clientReference: string, commissionAmount: number): Promise<void> {
     try {
-      await this.commissionLogModel.findOneAndUpdate(
+      console.log(`🔍 UPDATING COMMISSION - ClientRef: ${clientReference}, Amount: ${commissionAmount}`);
+      const result = await this.commissionLogModel.findOneAndUpdate(
         { clientReference },
         { 
           $set: { 
             commission: commissionAmount,
             updatedAt: new Date()
           } 
-        }
+        },
+        { new: true }
       );
-      console.log(`Updated commission amount for ${clientReference}: ${commissionAmount}`);
+      
+      if (result) {
+        console.log(`✅ COMMISSION UPDATED SUCCESSFULLY - ClientRef: ${clientReference}, New Amount: ${result.commission}`);
+      } else {
+        console.log(`❌ NO RECORD FOUND - ClientRef: ${clientReference}`);
+      }
     } catch (error) {
-      console.error('Error updating commission amount:', error);
+      console.error('❌ ERROR updating commission amount:', error);
     }
   }
 
@@ -108,13 +115,12 @@ export class CommissionTransactionLogService {
 
       if (errorMessage) {
         updateData.errorMessage = errorMessage;
-        updateData.isRetryable = true;
       }
 
       await this.commissionLogModel.findOneAndUpdate(
         { clientReference },
         { $set: updateData },
-        { new: true }
+        { new: false }
       );
     } catch (error) {
       console.error('Error updating commission service status:', error);
