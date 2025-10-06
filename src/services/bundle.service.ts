@@ -207,9 +207,7 @@ export class BundleService {
         }
       );
 
-      // Also process through commission service callback handler
-      await this.commissionService.processCommissionServiceCallback(callbackData);
-
+   
       this.logger.log(`Bundle callback processed for ${callbackData.ClientReference}`);
     } catch (error) {
       this.logger.error(`Error processing bundle callback: ${error.message}`);

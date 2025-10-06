@@ -1,3 +1,20 @@
+export interface CommissionServiceCallback {
+  ResponseCode: string;
+  Data: {
+    AmountDebited: number;
+    TransactionId: string;
+    ClientReference: string;
+    Description: string;
+    ExternalTransactionId: string;
+    Amount: number;
+    Charges: number;
+    Meta: {
+      Commission: string;
+    };
+    RecipientName?: string;
+  };
+}
+
 export interface CommissionTransactionLogData {
   SessionId: string;
   OrderId: string;

@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { CommissionService, CommissionServiceRequest } from '../services/commission.service';
 import { UserCommissionService } from '../services/user-commission.service';
 import { Public } from '../utils/validators';
+import { CommissionServiceCallback } from '../models/dto/commission-transaction-log.dto';
 
 @Controller('commission')
 export class CommissionController {
@@ -114,22 +115,14 @@ export class CommissionController {
    */
   @Public()
   @Post('callback')
-  async handleCommissionCallback(@Body() callbackData: any) {
+  async handleCommissionCallback(@Body() callbackData: CommissionServiceCallback) {
     try {
-      console.log(`=== COMMISSION CONTROLLER CALLBACK RECEIVED ===`);
-      console.log(`Callback data: ${JSON.stringify(callbackData, null, 2)}`);
-      
       await this.commissionService.processCommissionServiceCallback(callbackData);
-      
-      console.log(`=== COMMISSION CONTROLLER CALLBACK PROCESSED ===`);
       return {
         success: true,
         message: 'Commission callback processed successfully'
       };
     } catch (error) {
-      console.error(`=== COMMISSION CONTROLLER CALLBACK ERROR ===`);
-      console.error(`Error: ${error.message}`);
-      console.error(`Stack: ${error.stack}`);
       return {
         success: false,
         message: error.message || 'Failed to process commission callback'
