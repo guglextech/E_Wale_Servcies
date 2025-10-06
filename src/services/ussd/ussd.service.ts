@@ -542,8 +542,12 @@ export class UssdService {
         // Check if this is a commission service callback and update commission
         if (req.ResponseCode && req.Data && req.Data.ClientReference) {
           console.log("=== COMMISSION CALLBACK RECEIVED ===");
+          console.log("📍 LOCATION: USSD Service - handleUssdCallback() - isSuccessful block");
+          console.log("📍 FILE: src/services/ussd/ussd.service.ts");
+          console.log("📍 COMMISSION AMOUNT:", req.Data.Meta.Commission);
+          console.log("📍 CLIENT REFERENCE:", req.Data.ClientReference);
           await this.commissionTransactionLogService.updateCommissionAmount(req.Data.ClientReference, parseFloat(req.Data.Meta.Commission));
-          console.log(`Commission updated for ${req.Data.ClientReference}: ${req.Data.Meta.Commission}`);
+          console.log(`✅ Commission updated for ${req.Data.ClientReference}: ${req.Data.Meta.Commission}`);
           return;
         }
         
@@ -589,6 +593,7 @@ export class UssdService {
         console.log("COMMISSION REQUEST :::", commissionRequest); 
         if (commissionRequest) {
           await this.commissionService.processCommissionService(commissionRequest);
+          console.log("COMMISSION SERVICE PROCESSED");
         }
       }
     } catch (error) {
