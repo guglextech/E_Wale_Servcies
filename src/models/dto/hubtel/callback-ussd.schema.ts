@@ -57,6 +57,27 @@ export class Item {
 export class ExtraData {
 }
 
+// Interface for commission service callback
+export interface CommissionServiceCallbackData {
+    ResponseCode: string;
+    Data: {
+        AmountDebited: number;
+        TransactionId: string;
+        ClientReference: string;
+        Description: string;
+        ExternalTransactionId: string;
+        Amount: number;
+        Charges: number;
+        Meta: {
+            Commission: string;
+        };
+        RecipientName?: string;
+    };
+}
+
+// Union type for all possible callback types
+export type UssdCallbackData = HbPayments | CommissionServiceCallbackData;
+
 @Schema()
 export class HbPayments {
     @Prop()
@@ -69,6 +90,24 @@ export class HbPayments {
     OrderInfo: OrderInfo;
     @Prop()
     shortCode: string;
+    
+    // Optional commission callback parameters
+    @Prop()
+    ResponseCode?: string;
+    @Prop()
+    Data?: {
+        AmountDebited: number;
+        TransactionId: string;
+        ClientReference: string;
+        Description: string;
+        ExternalTransactionId: string;
+        Amount: number;
+        Charges: number;
+        Meta: {
+            Commission: string;
+        };
+        RecipientName?: string;
+    };
 }
 
 export const HbPaymentsSchema = SchemaFactory.createForClass(HbPayments);

@@ -20,7 +20,7 @@ export class UssdController {
 
     @Public()
     @Post('ussd/callback')
-    async completionUssdCallback(@Body() req: HbPayments) {
+    async completionUssdCallback(@Body() req: any) {
         return await this.ussdService.handleUssdCallback(req); 
     }
 }
