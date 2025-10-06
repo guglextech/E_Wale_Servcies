@@ -154,9 +154,6 @@ export class TVBillsService {
         }
       );
 
-      // Also process through commission service callback handler
-      await this.commissionService.processCommissionServiceCallback(callbackData);
-
       this.logger.log(`TV bill callback processed for ${ClientReference}`);
     } catch (error) {
       this.logger.error(`Error processing TV bill callback: ${error.message}`);

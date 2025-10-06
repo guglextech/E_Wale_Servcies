@@ -538,6 +538,15 @@ export class UssdService {
 
       if (isSuccessful) {
         finalResponse.ServiceStatus = "success";
+        
+        // Check if this is a commission service callback and update commission
+        if (req.ResponseCode && req.Data && req.Data.ClientReference) {
+          console.log("=== COMMISSION CALLBACK RECEIVED ===");
+          await this.commissionTransactionLogService.updateCommissionAmount(req.Data.ClientReference, parseFloat(req.Data.Meta.Commission));
+          console.log(`Commission updated for ${req.Data.ClientReference}: ${req.Data.Meta.Commission}`);
+          return;
+        }
+        
         const sessionState = this.sessionManager.getSession(req.SessionId);
         if (sessionState) {
           // Process commission service for all service types
@@ -577,6 +586,7 @@ export class UssdService {
         await this.resultCheckerHandler.processVoucherPurchase(sessionState, orderInfo);
       } else {
         const commissionRequest = this.paymentProcessor.buildCommissionServiceRequest(sessionState,  sessionId, `${process.env.HB_CALLBACK_URL}`);
+        console.log("COMMISSION REQUEST :::", commissionRequest); 
         if (commissionRequest) {
           await this.commissionService.processCommissionService(commissionRequest);
         }

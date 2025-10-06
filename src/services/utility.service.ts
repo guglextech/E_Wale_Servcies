@@ -271,9 +271,6 @@ export class UtilityService {
         }
       );
 
-      // Also process through commission service callback handler
-      await this.commissionService.processCommissionServiceCallback(callbackData);
-
       this.logger.log(`Utility callback processed for ${ClientReference}`);
     } catch (error) {
       this.logger.error(`Error processing utility callback: ${error.message}`);

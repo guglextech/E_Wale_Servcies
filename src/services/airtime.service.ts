@@ -139,9 +139,6 @@ export class AirtimeService {
         }
       );
 
-      // Also process through commission service callback handler
-      await this.commissionService.processCommissionServiceCallback(callbackData);
-
       this.logger.log(`Airtime callback processed for ${callbackData.ClientReference}`);
     } catch (error) {
       this.logger.error(`Error processing airtime callback: ${error.message}`);

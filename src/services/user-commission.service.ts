@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { User, CommissionTransaction } from '../models/schemas/user.shema';
 import { Transactions } from '../models/schemas/transaction.schema';
 import { CommissionTransactionLog } from '../models/schemas/commission-transaction-log.schema';
+import { CommissionServiceCallback } from '../models/dto/commission-transaction-log.dto';
 
 @Injectable()
 export class UserCommissionService {
@@ -18,7 +19,7 @@ export class UserCommissionService {
   /**
    * Process commission callback and update commission log
    */
-  async addCommissionEarningsToUser(callbackData: any): Promise<void> {
+  async addCommissionEarningsToUser(callbackData: CommissionServiceCallback): Promise<void> {
     try {
       const { ResponseCode, Data } = callbackData;
       

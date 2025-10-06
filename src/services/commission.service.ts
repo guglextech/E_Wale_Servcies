@@ -8,6 +8,7 @@ import { TVProvider } from '../models/dto/tv-bills.dto';
 import { UtilityProvider } from '../models/dto/utility.dto';
 import { UserCommissionService } from './user-commission.service';
 import { CommissionTransactionLogService } from './commission-transaction-log.service';
+import { CommissionServiceCallback } from '../models/dto/commission-transaction-log.dto';
 
 export interface CommissionServiceRequest {
   serviceType: 'airtime' | 'bundle' | 'tv_bill' | 'utility';
@@ -95,7 +96,7 @@ export class CommissionService {
 
       // Build request payload
       const requestPayload = this.buildRequestPayload(request);
-
+      
       // Make the commission service request
       const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
       this.logger.log(`Making commission service request to: ${url}`);
@@ -205,7 +206,7 @@ export class CommissionService {
    * Process commission service callback
    * This processes the callback from Hubtel commission services
    */
-  async processCommissionServiceCallback(callbackData: any): Promise<void> {
+  async processCommissionServiceCallback(callbackData: CommissionServiceCallback): Promise<void> {
     try {
       this.logger.log(`Processing commission callback: ${JSON.stringify(callbackData)}`);
       const { ResponseCode, Data } = callbackData;
