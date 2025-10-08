@@ -405,9 +405,6 @@ export class UssdService {
         } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.meterNumber && !state.amount) {
           // For ECG add meter flow, handle amount input after meter number
           return await this.handleUtilityAmountInput(req, state);
-        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.amount) {
-          // For ECG add meter flow, handle payment confirmation after amount input
-          return await this.handlePaymentConfirmation(req, state);
         } else {
           return await this.handleUtilityStep8(req, state);
         }
@@ -442,6 +439,9 @@ export class UssdService {
       case 'utility_service':
         // For ECG with prepaid topup, handle payment confirmation after amount input
         if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.amount) {
+          return await this.handlePaymentConfirmation(req, state);
+        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.amount) {
+          // For ECG add meter flow, handle payment confirmation after amount input
           return await this.handlePaymentConfirmation(req, state);
         } else {
           return await this.handleUtilityStep9(req, state);
@@ -711,13 +711,23 @@ export class UssdService {
     if (state.utilityProvider === UtilityProvider.GHANA_WATER) {
       // Ghana Water payment confirmation
       return await this.handleUtilityConfirmation(req, state);
-    } else {
-      // For ECG with prepaid topup, handle amount input after meter selection
-      if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
+    } else if (state.utilityProvider === UtilityProvider.ECG) {
+      // Handle ECG flows
+      if (state.utilitySubOption === 'add_meter' && state.amount) {
+        // For add_meter flow, show order summary after amount input
+        return this.responseBuilder.createNumberInputResponse(
+          req.SessionId,
+          "ECG Prepaid Top-up",
+          this.utilityHandler.formatUtilityOrderSummary(state)
+        );
+      } else if (state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
+        // For topup flow, handle amount input after meter selection
         return await this.handleUtilityAmountInput(req, state);
       } else {
         return this.releaseSession(req.SessionId);
       }
+    } else {
+      return this.releaseSession(req.SessionId);
     }
   }
 
