@@ -31,7 +31,7 @@ export class UtilityHandler {
     this.updateAndLog(req, state);
 
     const optionText = state.meterType === "prepaid"
-      ? "Select Prepaid Option:\n1. Top-up prepaid"
+      ? "Select Prepaid Option:\n1. Top-up prepaid \n2. Add prepaid meter"
       : "Select Postpaid Option:\n1. Pay Bill\n2. Add postpaid meter";
 
     return this.responseBuilder.createNumberInputResponse(
@@ -58,9 +58,18 @@ export class UtilityHandler {
     state.utilitySubOption = optionMaps[state.meterType][req.Message];
     this.updateAndLog(req, state);
 
-    // Show coming soon for non-topup options
-    if (state.meterType === "postpaid" || state.utilitySubOption === "add_meter") {
+    // Show coming soon for postpaid options
+    if (state.meterType === "postpaid") {
       return this.createComingSoon(req.SessionId);
+    }
+
+    // Handle prepaid options
+    if (state.utilitySubOption === "add_meter") {
+      return this.responseBuilder.createPhoneInputResponse(
+        req.SessionId,
+        "Enter Mobile Number",
+        "Enter mobile number to link with ECG meter:"
+      );
     }
 
     // Proceed with prepaid topup
@@ -124,11 +133,29 @@ export class UtilityHandler {
       mobileNumber: validation.convertedNumber
     });
 
+    // Store mobile number in state
+    state.mobile = validation.convertedNumber;
+    this.updateAndLog(req, state);
+
     if (meterResponse.ResponseCode !== '0000') {
-      return this.createError(req.SessionId, `No meters found: ${meterResponse.Message}`);
+      // No meters found - offer to add meter if this is for add_meter flow
+      if (state.utilitySubOption === 'add_meter') {
+        return this.responseBuilder.createPhoneInputResponse(
+          req.SessionId,
+          "Enter Meter Number",
+          "No meters linked to this mobile number.\nEnter ECG meter number to link:\n(eg. P09137104)"
+        );
+      } else {
+        // For topup flow, show error with option to add meter
+        return this.responseBuilder.createNumberInputResponse(
+          req.SessionId,
+          "No Meters Found",
+          `No meters linked to ${validation.convertedNumber}.\n\n1. Add new meter\n2. Try different number\n0. Back to main menu`
+        );
+      }
     }
 
-    state.mobile = validation.convertedNumber;
+    // Meters found - proceed with meter selection
     state.meterInfo = meterResponse.Data;
     this.updateAndLog(req, state);
 
@@ -228,6 +255,25 @@ export class UtilityHandler {
     return state.utilityProvider === UtilityProvider.ECG
       ? await this.handleECGMeterSelection(req, state)
       : await this.handleGhanaWaterQuery(req, state);
+  }
+
+  /**
+   * Handle ECG meter number input for linking
+   */
+  async handleECGMeterNumberInput(req: HBussdReq, state: SessionState): Promise<string> {
+    const validation = this.validateECGMeterNumber(req.Message);
+    if (!validation.isValid) {
+      return this.createError(req.SessionId, validation.error || "Invalid meter number format");
+    }
+
+    state.meterNumber = validation.cleanedMeterNumber;
+    this.updateAndLog(req, state);
+
+    return this.responseBuilder.createDecimalInputResponse(
+      req.SessionId,
+      "Enter Amount",
+      "Enter top-up amount to link meter:"
+    );
   }
 
   /**
@@ -385,6 +431,31 @@ export class UtilityHandler {
 
   private validateMeterNumber(meterNumber: string): boolean {
     return meterNumber?.trim() && /^\d{8,15}$/.test(meterNumber.replace(/\s/g, ''));
+  }
+
+  /**
+   * Validate ECG meter number format
+   */
+  private validateECGMeterNumber(meterNumber: string): { isValid: boolean; cleanedMeterNumber?: string; error?: string } {
+    if (!meterNumber?.trim()) {
+      return { isValid: false, error: "Meter number is required" };
+    }
+
+    // Clean the meter number (remove spaces and convert to uppercase)
+    const cleaned = meterNumber.replace(/\s/g, '').toUpperCase().trim();
+
+    // ECG meter numbers typically start with P followed by digits (e.g., P09137104)
+    // They can also be just digits
+    const ecgMeterPattern = /^(P\d{8,10}|\d{8,10})$/;
+    
+    if (!ecgMeterPattern.test(cleaned)) {
+      return { 
+        isValid: false, 
+        error: "Invalid ECG meter number format. Use format like P09137104 or 09137104" 
+      };
+    }
+
+    return { isValid: true, cleanedMeterNumber: cleaned };
   }
 
   /**
