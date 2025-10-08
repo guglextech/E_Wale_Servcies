@@ -139,14 +139,14 @@ export class UtilityHandler {
           return this.responseBuilder.createPhoneInputResponse(
             req.SessionId,
             "Enter Meter Number",
-            "No meters linked to this mobile number.\nEnter ECG meter number to link:\n(eg. P09137104)"
+            "No meters linked.\nEnter ECG meter number to link:\n(eg. P09137104)"
           );
         } else {
           // For topup flow, show error with option to add meter
           return this.responseBuilder.createNumberInputResponse(
             req.SessionId,
             "No Meters Found",
-            `No meters linked to ${validation.convertedNumber}.\n\n1. Add new meter\n2. Try different number\n0. Back to main menu`
+            `No meters linked to ${validation.convertedNumber}.\n\n Link your meter to continue..`
           );
         }
       }
@@ -267,6 +267,19 @@ export class UtilityHandler {
     }
 
     state.meterNumber = validation.cleanedMeterNumber;
+    
+    // Try to get meter details for display in summary
+    try {
+      const meterResponse = await this.utilityService.queryECGMeters({
+        mobileNumber: validation.cleanedMeterNumber
+      });
+      if (meterResponse.ResponseCode === '0000' && meterResponse.Data?.length > 0) {
+        state.selectedMeter = meterResponse.Data[0];
+      }
+    } catch (error) {
+      // Ignore error, continue without meter details
+    }
+    
     this.updateAndLog(req, state);
 
     return this.responseBuilder.createDecimalInputResponse(
@@ -383,12 +396,20 @@ export class UtilityHandler {
         ? state.meterNumber 
         : meter?.Display || meter?.Value;
       
-      return `ECG ${meterTypeDisplay} Top-up\n` +
-        `Provider: ${provider}\n` +
-        `Meter Type: ${meterTypeDisplay}\n` +
-        `Meter: ${meterDisplay}\n` +
+      let summary = `ECG ${meterTypeDisplay} Top-up\n`;
+      // For add_meter flow, show customer name if available
+      if (state.utilitySubOption === 'add_meter' && meter?.Display) {
+        const nameMatch = meter.Display.match(/^([^(]+)/);
+        if (nameMatch) {
+          summary += `Customer: ${nameMatch[1].trim()}\n`;
+        }
+      }
+      
+      summary += `Meter: ${meterDisplay}\n` +
         `Amount: GHS${amount?.toFixed(2)}\n` +
         `1. Confirm\n2. Cancel`;
+      
+      return summary;
     } else {
       // Extract account name from meterInfo for Ghana Water
       const nameData = state.meterInfo?.find(item => item.Display === 'name');
@@ -486,7 +507,6 @@ export class UtilityHandler {
    */
   private validateAmount(input: string, minAmount: number = 0): { isValid: boolean; amount?: number; error?: string } {
     const amount = Math.abs(parseFloat(input));
-
     if (isNaN(amount)) {
       return { isValid: false, error: "Please enter a valid amount" };
     }
