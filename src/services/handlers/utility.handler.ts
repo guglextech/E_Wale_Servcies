@@ -370,17 +370,23 @@ export class UtilityHandler {
   /**
    * Format utility order summary
    */
-  private formatUtilityOrderSummary(state: SessionState): string {
+  formatUtilityOrderSummary(state: SessionState): string {
     const provider = state.utilityProvider;
     const amount = state.amount;
 
     if (provider === UtilityProvider.ECG) {
       const meter = state.selectedMeter;
       const meterTypeDisplay = state.meterType === 'prepaid' ? 'Prepaid' : 'Postpaid';
+      
+      // For add_meter flow, use meterNumber; for topup flow, use selectedMeter
+      const meterDisplay = state.utilitySubOption === 'add_meter' 
+        ? state.meterNumber 
+        : meter?.Display || meter?.Value;
+      
       return `ECG ${meterTypeDisplay} Top-up\n` +
         `Provider: ${provider}\n` +
         `Meter Type: ${meterTypeDisplay}\n` +
-        `Meter: ${meter?.Display}\n` +
+        `Meter: ${meterDisplay}\n` +
         `Amount: GHS${amount?.toFixed(2)}\n` +
         `1. Confirm\n2. Cancel`;
     } else {
