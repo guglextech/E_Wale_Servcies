@@ -264,6 +264,9 @@ export class UssdService {
         // For ECG with prepaid topup, handle mobile number input first
         if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && !state.mobile) {
           return await this.handleUtilityQuery(req, state);
+        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.mobile && !state.meterNumber) {
+          // For ECG add meter flow, handle meter number input after mobile number
+          return await this.utilityHandler.handleECGMeterNumberInput(req, state);
         } else if (state.utilityProvider === UtilityProvider.GHANA_WATER && state.ghanaWaterService && !state.meterNumber) {
           // For Ghana Water, handle account number input after service selection
           return await this.utilityHandler.handleGhanaWaterQuery(req, state);
@@ -331,6 +334,9 @@ export class UssdService {
         // For ECG with prepaid topup, handle meter selection if mobile was just entered
         if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.mobile && !state.selectedMeter) {
           return await this.handleUtilityStep5(req, state);
+        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.meterNumber && !state.amount) {
+          // For ECG add meter flow, handle amount input after meter number
+          return await this.handleUtilityAmountInput(req, state);
         } else {
           return await this.handleUtilityStep7(req, state);
         }
@@ -393,6 +399,9 @@ export class UssdService {
         // For ECG with prepaid topup, handle amount input after meter selection
         if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
           return await this.handleUtilityAmountInput(req, state);
+        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.amount) {
+          // For ECG add meter flow, handle payment confirmation after amount input
+          return await this.handlePaymentConfirmation(req, state);
         } else {
           return await this.handleUtilityStep8(req, state);
         }

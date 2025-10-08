@@ -187,10 +187,55 @@ export class UtilityService {
       });
 
       this.logger.log(`ECG meter query response: ${JSON.stringify(response.data)}`);
-
       return response.data;
     } catch (error) {
       this.logger.error(`Error querying ECG meter: ${error.message}`);
+      this.logHubtelError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Link ECG meter to mobile number via top-up
+   * This method links a meter to a mobile number by performing a minimal top-up
+   */
+  async linkECGMeter(linkDto: { mobileNumber: string; meterNumber: string; amount: number; clientReference: string; callbackUrl?: string }): Promise<any> {
+    try {
+      const { mobileNumber, meterNumber, amount, clientReference, callbackUrl } = linkDto;
+      
+      this.logger.log(`Linking ECG meter - Mobile: ${mobileNumber}, Meter: ${meterNumber}, Amount: ${amount}`);
+
+      const endpoint = this.hubtelEndpoints[UtilityProvider.ECG];
+      const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
+
+      const requestPayload: ECGTopUpPayload = {
+        Destination: mobileNumber,
+        Amount: amount,
+        CallbackUrl: callbackUrl || this.getRequiredEnvVar('HB_CALLBACK_URL'),
+        ClientReference: `ECG_LINK_${clientReference}_${Date.now()}`,
+        Extradata: {
+          bundle: meterNumber
+        }
+      };
+
+      const url = `https://cs.hubtel.com/commissionservices/${hubtelPrepaidDepositID}/${endpoint}`;
+      this.logger.log(`Linking ECG meter via: ${url}`);
+
+      const response = await this.callCommissionService(url, requestPayload);
+      
+      await this.logTransaction({
+        type: 'ecg_topup_processed',
+        mobileNumber,
+        meterNumber,
+        amount,
+        clientReference: requestPayload.ClientReference,
+        response: response.data,
+        status: 'completed'
+      });
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(`Error linking ECG meter: ${error.message}`);
       this.logHubtelError(error);
       throw error;
     }
