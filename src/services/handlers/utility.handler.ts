@@ -110,60 +110,60 @@ export class UtilityHandler {
    * Handle utility query (ECG mobile number or Ghana Water service selection)
    */
   async handleUtilityQuery(req: HBussdReq, state: SessionState): Promise<string> {
-    try {
-      return state.utilityProvider === UtilityProvider.ECG
-        ? await this.handleECGQuery(req, state)
-        : await this.handleGhanaWaterServiceSelection(req, state);
-    } catch (error) {
-      // console.error("Error querying utility:", error);
-      return this.createError(req.SessionId, "No meter linked to this mobile number. Please try again.");
-    }
+    return state.utilityProvider === UtilityProvider.ECG
+      ? await this.handleECGQuery(req, state)
+      : await this.handleGhanaWaterServiceSelection(req, state);
   }
 
   /**
    * Handle ECG query
    */
   private async handleECGQuery(req: HBussdReq, state: SessionState): Promise<string> {
-    const validation = this.validateMobileNumber(req.Message);
-    if (!validation.isValid) {
-      return this.createError(req.SessionId, validation.error || "Invalid mobile number format");
-    }
-
-    const meterResponse = await this.utilityService.queryECGMeters({
-      mobileNumber: validation.convertedNumber
-    });
-
-    // Store mobile number in state
-    state.mobile = validation.convertedNumber;
-    this.updateAndLog(req, state);
-
-    if (meterResponse.ResponseCode !== '0000') {
-      // No meters found - offer to add meter if this is for add_meter flow
-      if (state.utilitySubOption === 'add_meter') {
-        return this.responseBuilder.createPhoneInputResponse(
-          req.SessionId,
-          "Enter Meter Number",
-          "No meters linked to this mobile number.\nEnter ECG meter number to link:\n(eg. P09137104)"
-        );
-      } else {
-        // For topup flow, show error with option to add meter
-        return this.responseBuilder.createNumberInputResponse(
-          req.SessionId,
-          "No Meters Found",
-          `No meters linked to ${validation.convertedNumber}.\n\n1. Add new meter\n2. Try different number\n0. Back to main menu`
-        );
+    try {
+      const validation = this.validateMobileNumber(req.Message);
+      if (!validation.isValid) {
+        return this.createError(req.SessionId, validation.error || "Invalid mobile number format");
       }
+
+      const meterResponse = await this.utilityService.queryECGMeters({
+        mobileNumber: validation.convertedNumber
+      });
+
+      // Store mobile number in state
+      state.mobile = validation.convertedNumber;
+      this.updateAndLog(req, state);
+
+      if (meterResponse.ResponseCode !== '0000') {
+        // No meters found - offer to add meter if this is for add_meter flow
+        if (state.utilitySubOption === 'add_meter') {
+          return this.responseBuilder.createPhoneInputResponse(
+            req.SessionId,
+            "Enter Meter Number",
+            "No meters linked to this mobile number.\nEnter ECG meter number to link:\n(eg. P09137104)"
+          );
+        } else {
+          // For topup flow, show error with option to add meter
+          return this.responseBuilder.createNumberInputResponse(
+            req.SessionId,
+            "No Meters Found",
+            `No meters linked to ${validation.convertedNumber}.\n\n1. Add new meter\n2. Try different number\n0. Back to main menu`
+          );
+        }
+      }
+
+      // Meters found - proceed with meter selection
+      state.meterInfo = meterResponse.Data;
+      this.updateAndLog(req, state);
+
+      return this.responseBuilder.createNumberInputResponse(
+        req.SessionId,
+        "Select Meter",
+        this.formatECGMeterMenu(state)
+      );
+    } catch (error) {
+      // Handle any unexpected errors
+      return this.createError(req.SessionId, "Unable to query ECG meters. Please try again.");
     }
-
-    // Meters found - proceed with meter selection
-    state.meterInfo = meterResponse.Data;
-    this.updateAndLog(req, state);
-
-    return this.responseBuilder.createNumberInputResponse(
-      req.SessionId,
-      "Select Meter",
-      this.formatECGMeterMenu(state)
-    );
   }
 
   /**
