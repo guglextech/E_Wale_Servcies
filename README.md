@@ -2,6 +2,9 @@
 
 A comprehensive NestJS backend service for airtime top-up, data bundles, TV bill payments, and utility services integration with Hubtel API.
 
+# Hubtel Commission
+https://explore.hubtel.com/legal/service-fees/
+
 ## 🚀 Features
 
 - **Airtime Services**: Top-up airtime for MTN, Vodafone, and AirtelTigo
