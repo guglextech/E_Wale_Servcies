@@ -189,6 +189,12 @@ export class UtilityService {
       this.logger.log(`ECG meter query response: ${JSON.stringify(response.data)}`);
       return response.data;
     } catch (error) {
+      // Check if this is a Hubtel response with valid JSON data
+      if (error.response && error.response.data && error.response.data.ResponseCode) {
+        this.logger.log(`ECG meter query response (from error): ${JSON.stringify(error.response.data)}`);
+        return error.response.data;
+      }
+      
       this.logger.error(`Error querying ECG meter: ${error.message}`);
       this.logHubtelError(error);
       throw error;
