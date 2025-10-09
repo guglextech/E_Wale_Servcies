@@ -267,7 +267,6 @@ export class UtilityHandler {
     }
 
     state.meterNumber = validation.cleanedMeterNumber;
-    
     // Try to get meter details for display in summary
     try {
       const meterResponse = await this.utilityService.queryECGMeters({
@@ -324,7 +323,7 @@ export class UtilityHandler {
     state.totalAmount = validationResult.amount;
     this.updateAndLog(req, state);
 
-    const title = state.utilityProvider === UtilityProvider.ECG ? "Utility Top-Up" : "Bill Payment Summary";
+    const title = state.utilityProvider === UtilityProvider.ECG ? "Utility Top-Up" : "Bill Payment";
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       title,
@@ -407,6 +406,7 @@ export class UtilityHandler {
       
       summary += `Meter: ${meterDisplay}\n` +
         `Amount: GHS${amount?.toFixed(2)}\n` +
+        `Meter Type: ${meterTypeDisplay}\n` +
         `1. Confirm\n2. Cancel`;
       
       return summary;
