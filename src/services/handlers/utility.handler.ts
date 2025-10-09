@@ -68,7 +68,7 @@ export class UtilityHandler {
       return this.responseBuilder.createPhoneInputResponse(
         req.SessionId,
         "Enter Mobile Number",
-        "Enter mobile number to link with ECG meter:"
+        "Enter mobile number to link to ECG Meter:"
       );
     }
 
@@ -125,30 +125,31 @@ export class UtilityHandler {
         return this.createError(req.SessionId, validation.error || "Invalid mobile number format");
       }
 
-      const meterResponse = await this.utilityService.queryECGMeters({
-        mobileNumber: validation.convertedNumber
-      });
-
       // Store mobile number in state
       state.mobile = validation.convertedNumber;
       this.updateAndLog(req, state);
 
+      // For add_meter flow, skip meter query and go directly to meter number entry
+      if (state.utilitySubOption === 'add_meter') {
+        return this.responseBuilder.createPhoneInputResponse(
+          req.SessionId,
+          "Enter Meter Number",
+          "Enter ECG meter number to link:\n(eg. P09137104)"
+        );
+      }
+
+      // For topup flow, query existing meters
+      const meterResponse = await this.utilityService.queryECGMeters({
+        mobileNumber: validation.convertedNumber
+      });
+
       if (meterResponse.ResponseCode !== '0000') {
-        // No meters found - offer to add meter if this is for add_meter flow
-        if (state.utilitySubOption === 'add_meter') {
-          return this.responseBuilder.createPhoneInputResponse(
-            req.SessionId,
-            "Enter Meter Number",
-            "No meters linked.\nEnter ECG meter number to link:\n(eg. P09137104)"
-          );
-        } else {
-          // For topup flow, show error with option to add meter
-          return this.responseBuilder.createNumberInputResponse(
-            req.SessionId,
-            "No Meters Found",
-            `No meters linked to ${validation.convertedNumber}.\n\n Link your meter to continue..`
-          );
-        }
+        // No meters found - show error with option to add meter
+        return this.responseBuilder.createNumberInputResponse(
+          req.SessionId,
+          "No Meters Found",
+          `No meters linked to ${validation.convertedNumber}.\n\n Link your meter to continue..`
+        );
       }
 
       // Meters found - proceed with meter selection
@@ -272,8 +273,8 @@ export class UtilityHandler {
     // Ask for confirmation of meter number
     return this.responseBuilder.createPhoneInputResponse(
       req.SessionId,
-      "Confirm Meter Number",
-      "Please confirm the meter number:\n" + validation.cleanedMeterNumber
+      "Enter Meter Number to Confirm",
+      "Confirm Meter Number:\n"
     );
   }
 
@@ -298,7 +299,7 @@ export class UtilityHandler {
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
       "Enter Amount",
-      "Enter top-up amount to link meter:"
+      "Enter top-up amount:"
     );
   }
 
