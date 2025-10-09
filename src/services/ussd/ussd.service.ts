@@ -341,8 +341,8 @@ export class UssdService {
           // For ECG add meter flow, handle meter number confirmation
           return await this.utilityHandler.handleECGMeterNumberConfirmation(req, state);
         } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.meterNumberConfirmed && !state.amount) {
-          // For ECG add meter flow, handle amount input after meter number confirmation
-          return await this.handleUtilityAmountInput(req, state);
+          // For ECG add meter flow, prompt for amount input after meter number confirmation
+          return this.utilityHandler.promptForAmountInput(req.SessionId);
         } else {
           return await this.handleUtilityStep7(req, state);
         }
@@ -405,8 +405,8 @@ export class UssdService {
         // For ECG with prepaid topup, handle amount input after meter selection
         if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'topup' && state.selectedMeter && !state.amount) {
           return await this.handleUtilityAmountInput(req, state);
-        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.meterNumber && !state.amount) {
-          // For ECG add meter flow, handle amount input after meter number
+        } else if (state.utilityProvider === UtilityProvider.ECG && state.utilitySubOption === 'add_meter' && state.meterNumberConfirmed && !state.amount) {
+          // For ECG add meter flow, handle amount input after meter number confirmation
           return await this.handleUtilityAmountInput(req, state);
         } else {
           return await this.handleUtilityStep8(req, state);
@@ -692,6 +692,9 @@ export class UssdService {
       } else if (state.utilitySubOption === 'add_meter' && state.meterNumber && !state.meterNumberConfirmed) {
         // For add_meter flow, handle meter number confirmation
         return await this.utilityHandler.handleECGMeterNumberConfirmation(req, state);
+      } else if (state.utilitySubOption === 'add_meter' && state.meterNumberConfirmed && !state.amount) {
+        // For add_meter flow, prompt for amount input after meter number confirmation
+        return this.utilityHandler.promptForAmountInput(req.SessionId);
       } else {
         // For topup flow, handle amount input
         return await this.handleUtilityAmountInput(req, state);

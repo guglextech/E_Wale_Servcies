@@ -63,21 +63,12 @@ export class UtilityHandler {
       return this.createComingSoon(req.SessionId);
     }
 
-    // Handle prepaid options
-    if (state.utilitySubOption === "add_meter") {
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Enter Mobile Number",
-        "Enter mobile number to link to ECG Meter:"
-      );
-    }
+    // Create mobile number prompt based on sub-option
+    const promptText = state.utilitySubOption === "add_meter" 
+      ? "Enter mobile number to link to ECG Meter:"
+      : "Enter mobile number linked to ECG meter:";
 
-    // Proceed with prepaid topup
-    return this.responseBuilder.createPhoneInputResponse(
-      req.SessionId,
-      "Enter Mobile Number",
-      "Enter mobile number linked to ECG meter:"
-    );
+    return this.createMobileNumberPrompt(req.SessionId, promptText);
   }
 
   /**
@@ -148,7 +139,7 @@ export class UtilityHandler {
         return this.responseBuilder.createNumberInputResponse(
           req.SessionId,
           "No Meters Found",
-          `No meters linked to ${validation.convertedNumber}.\n\n Link your meter to continue..`
+          `No meters linked to ${validation.convertedNumber}.\nLink your meter to continue..`
         );
       }
 
@@ -179,6 +170,7 @@ export class UtilityHandler {
     const serviceMap = { "1": "pay_bill" as const, "2": "check_bill" as const };
     state.ghanaWaterService = serviceMap[req.Message];
     this.updateAndLog(req, state);
+    
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Meter Number",
@@ -296,11 +288,7 @@ export class UtilityHandler {
     state.meterNumberConfirmed = true;
     this.updateAndLog(req, state);
 
-    return this.responseBuilder.createDecimalInputResponse(
-      req.SessionId,
-      "Enter Amount",
-      "Enter top-up amount:"
-    );
+    return this.createAmountPrompt(req.SessionId);
   }
 
   /**
@@ -317,12 +305,14 @@ export class UtilityHandler {
     state.selectedMeter = meters[selectedIndex];
     state.meterNumber = meters[selectedIndex].Value;
     this.updateAndLog(req, state);
+    return this.createAmountPrompt(req.SessionId);
+  }
 
-    return this.responseBuilder.createDecimalInputResponse(
-      req.SessionId,
-      "Enter Amount",
-      "Enter top-up amount:"
-    );
+  /**
+   * Prompt for amount input (for add_meter flow after meter confirmation)
+   */
+  promptForAmountInput(sessionId: string): string {
+    return this.createAmountPrompt(sessionId);
   }
 
   /**
@@ -442,6 +432,20 @@ export class UtilityHandler {
     return this.responseBuilder.createErrorResponse(sessionId, message);
   }
 
+  /**
+   * Create mobile number input prompt
+   */
+  private createMobileNumberPrompt(sessionId: string, message: string): string {
+    return this.responseBuilder.createPhoneInputResponse(sessionId, "Enter Mobile Number", message);
+  }
+
+  /**
+   * Create amount input prompt
+   */
+  private createAmountPrompt(sessionId: string): string {
+    return this.responseBuilder.createDecimalInputResponse(sessionId, "Enter Amount", "Enter top-up amount:");
+  }
+
   private createComingSoon(sessionId: string): string {
     return this.responseBuilder.createResponse(
       sessionId,
@@ -482,9 +486,6 @@ export class UtilityHandler {
 
     // Clean the meter number (remove spaces and convert to uppercase)
     const cleaned = meterNumber.replace(/\s/g, '').toUpperCase().trim();
-
-    // ECG meter numbers typically start with P followed by digits (e.g., P09137104)
-    // They can also be just digits
     const ecgMeterPattern = /^(P\d{8,10}|\d{8,10})$/;
     
     if (!ecgMeterPattern.test(cleaned)) {
