@@ -178,7 +178,6 @@ export class UtilityHandler {
     const serviceMap = { "1": "pay_bill" as const, "2": "check_bill" as const };
     state.ghanaWaterService = serviceMap[req.Message];
     this.updateAndLog(req, state);
-
     return this.responseBuilder.createNumberInputResponse(
       req.SessionId,
       "Enter Meter Number",
@@ -266,19 +265,34 @@ export class UtilityHandler {
       return this.createError(req.SessionId, validation.error || "Invalid meter number format");
     }
 
+    // Store the first meter number entry
     state.meterNumber = validation.cleanedMeterNumber;
-    // Try to get meter details for display in summary
-    try {
-      const meterResponse = await this.utilityService.queryECGMeters({
-        mobileNumber: validation.cleanedMeterNumber
-      });
-      if (meterResponse.ResponseCode === '0000' && meterResponse.Data?.length > 0) {
-        state.selectedMeter = meterResponse.Data[0];
-      }
-    } catch (error) {
-      // Ignore error, continue without meter details
+    this.updateAndLog(req, state);
+
+    // Ask for confirmation of meter number
+    return this.responseBuilder.createPhoneInputResponse(
+      req.SessionId,
+      "Confirm Meter Number",
+      "Please confirm the meter number:\n" + validation.cleanedMeterNumber
+    );
+  }
+
+  /**
+   * Handle ECG meter number confirmation
+   */
+  async handleECGMeterNumberConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
+    const validation = this.validateECGMeterNumber(req.Message);
+    if (!validation.isValid) {
+      return this.createError(req.SessionId, validation.error || "Invalid meter number format");
     }
-    
+
+    // Check if the confirmed meter number matches the original
+    if (validation.cleanedMeterNumber !== state.meterNumber) {
+      return this.createError(req.SessionId, "Meter numbers do not match. Please try again.");
+    }
+
+    // Mark meter number as confirmed
+    state.meterNumberConfirmed = true;
     this.updateAndLog(req, state);
 
     return this.responseBuilder.createDecimalInputResponse(
@@ -444,14 +458,12 @@ export class UtilityHandler {
 
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
     const cleaned = mobile.replace(/\D/g, '');
-
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
       return { isValid: true, convertedNumber: '233' + cleaned.substring(1) };
     }
     if (cleaned.length === 12 && cleaned.startsWith('233')) {
       return { isValid: true, convertedNumber: cleaned };
     }
-
     return { isValid: false, error: 'Must be a valid mobile number (e.g., 0550982043)' };
   }
 
