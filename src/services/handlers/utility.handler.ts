@@ -243,7 +243,7 @@ export class UtilityHandler {
       return this.responseBuilder.createDecimalInputResponse(
         req.SessionId,
         "GWCL Bill Payment",
-        accountInfo + "\nEnter Payment Amount:"
+        accountInfo + "\n\nEnter Payment Amount:"
       );
     }
   }
@@ -266,48 +266,26 @@ export class UtilityHandler {
       return this.createError(req.SessionId, validation.error || "Invalid meter number format");
     }
 
-    // If this is the first meter number entry
-    if (!state.meterNumber) {
-      state.meterNumber = validation.cleanedMeterNumber;
-      this.updateAndLog(req, state);
-
-      return this.responseBuilder.createPhoneInputResponse(
-        req.SessionId,
-        "Confirm Meter Number",
-        `Enter meter number again to confirm`
-      );
-    }
-
-    // If this is the confirmation step
-    if (state.meterNumber && !state.meterNumberConfirmed) {
-      if (validation.cleanedMeterNumber !== state.meterNumber) {
-        return this.createError(req.SessionId, "Meter numbers do not match. Please try again.");
+    state.meterNumber = validation.cleanedMeterNumber;
+    // Try to get meter details for display in summary
+    try {
+      const meterResponse = await this.utilityService.queryECGMeters({
+        mobileNumber: validation.cleanedMeterNumber
+      });
+      if (meterResponse.ResponseCode === '0000' && meterResponse.Data?.length > 0) {
+        state.selectedMeter = meterResponse.Data[0];
       }
-
-      state.meterNumberConfirmed = true;
-      // Try to get meter details for display in summary
-      try {
-        const meterResponse = await this.utilityService.queryECGMeters({
-          mobileNumber: validation.cleanedMeterNumber
-        });
-        if (meterResponse.ResponseCode === '0000' && meterResponse.Data?.length > 0) {
-          state.selectedMeter = meterResponse.Data[0];
-        }
-      } catch (error) {
-        // Ignore error, continue without meter details
-      }
-      
-      this.updateAndLog(req, state);
-
-      return this.responseBuilder.createDecimalInputResponse(
-        req.SessionId,
-        "Enter Amount",
-        "Enter top-up amount to link meter:"
-      );
+    } catch (error) {
+      // Ignore error, continue without meter details
     }
+    
+    this.updateAndLog(req, state);
 
-    // Fallback - should not reach here
-    return this.createError(req.SessionId, "Invalid meter number entry. Please restart the process.");
+    return this.responseBuilder.createDecimalInputResponse(
+      req.SessionId,
+      "Enter Amount",
+      "Enter top-up amount to link meter:"
+    );
   }
 
   /**
@@ -393,7 +371,6 @@ export class UtilityHandler {
   private formatECGMeterMenu(state: SessionState): string {
     const meters = state.meterInfo || [];
     let menu = "Select Meter:\n";
-
     meters.forEach((meter, index) => {
       menu += `${index + 1}. ${meter.Display}\n`;
     });
@@ -418,17 +395,11 @@ export class UtilityHandler {
         : meter?.Display || meter?.Value;
       
       let summary = `ECG ${meterTypeDisplay} Top-up\n`;
-      
       // For add_meter flow, show customer name if available
-      if (state.utilitySubOption === 'add_meter') {
-        if (meter?.Display) {
-          const nameMatch = meter.Display.match(/^([^(]+)/);
-          if (nameMatch) {
-            summary += `Customer: ${nameMatch[1].trim()}\n`;
-          }
-        } else {
-          // If no meter details available, show a generic customer name
-          summary += `Customer: ECG Customer\n`;
+      if (state.utilitySubOption === 'add_meter' && meter?.Display) {
+        const nameMatch = meter.Display.match(/^([^(]+)/);
+        if (nameMatch) {
+          summary += `Customer: ${nameMatch[1].trim()}\n`;
         }
       }
       
