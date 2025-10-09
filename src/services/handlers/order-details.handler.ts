@@ -59,19 +59,19 @@ export class OrderDetailsHandler {
     const price = this.getServicePrice(service);
 
     if (flow === 'self') {
-      return `Voucher Details:\n\n` +
+      return `Voucher Details:\n` +
              `Service: ${service}\n` +
              `Quantity: ${quantity}\n` +
              `Mobile: ${mobile}\n` +
              `Total: GH₵${(price * quantity).toFixed(2)}\n\n` +
-             `Press 1 to confirm payment`;
+             `1.Confirm\n2. Cancel`;
     } else {
-      return `Voucher Details:\n\n` +
+      return `Voucher Details:\n` +
              `Service: ${service}\n` +
              `Quantity: ${quantity}\n` +
              `For: ${name} (${mobile})\n` +
              `Total: GH₵${(price * quantity).toFixed(2)}\n\n` +
-             `Press 1 to confirm payment`;
+             `1.Confirm\n2. Cancel`;
     }
   }
 
@@ -88,7 +88,7 @@ export class OrderDetailsHandler {
            `Bundle: ${bundle?.Display}\n` +
            `Mobile: ${mobile}\n` +
            `Amount: GH₵${bundle?.Amount}\n\n` +
-           `Press 1 to confirm payment`;
+           `1. Confirm\n2. Cancel`;
   }
 
   /**
@@ -103,7 +103,7 @@ export class OrderDetailsHandler {
            `Network: ${network}\n` +
            `Mobile: ${mobile}\n` +
            `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-           `Press 1 to confirm payment`;
+           `1. Confirm\n2. Cancel`;
   }
 
   /**
@@ -139,13 +139,13 @@ export class OrderDetailsHandler {
              `Meter Type: ${meterTypeDisplay}\n` +
              `Meter: ${meter?.Display}\n` +
              `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-             `Press 1 to confirm payment`;
+             `1. Confirm \n2.Cancel`;
     } else {
       return `Ghana Water Bill:\n\n` +
              `Provider: ${provider}\n` +
              `Meter: ${state.meterNumber}\n` +
              `Amount: GH₵${amount?.toFixed(2)}\n\n` +
-             `Press 1 to confirm payment`;
+             `1. Confirm \n2.Cancel`;
     }
   }
 

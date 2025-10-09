@@ -35,6 +35,7 @@ export interface SessionState {
   utilitySubOption?: 'topup' | 'add_meter' | 'pay_bill';
   ghanaWaterService?: 'pay_bill' | 'check_bill';
   meterNumber?: string;
+  meterNumberConfirmed?: boolean;
   meterInfo?: UtilityMeterInfo[];
   selectedMeter?: UtilityMeterInfo;
   email?: string;
