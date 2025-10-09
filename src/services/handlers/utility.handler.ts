@@ -299,7 +299,7 @@ export class UtilityHandler {
     return this.responseBuilder.createDecimalInputResponse(
       req.SessionId,
       "Enter Amount",
-      "Enter top-up amount to link meter:"
+      "Enter top-up amount:"
     );
   }
 
