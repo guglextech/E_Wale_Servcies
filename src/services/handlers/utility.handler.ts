@@ -125,7 +125,7 @@ export class UtilityHandler {
         return this.responseBuilder.createPhoneInputResponse(
           req.SessionId,
           "Enter Meter Number",
-          "Enter ECG meter number to link:\n(eg. P09137104)"
+          "Enter ECG meter number to link:(eg. P09137104)"
         );
       }
 
@@ -136,10 +136,11 @@ export class UtilityHandler {
 
       if (meterResponse.ResponseCode !== '0000') {
         // No meters found - show error with option to add meter
-        return this.responseBuilder.createNumberInputResponse(
+        return this.responseBuilder.createReleaseResponse(
           req.SessionId,
           "No Meters Found",
-          `No meters linked to ${validation.convertedNumber}.\nLink your meter to continue..`
+          `No meters linked to ${validation.convertedNumber}.\n Please add a meter to continue`,
+          
         );
       }
 
@@ -266,7 +267,7 @@ export class UtilityHandler {
     return this.responseBuilder.createPhoneInputResponse(
       req.SessionId,
       "Enter Meter Number to Confirm",
-      "Confirm Meter Number:\n"
+      "Confirm Meter Number"
     );
   }
 
@@ -400,7 +401,6 @@ export class UtilityHandler {
         : meter?.Display || meter?.Value;
       
       let summary = `ECG ${meterTypeDisplay} Top-up\n`;
-      // For add_meter flow, show customer name if available
       if (state.utilitySubOption === 'add_meter' && meter?.Display) {
         const nameMatch = meter.Display.match(/^([^(]+)/);
         if (nameMatch) {
@@ -408,7 +408,7 @@ export class UtilityHandler {
         }
       }
       
-      summary += `Meter: ${meterDisplay}\n` +
+      summary += `Meter: ${meterDisplay}\n ` +
         `Amount: GHS${amount?.toFixed(2)}\n` +
         `Meter Type: ${meterTypeDisplay}\n` +
         `1. Confirm\n2. Cancel`;
