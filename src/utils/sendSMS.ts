@@ -1,5 +1,16 @@
 import axios from "axios";
 import * as process from "process";
+
+/**
+ * Get display name for voucher type
+ */
+function getVoucherTypeDisplay(voucherType: string): string {
+   const typeMap = {
+       'BECE': 'BECE Results Checker',
+       'WASSCE': 'WASSCE/Nov/Dec Results Checker'
+   };
+   return typeMap[voucherType] || 'Results Checker';
+}
  
 
 export async function sendVoucherSms(voucherData: {
@@ -9,21 +20,32 @@ export async function sendVoucherSms(voucherData: {
    flow: 'self' | 'other';
    buyer_name?: string;
    buyer_mobile?: string;
+   voucherType?: string;
 }) {
    let message = "";
    
-   // Format vouchers as "Serial number - PIN"
-   const voucherTexts = voucherData.vouchers.map(v => `${v.serial_number} - ${v.pin}`);
+   // Determine voucher type for display
+   const voucherType = voucherData.voucherType || 'BECE';
+   const voucherTypeDisplay = getVoucherTypeDisplay(voucherType);
+   
+   // Format vouchers professionally
+   const voucherTexts = voucherData.vouchers.map((v, index) => 
+       `${index + 1}. ${v.serial_number} - ${v.pin}`
+   );
    const voucherCodesText = voucherTexts.join('\n');
 
    if (voucherData.flow === 'other') {
-       message = `Good news! ${voucherData.buyer_name} (${voucherData.buyer_mobile}) has purchased results checker voucher(s) for you!\n\n` +
-                 `Your e-voucher(s):\n${voucherCodesText}\n\n` +   `Serial number - PIN` +
-                 `Best of luck!`;
+       message = `E-Wale Services\n\n` +
+                 `Hi ${voucherData.name}! ${voucherData.buyer_name} bought ${voucherTypeDisplay} voucher(s) for you.\n\n` +
+                 `VOUCHERS:\n${voucherCodesText}\n\n` +
+                 `Use: Visit results portal & enter Serial + PIN\n\n` +
+                 `Good luck!`;
    } else {
-       message = `Thank you for your purchase, ${voucherData.name}!\n\n` +
-                 `Your e-voucher(s):\n${voucherCodesText}\n\n` +  `Serial number - PIN` +
-                 `Best of luck!`;
+       message = `E-Wale Services\n\n` +
+                 `Hi ${voucherData.name}! Your ${voucherTypeDisplay} voucher(s) are ready.\n\n` +
+                 `VOUCHERS:\n${voucherCodesText}\n\n` +
+                 `Use: Visit results portal & enter Serial + PIN\n\n` +
+                 `Good luck!`;
    }
 
    console.log(`Sending voucher SMS to ${voucherData.mobile}:`, message);
