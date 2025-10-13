@@ -13,6 +13,7 @@ https://explore.hubtel.com/legal/service-fees/
 - **Utility Services**: ECG and Ghana Water top-ups
 - **USSD Integration**: Complete USSD flow for mobile services
 - **Payment-First Architecture**: Secure payment processing before service delivery
+- **Earnings Withdrawal**: Automatic mobile money withdrawal for commission earnings
 - **Comprehensive Logging**: Transaction tracking and monitoring
 - **Environment-Based Configuration**: Flexible deployment configuration
 
@@ -95,6 +96,13 @@ PORT=3000
 - `POST /utility/payment-callback` - Handle payment callbacks
 - `POST /utility/ecg/callback` - Handle ECG service delivery callbacks
 - `POST /utility/ghana-water/callback` - Handle Ghana Water service delivery callbacks
+
+### Send Money Services (Earnings Withdrawal)
+
+- `POST /callback/send-money` - Handle send money callbacks from Hubtel
+- Automatic mobile money withdrawal for commission earnings
+- Supports MTN, Vodafone, and Tigo Ghana mobile money
+- Real-time withdrawal processing with callback handling
 
 ### Payment Services
 
