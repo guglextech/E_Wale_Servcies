@@ -19,8 +19,8 @@ export class VouchersController {
   constructor(private readonly vouchersService: VouchersService) {}
 
   @Post('create')
-  async createVoucher(@Body() body: { serial_number: string; pin: string }) {
-    const voucher = await this.vouchersService.createVoucher(body.serial_number, body.pin);
+  async createVoucher(@Body() body: { serial_number: string; pin: string; voucherType?: string }) {
+    const voucher = await this.vouchersService.createVoucher(body.serial_number, body.pin, body.voucherType);
     return {
       message: 'Voucher created successfully',
       voucher,
@@ -30,7 +30,8 @@ export class VouchersController {
   @Post('create-bulk')
   async createVouchersBulk(@Body() body: { 
     serial_numbers: string[]; 
-    pins: string[] 
+    pins: string[];
+    voucherType?: string;
   }) {
     if (!body.serial_numbers || !Array.isArray(body.serial_numbers)) {
       throw new BadRequestException('serial_numbers must be an array');
@@ -40,7 +41,7 @@ export class VouchersController {
       throw new BadRequestException('pins must be an array');
     }
 
-    const result = await this.vouchersService.createVouchersBulk(body.serial_numbers, body.pins);
+    const result = await this.vouchersService.createVouchersBulk(body.serial_numbers, body.pins, body.voucherType);
     return {
       message: 'Bulk voucher creation completed',
       ...result,
@@ -63,8 +64,8 @@ export class VouchersController {
   }
 
   @Get('available')
-  async getAvailableVouchers() {
-    return await this.vouchersService.getAvailableVouchers();
+  async getAvailableVouchers(@Query('voucherType') voucherType?: string) {
+    return await this.vouchersService.getAvailableVouchers(voucherType);
   }
 
   @Get('assigned/:mobileNumber')

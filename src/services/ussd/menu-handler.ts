@@ -34,7 +34,7 @@ export class MenuHandler {
       "2": () => this.handleServiceSelection(req, state, ServiceType.DATA_BUNDLE, "Select Network", "Instant Exclusive Data Bundle. Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
       "3": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
       "4": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Power\n2. Ghana Water"),
-      "5": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE"),
+      "5": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE \n2. WASSCE / Nov/Dec Checker"),
       "6": () => this.handleServiceSelection(req, state, ServiceType.EARNING, "Earnings Menu", "My Earnings\n1. My Balance\n2. Withdraw money\n3. T& C")
     };
 
@@ -109,17 +109,16 @@ export class MenuHandler {
    * Handle result checker service selection
    */
   private handleResultCheckerServiceSelection(req: HBussdReq, state: SessionState): string {
-    if (!["1", "2", "3"].includes(req.Message)) {
+    if (!["1", "2"].includes(req.Message)) {
       return this.responseBuilder.createInvalidSelectionResponse(
         req.SessionId,
-        "Please select 1, 2, or 3"
+        "Please select 1, 2"
       );
     }
 
     const serviceMap = {
       "1": "BECE Checker Voucher",
-      "2": "NovDec Checker",
-      "3": "School Placement Checker"
+      "2": "WASSCE / Nov/Dec Checker"
     };
 
     state.service = serviceMap[req.Message];

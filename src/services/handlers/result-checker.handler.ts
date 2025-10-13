@@ -168,7 +168,8 @@ export class ResultCheckerHandler {
         name: sessionState.flow === FlowType.SELF ? orderInfo.CustomerMobileNumber : sessionState.name,
         flow: sessionState.flow,
         bought_for_mobile: sessionState.flow === FlowType.OTHER ? sessionState.mobile : orderInfo.CustomerMobileNumber,
-        bought_for_name: sessionState.flow === FlowType.OTHER ? sessionState.name : orderInfo.CustomerMobileNumber
+        bought_for_name: sessionState.flow === FlowType.OTHER ? sessionState.name : orderInfo.CustomerMobileNumber,
+        voucherType: sessionState.service // Pass the service name to determine voucher type
       });
 
       // Send SMS with all assigned voucher details
@@ -178,7 +179,8 @@ export class ResultCheckerHandler {
         vouchers: purchaseResult.assigned_vouchers,
         flow: sessionState.flow,
         buyer_name: sessionState.flow === FlowType.OTHER ? orderInfo.CustomerName : undefined,
-        buyer_mobile: sessionState.flow === FlowType.OTHER ? orderInfo.CustomerMobileNumber : undefined
+        buyer_mobile: sessionState.flow === FlowType.OTHER ? orderInfo.CustomerMobileNumber : undefined,
+        voucherType: this.getVoucherTypeFromService(sessionState.service)
       });
 
       // Update the assigned vouchers to mark them as sold and successful
@@ -204,11 +206,22 @@ export class ResultCheckerHandler {
   private getServicePrice(service: string): number {
     const priceMap = {
       "BECE Checker Voucher": 20,
-      "NovDec Checker": 21,
-      "School Placement Checker": 21
+      "WASSCE / Nov/Dec Checker": 0.2
     };
 
     return priceMap[service] || 21;
+  }
+
+  /**
+   * Get voucher type from service name
+   */
+  private getVoucherTypeFromService(service?: string): string {
+    if (!service) return 'BECE';
+    const serviceToVoucherType = {
+      'BECE Checker Voucher': 'BECE',
+      'WASSCE / Nov/Dec Checker': 'WASSCE'
+    };
+    return serviceToVoucherType[service] || 'BECE';
   }
 
   /**
