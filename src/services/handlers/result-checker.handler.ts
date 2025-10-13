@@ -168,7 +168,8 @@ export class ResultCheckerHandler {
         name: sessionState.flow === FlowType.SELF ? orderInfo.CustomerMobileNumber : sessionState.name,
         flow: sessionState.flow,
         bought_for_mobile: sessionState.flow === FlowType.OTHER ? sessionState.mobile : orderInfo.CustomerMobileNumber,
-        bought_for_name: sessionState.flow === FlowType.OTHER ? sessionState.name : orderInfo.CustomerMobileNumber
+        bought_for_name: sessionState.flow === FlowType.OTHER ? sessionState.name : orderInfo.CustomerMobileNumber,
+        voucherType: sessionState.service // Pass the service name to determine voucher type
       });
 
       // Send SMS with all assigned voucher details
@@ -204,8 +205,7 @@ export class ResultCheckerHandler {
   private getServicePrice(service: string): number {
     const priceMap = {
       "BECE Checker Voucher": 20,
-      "NovDec Checker": 21,
-      "School Placement Checker": 21
+      "WASSCE / Nov/Dec Checker": 20
     };
 
     return priceMap[service] || 21;

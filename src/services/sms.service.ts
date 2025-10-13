@@ -10,6 +10,4 @@ import * as process from "process";
 @Injectable()
 export class SMService {
     constructor() {}
-
-    
 }

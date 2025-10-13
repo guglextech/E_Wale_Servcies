@@ -11,7 +11,7 @@ export class VouchersService {
     @InjectModel(Voucher.name) private voucherModel: Model<Voucher>,
   ) {}
 
-  async createVoucher(serialNumber: string, pin: string): Promise<Voucher> {
+  async createVoucher(serialNumber: string, pin: string, voucherType: string = 'BECE'): Promise<Voucher> {
     // Normalize serial number (trim whitespace, convert to uppercase)
     const normalizedSerialNumber = serialNumber.trim().toUpperCase();
     
@@ -38,6 +38,7 @@ export class VouchersService {
         pin: pin.trim(),
         date: new Date(),
         sold: false,
+        voucherType: voucherType,
       });
       
       return await voucher.save();
@@ -85,14 +86,18 @@ export class VouchersService {
     assigned_vouchers: VoucherResponseDto[]; 
     message: string 
   }> {
-    // Check if we have enough available vouchers
+    // Determine voucher type based on service
+    const voucherType = this.getVoucherTypeFromService(purchaseDto.voucherType);
+    
+    // Check if we have enough available vouchers of the specified type
     const availableVouchers = await this.voucherModel.find({ 
       sold: false,
-      mobile_number_assigned: { $exists: false }
+      mobile_number_assigned: { $exists: false },
+      voucherType: voucherType
     }).limit(purchaseDto.quantity);
 
     if (availableVouchers.length < purchaseDto.quantity) {
-      throw new BadRequestException(`Only ${availableVouchers.length} vouchers available. Requested: ${purchaseDto.quantity}`);
+      throw new BadRequestException(`Only ${availableVouchers.length} ${voucherType} vouchers available. Requested: ${purchaseDto.quantity}`);
     }
 
     const assignedVouchers: VoucherResponseDto[] = [];
@@ -116,8 +121,8 @@ export class VouchersService {
 
     // Note: SMS will be sent separately after payment confirmation
     const message = purchaseDto.flow === 'other' 
-      ? `Successfully assigned ${purchaseDto.quantity} voucher(s) for ${purchaseDto.bought_for_name} (${purchaseDto.bought_for_mobile})`
-      : `Successfully assigned ${purchaseDto.quantity} voucher(s) for yourself`;
+      ? `Successfully assigned ${purchaseDto.quantity} ${voucherType} voucher(s) for ${purchaseDto.bought_for_name} (${purchaseDto.bought_for_mobile})`
+      : `Successfully assigned ${purchaseDto.quantity} ${voucherType} voucher(s) for yourself`;
 
     return {
       success: true,
@@ -126,11 +131,30 @@ export class VouchersService {
     };
   }
 
-  async getAvailableVouchers(): Promise<{ count: number; vouchers: VoucherResponseDto[] }> {
-    const vouchers = await this.voucherModel.find({ 
+  /**
+   * Get voucher type from service name
+   */
+  private getVoucherTypeFromService(service?: string): string {
+    if (!service) return 'BECE';
+    
+    const serviceToVoucherType = {
+      'BECE Checker Voucher': 'BECE',
+      'WASSCE / Nov/Dec Checker': 'WASSCE'
+    };
+    return serviceToVoucherType[service] || 'BECE';
+  }
+
+  async getAvailableVouchers(voucherType?: string): Promise<{ count: number; vouchers: VoucherResponseDto[] }> {
+    const query: any = { 
       sold: false,
       mobile_number_assigned: { $exists: false }
-    });
+    };
+
+    if (voucherType) {
+      query.voucherType = voucherType;
+    }
+
+    const vouchers = await this.voucherModel.find(query);
 
     return {
       count: vouchers.length,
@@ -212,7 +236,7 @@ export class VouchersService {
     return !!existingVoucher;
   }
 
-  async createVouchersBulk(serialNumbers: string[], pins: string[]): Promise<{
+  async createVouchersBulk(serialNumbers: string[], pins: string[], voucherType: string = 'BECE'): Promise<{
     success: number;
     failed: number;
     duplicates: string[];
@@ -275,6 +299,7 @@ export class VouchersService {
           pin: normalizedPin,
           date: new Date(),
           sold: false,
+          voucherType: voucherType,
         });
         
         await voucher.save();

@@ -28,6 +28,10 @@ export class PurchaseVoucherDto {
   @IsOptional()
   @IsString()
   bought_for_name?: string;
+
+  @IsOptional()
+  @IsString()
+  voucherType?: string;
 }
 
 export class VoucherResponseDto {

@@ -69,6 +69,9 @@ export class Voucher extends Document {
 
   @Prop({ required: false })
   debitCharges: number;
+
+  @Prop({ required: false, default: 'BECE' })
+  voucherType: string; // BECE, WASSCE, NovDec, School Placement
 }
 
 export const VoucherSchema = SchemaFactory.createForClass(Voucher);
