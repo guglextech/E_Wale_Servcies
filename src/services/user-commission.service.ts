@@ -126,6 +126,7 @@ export class UserCommissionService {
       const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, amount);
       
       if (result.success) {
+        await this.createWithdrawalDeduction(mobileNumber, amount, result.transactionId);
         const newBalance = earnings.availableBalance - amount;
         return { 
           ...result, 
@@ -141,11 +142,100 @@ export class UserCommissionService {
   }
 
   /**
+   * Create withdrawal deduction entry in commission logs
+   */
+  private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
+    try {
+      const withdrawalDeduction = {
+        clientReference: `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
+        hubtelTransactionId: transactionId || null,
+        externalTransactionId: null,
+        mobileNumber: mobileNumber,
+        sessionId: `withdrawal_deduction_${Date.now()}`,
+        serviceType: 'withdrawal_deduction',
+        amount: amount,
+        commission: -amount, 
+        charges: 0,
+        amountAfterCharges: amount,
+        currencyCode: 'GHS',
+        paymentMethod: 'withdrawal',
+        status: 'Completed',
+        isFulfilled: true,
+        responseCode: '0000',
+        message: `Withdrawal deduction for ${mobileNumber}`,
+        commissionServiceStatus: 'delivered',
+        transactionDate: new Date(),
+        retryCount: 0,
+        isRetryable: false,
+        logStatus: 'active'
+      };
+
+      await this.commissionLogModel.create(withdrawalDeduction);
+      this.logger.log(`Created withdrawal deduction for ${mobileNumber}: GH ${amount}`);
+    } catch (error) {
+      this.logger.error(`Error creating withdrawal deduction: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Handle send money callback from Hubtel
    */
   async handleSendMoneyCallback(callbackData: any): Promise<void> {
-    // Delegate to withdrawal service
-    await this.withdrawalService.handleSendMoneyCallback(callbackData);
+    try {
+      const { ResponseCode, Data } = callbackData;
+      const { ClientReference } = Data;
+
+      // Delegate to withdrawal service
+      await this.withdrawalService.handleSendMoneyCallback(callbackData);
+
+      // If withdrawal failed, create refund entry to restore user's balance
+      if (ResponseCode !== '0000') {
+        const withdrawalRecord = await this.withdrawalService.getWithdrawalByClientReference(ClientReference);
+        if (withdrawalRecord) {
+          await this.createWithdrawalRefund(withdrawalRecord.mobileNumber, withdrawalRecord.amount, ClientReference);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error handling withdrawal callback: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create withdrawal refund entry to restore user's balance
+   */
+  private async createWithdrawalRefund(mobileNumber: string, amount: number, clientReference: string): Promise<void> {
+    try {
+      const withdrawalRefund = {
+        clientReference: `withdrawal_refund_${clientReference}`,
+        hubtelTransactionId: null,
+        externalTransactionId: null,
+        mobileNumber: mobileNumber,
+        sessionId: `withdrawal_refund_${Date.now()}`,
+        serviceType: 'withdrawal_refund',
+        amount: amount,
+        commission: amount, // Positive commission to restore earnings
+        charges: 0,
+        amountAfterCharges: amount,
+        currencyCode: 'GHS',
+        paymentMethod: 'refund',
+        status: 'Completed',
+        isFulfilled: true,
+        responseCode: '0000',
+        message: `Withdrawal refund for failed withdrawal: ${clientReference}`,
+        commissionServiceStatus: 'delivered',
+        transactionDate: new Date(),
+        retryCount: 0,
+        isRetryable: false,
+        logStatus: 'active'
+      };
+
+      await this.commissionLogModel.create(withdrawalRefund);
+      this.logger.log(`Created withdrawal refund for ${mobileNumber}: GH ${amount}`);
+    } catch (error) {
+      this.logger.error(`Error creating withdrawal refund: ${error.message}`);
+      throw error;
+    }
   }
 
   /**

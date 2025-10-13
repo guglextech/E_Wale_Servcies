@@ -144,6 +144,22 @@ export class WithdrawalService {
   }
 
   /**
+   * Get withdrawal by client reference
+   */
+  async getWithdrawalByClientReference(clientReference: string): Promise<any> {
+    try {
+      const withdrawal = await this.withdrawalModel.findOne({
+        clientReference: clientReference
+      }).exec();
+
+      return withdrawal;
+    } catch (error) {
+      this.logger.error(`Error getting withdrawal by client reference: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Get user withdrawal history
    */
   async getUserWithdrawalHistory(mobileNumber: string, limit: number = 20): Promise<any[]> {
