@@ -64,7 +64,7 @@ export class SendMoneyService {
         RecipientMsisdn: request.recipientMsisdn,
         CustomerEmail: request.customerEmail,
         Channel: request.channel,
-        Amount: request.amount,
+        Amount: Math.floor(request.amount * 100) / 100, 
         PrimaryCallbackURL: request.primaryCallbackUrl,
         Description: request.description,
         ClientReference: request.clientReference
