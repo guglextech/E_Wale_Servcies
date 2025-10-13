@@ -18,8 +18,8 @@ export class WithdrawalService {
    */
   async processWithdrawalRequest(mobileNumber: string, amount: number) {
     try {
-      if (amount < 0.3) {
-        return { success: false, message: 'Minimum withdrawal amount is GH 0.30' };
+      if (amount < 0.5) {
+        return { success: false, message: 'Minimum withdrawal amount is GH 0.50' };
       }
 
       const clientReference = `withdrawal_${mobileNumber}_${Date.now()}`;
