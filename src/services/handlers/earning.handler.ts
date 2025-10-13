@@ -66,7 +66,7 @@ export class EarningHandler {
     try {
       // Get cumulative commission earnings for this mobile number
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
-      const MIN_WITHDRAWAL_AMOUNT = 0.3;
+      const MIN_WITHDRAWAL_AMOUNT = 0.5;
       
       if (earnings.availableBalance < MIN_WITHDRAWAL_AMOUNT) {
         const message = `Insufficient Balance\n\nAvailable: GH ${earnings.availableBalance.toFixed(2)}\nMinimum: GH ${MIN_WITHDRAWAL_AMOUNT}.00\n\nPlease earn more commission first.`;
@@ -121,18 +121,10 @@ export class EarningHandler {
         const result = await this.userCommissionService.processWithdrawalRequest(req.Mobile, state.totalEarnings);
         if (result.success) {
           const newBalance = 'newBalance' in result ? result.newBalance : 0;
-          const transactionId = 'transactionId' in result ? result.transactionId : 'N/A';
-          const message = `Withdrawal request submitted successfully!\nAmount: GH ${state.totalEarnings.toFixed(2)}\nNew Balance: GH ${newBalance.toFixed(2)}\nTransaction ID: ${transactionId}\nYou will receive payment within 24 hours.`;
-          return this.responseBuilder.createReleaseResponse(
-            req.SessionId,
-            "Withdrawal Confirmed",
-            message
-          );
+          const message = `Withdrawal request submitted successfully!\nAmount: GH ${state.totalEarnings.toFixed(2)}\nNew Balance: GH ${newBalance.toFixed(2)}.You will receive payment within 24 hours.`;
+          return this.responseBuilder.createReleaseResponse(req.SessionId,"Withdrawal Confirmed", message);
         } else {
-          return this.responseBuilder.createErrorResponse(
-            req.SessionId,
-            result.message
-          );
+          return this.responseBuilder.createErrorResponse(req.SessionId, result.message);
         }
       } catch (error) {
         console.error('Error processing withdrawal:', error);
