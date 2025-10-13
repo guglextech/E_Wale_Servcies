@@ -45,8 +45,10 @@ import { CommissionController } from "./controllers/commission.controller";
 import { UserCommissionService } from "./services/user-commission.service";
 import { CommissionTransactionLogService } from "./services/commission-transaction-log.service";
 import { CommissionTransactionLog, CommissionTransactionLogSchema } from "./models/schemas/commission-transaction-log.schema";
+import { Withdrawal, WithdrawalSchema } from "./models/schemas/withdrawal.schema";
 import { SendMoneyController } from "./controllers/send-money.controller";
 import { SendMoneyService } from "./services/send-money.service";
+import { WithdrawalService } from "./services/withdrawal.service";
 
 // Import USSD modular services
 import { SessionManager } from "./services/ussd/session-manager";
@@ -87,6 +89,7 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
       { name: Voucher.name, schema: VoucherSchema },
       { name: UssdLog.name, schema: UssdLogSchema },
       { name: CommissionTransactionLog.name, schema: CommissionTransactionLogSchema },
+      { name: Withdrawal.name, schema: WithdrawalSchema },
     ]),
     JwtModule.register({
       secret: jwtConstants.secret,
@@ -123,6 +126,7 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
     UserCommissionService,
     CommissionTransactionLogService,
     SendMoneyService,
+    WithdrawalService,
     // USSD modular services
     SessionManager,
     ResponseBuilder,
