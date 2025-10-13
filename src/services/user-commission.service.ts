@@ -5,6 +5,7 @@ import { User, CommissionTransaction } from '../models/schemas/user.shema';
 import { Transactions } from '../models/schemas/transaction.schema';
 import { CommissionTransactionLog } from '../models/schemas/commission-transaction-log.schema';
 import { CommissionServiceCallback } from '../models/dto/commission-transaction-log.dto';
+import { WithdrawalService } from './withdrawal.service';
 
 @Injectable()
 export class UserCommissionService {
@@ -14,6 +15,7 @@ export class UserCommissionService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Transactions.name) private readonly transactionModel: Model<Transactions>,
     @InjectModel(CommissionTransactionLog.name) private readonly commissionLogModel: Model<CommissionTransactionLog>,
+    private readonly withdrawalService: WithdrawalService,
   ) { }
 
   /**
@@ -63,7 +65,6 @@ export class UserCommissionService {
     try {
       console.log(`Getting earnings for mobile: ${mobileNumber}`);
 
-      // Get commission transaction logs for the mobile number
       const commissionLogs = await this.commissionLogModel.find({
         mobileNumber: mobileNumber,
         logStatus: 'active'
@@ -73,10 +74,6 @@ export class UserCommissionService {
         console.log(`No commission logs found for mobile: ${mobileNumber}, returning default earnings`);
         return this.getDefaultEarnings();
       }
-
-      // Calculate earnings from commission logs
-      console.log(`=== CALCULATING EARNINGS FOR ${mobileNumber} ===`);
-      console.log(`Found ${commissionLogs.length} commission logs`);
       
       const totalEarnings = commissionLogs.reduce((sum, log) => {
         const commission = log.commission || 0;
@@ -125,44 +122,30 @@ export class UserCommissionService {
         return { success: false, message: 'Insufficient balance' };
       }
 
-      if (amount < 10) {
-        return { success: false, message: 'Minimum withdrawal amount is GH 10.00' };
+      // Delegate to withdrawal service
+      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, amount);
+      
+      if (result.success) {
+        const newBalance = earnings.availableBalance - amount;
+        return { 
+          ...result, 
+          newBalance 
+        };
       }
-
-      // Create a withdrawal record in commission logs
-      const withdrawalLog = {
-        clientReference: `withdrawal_${Date.now()}`,
-        hubtelTransactionId: null,
-        externalTransactionId: null,
-        mobileNumber: mobileNumber,
-        sessionId: `withdrawal_${Date.now()}`,
-        serviceType: 'withdrawal',
-        amount: amount,
-        commission: -amount,
-        charges: 0,
-        amountAfterCharges: amount,
-        currencyCode: 'GHS',
-        paymentMethod: 'withdrawal',
-        status: 'Paid',
-        isFulfilled: true,
-        responseCode: '0000',
-        message: 'Withdrawal processed',
-        commissionServiceStatus: 'delivered',
-        transactionDate: new Date(),
-        retryCount: 0,
-        isRetryable: false,
-        logStatus: 'active'
-      };
-
-      await this.commissionLogModel.create(withdrawalLog);
-
-      const newBalance = earnings.availableBalance - amount;
-      this.logger.log(`Withdrawal request processed for ${mobileNumber}: GH ${amount}`);
-      return { success: true, message: 'Withdrawal request submitted successfully', newBalance };
+      
+      return result;
     } catch (error) {
       this.logger.error(`Error processing withdrawal: ${error.message}`);
-      return { success: false, message: 'Withdrawal processing failed' };
+      return { success: false, message: `Withdrawal processing failed: ${error.message}` };
     }
+  }
+
+  /**
+   * Handle send money callback from Hubtel
+   */
+  async handleSendMoneyCallback(callbackData: any): Promise<void> {
+    // Delegate to withdrawal service
+    await this.withdrawalService.handleSendMoneyCallback(callbackData);
   }
 
   /**
