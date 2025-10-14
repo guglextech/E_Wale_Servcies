@@ -4,13 +4,15 @@ import { SessionState } from "../ussd/types";
 import { ResponseBuilder } from "../ussd/response-builder";
 import { SessionManager } from "../ussd/session-manager";
 import { UserCommissionService } from "../user-commission.service";
+import { WithdrawalService } from "../withdrawal.service";
 
 @Injectable()
 export class EarningHandler {
   constructor(
     private readonly responseBuilder: ResponseBuilder,
     private readonly sessionManager: SessionManager,
-    private readonly userCommissionService: UserCommissionService
+    private readonly userCommissionService: UserCommissionService,
+    private readonly withdrawalService: WithdrawalService
   ) {}
 
   /**
@@ -40,10 +42,10 @@ export class EarningHandler {
   private async handleMyEarnings(req: HBussdReq, state: SessionState): Promise<string> {
     try {
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
-      const MIN_WITHDRAWAL_AMOUNT = 0.5;
+      const minWithdrawal = this.withdrawalService.getMinWithdrawalAmount();
       
       // Format earnings display
-      const message = `My Earnings (Minimum Withdrawal: GH ${MIN_WITHDRAWAL_AMOUNT.toFixed(2)})\n\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}`;
+      const message = `My Earnings (Minimum Withdrawal: GH ${minWithdrawal.toFixed(2)})\n\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nPending Withdrawal: GH ${earnings.pendingWithdrawals.toFixed(2)}`;
       
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
@@ -66,10 +68,10 @@ export class EarningHandler {
     try {
       // Get cumulative commission earnings for this mobile number
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
-      const MIN_WITHDRAWAL_AMOUNT = 0.5;
+      const minWithdrawal = this.withdrawalService.getMinWithdrawalAmount();
       
-      if (earnings.availableBalance < MIN_WITHDRAWAL_AMOUNT) {
-        const message = `Insufficient Balance\n\nAvailable: GH ${earnings.availableBalance.toFixed(2)}\nMinimum: GH ${MIN_WITHDRAWAL_AMOUNT}.00\n\nPlease earn more commission first.`;
+      if (earnings.availableBalance < minWithdrawal) {
+        const message = `Insufficient Balance\n\nAvailable: GH ${earnings.availableBalance.toFixed(2)}\nMinimum: GH ${minWithdrawal.toFixed(2)}\nPlease earn more commission first.`;
         return this.responseBuilder.createReleaseResponse(
           req.SessionId,
           "Withdrawal Failed",
@@ -82,9 +84,7 @@ export class EarningHandler {
       state.earningFlow = 'withdrawal';
       state.totalEarnings = earnings.availableBalance;
       this.sessionManager.updateSession(req.SessionId, state);
-
-      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMinimum Withdrawal: GH ${MIN_WITHDRAWAL_AMOUNT.toFixed(2)}\n\n1. Confirm withdrawal\n2. Cancel`;
-      
+      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMinimum Withdrawal: GH ${minWithdrawal.toFixed(2)}\n1. Confirm withdrawal\n2. Cancel`;
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
         "Withdrawal Request",
@@ -104,7 +104,6 @@ export class EarningHandler {
    */
   private handleTermsAndConditions(req: HBussdReq, state: SessionState): string {
     const message = `Terms & Conditions applies to:\nData Bundle\nAirtime\nECG Prepaid\nUtility payments\nCommission rates vary by service type.`;
-    
     return this.responseBuilder.createReleaseResponse(
       req.SessionId,
       "Terms & Conditions",

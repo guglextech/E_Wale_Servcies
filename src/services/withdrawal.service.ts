@@ -7,6 +7,7 @@ import { SendMoneyService } from './send-money.service';
 @Injectable()
 export class WithdrawalService {
   private readonly logger = new Logger(WithdrawalService.name);
+  private readonly MIN_WITHDRAWAL_AMOUNT = parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || '0.5');
 
   constructor(
     @InjectModel(Withdrawal.name) private readonly withdrawalModel: Model<WithdrawalDocument>,
@@ -18,66 +19,41 @@ export class WithdrawalService {
    */
   async processWithdrawalRequest(mobileNumber: string, amount: number) {
     try {
-      if (amount < 0.5) {
-        return { success: false, message: 'Minimum withdrawal amount is GH 0.50' };
+      if (amount < this.MIN_WITHDRAWAL_AMOUNT) {
+        return { success: false, message: `Minimum withdrawal amount is GH ${this.MIN_WITHDRAWAL_AMOUNT.toFixed(2)}` };
       }
 
       const clientReference = `withdrawal_${mobileNumber}_${Date.now()}`;
-      const formattedPhoneNumber = this.sendMoneyService.formatPhoneNumber(mobileNumber);
-      const channel = this.sendMoneyService.determineChannel(formattedPhoneNumber);
-      const callbackUrl = process.env.HB_CALLBACK_URL;
+      const formattedPhone = this.sendMoneyService.formatPhoneNumber(mobileNumber);
+      const channel = this.sendMoneyService.determineChannel(formattedPhone);
 
-      // Send money via Hubtel API
       const sendMoneyRequest = {
         recipientName: mobileNumber,
-        recipientMsisdn: formattedPhoneNumber,
-        channel: channel,
-        amount: amount,
-        primaryCallbackUrl: callbackUrl,
+        recipientMsisdn: formattedPhone,
+        channel,
+        amount,
+        primaryCallbackUrl: process.env.HB_CALLBACK_URL,
         description: `Commission withdrawal for ${mobileNumber}`,
-        clientReference: clientReference
+        clientReference
       };
 
-      this.logger.log(`Processing withdrawal via Hubtel Send Money API: ${JSON.stringify(sendMoneyRequest)}`);
-
-      const sendMoneyResponse = await this.sendMoneyService.sendMoney(sendMoneyRequest);
-
+      const response = await this.sendMoneyService.sendMoney(sendMoneyRequest);
+      
       // Create withdrawal record
-      const withdrawalRecord = {
-        clientReference: clientReference,
-        hubtelTransactionId: sendMoneyResponse.Data?.TransactionId || null,
-        externalTransactionId: sendMoneyResponse.Data?.ExternalTransactionId || null,
-        mobileNumber: mobileNumber,
-        amount: amount,
-        charges: sendMoneyResponse.Data?.Charges || 0,
-        amountAfterCharges: amount,
-        currencyCode: 'GHS',
-        paymentMethod: 'mobile_money',
-        status: sendMoneyResponse.ResponseCode === '0001' ? 'Pending' : 'Failed',
-        isFulfilled: sendMoneyResponse.ResponseCode === '0000',
-        responseCode: sendMoneyResponse.ResponseCode,
-        message: sendMoneyResponse.Data?.Description || 'Withdrawal processed',
-        commissionServiceStatus: sendMoneyResponse.ResponseCode === '0001' ? 'pending' : 'failed',
-        transactionDate: new Date(),
-        retryCount: 0,
-        isRetryable: sendMoneyResponse.ResponseCode === '0001',
-        logStatus: 'active'
-      };
+      await this.createWithdrawalRecord(clientReference, mobileNumber, amount, response);
 
-      await this.withdrawalModel.create(withdrawalRecord);
-
-      if (sendMoneyResponse.ResponseCode === '0001') {
-        this.logger.log(`Withdrawal request submitted successfully for ${mobileNumber}: GH ${amount}, TransactionId: ${sendMoneyResponse.Data.TransactionId}`);
+      if (response.ResponseCode === '0001') {
+        this.logger.log(`Withdrawal submitted: ${mobileNumber} - GH ${amount}`);
         return { 
           success: true, 
           message: 'Withdrawal request submitted successfully. You will receive payment within 24 hours.', 
-          transactionId: sendMoneyResponse.Data.TransactionId
+          transactionId: response.Data.TransactionId
         };
       } else {
-        this.logger.error(`Withdrawal failed for ${mobileNumber}: ${sendMoneyResponse.Data?.Description}`);
+        this.logger.error(`Withdrawal failed: ${mobileNumber} - ${response.Data?.Description}`);
         return { 
           success: false, 
-          message: `Withdrawal failed: ${sendMoneyResponse.Data?.Description || 'Unknown error'}`
+          message: `Withdrawal failed: ${response.Data?.Description || 'Unknown error'}`
         };
       }
     } catch (error) {
@@ -94,52 +70,31 @@ export class WithdrawalService {
       const { ResponseCode, Data } = callbackData;
       const { ClientReference, TransactionId, ExternalTransactionId, Description } = Data;
 
-      this.logger.log(`Processing send money callback for client reference: ${ClientReference}`);
-
-      // Find the withdrawal record
-      const withdrawalRecord = await this.withdrawalModel.findOne({ 
-        clientReference: ClientReference 
-      });
-
-      if (!withdrawalRecord) {
-        this.logger.error(`Withdrawal record not found for client reference: ${ClientReference}`);
+      const withdrawal = await this.withdrawalModel.findOne({ clientReference: ClientReference });
+      if (!withdrawal) {
+        this.logger.error(`Withdrawal not found: ${ClientReference}`);
         return;
       }
 
-      // Update withdrawal status based on response code
-      const updateData: any = {
+      const updateData = {
         hubtelTransactionId: TransactionId,
         externalTransactionId: ExternalTransactionId,
         message: Description,
-        responseCode: ResponseCode
+        responseCode: ResponseCode,
+        status: ResponseCode === '0000' ? 'Completed' : 'Failed',
+        isFulfilled: ResponseCode === '0000',
+        commissionServiceStatus: ResponseCode === '0000' ? 'delivered' : 'failed',
+        isRetryable: ResponseCode !== '0000'
       };
 
-      if (ResponseCode === '0000') {
-        // Successful withdrawal
-        updateData.status = 'Completed';
-        updateData.isFulfilled = true;
-        updateData.commissionServiceStatus = 'delivered';
-        updateData.isRetryable = false;
-        
-        this.logger.log(`Withdrawal completed successfully for ${withdrawalRecord.mobileNumber}: GH ${withdrawalRecord.amount}`);
-      } else {
-        // Failed withdrawal
-        updateData.status = 'Failed';
-        updateData.isFulfilled = false;
-        updateData.commissionServiceStatus = 'failed';
-        updateData.isRetryable = true;
-        
-        this.logger.log(`Withdrawal failed for ${withdrawalRecord.mobileNumber}: GH ${withdrawalRecord.amount}`);
-      }
-
-      // Update the withdrawal record
       await this.withdrawalModel.findOneAndUpdate(
         { clientReference: ClientReference },
         { $set: updateData }
       );
 
+      this.logger.log(`Withdrawal ${ResponseCode === '0000' ? 'completed' : 'failed'}: ${withdrawal.mobileNumber} - GH ${withdrawal.amount}`);
     } catch (error) {
-      this.logger.error(`Error handling send money callback: ${error.message}`);
+      this.logger.error(`Error handling callback: ${error.message}`);
     }
   }
 
@@ -148,13 +103,9 @@ export class WithdrawalService {
    */
   async getWithdrawalByClientReference(clientReference: string): Promise<any> {
     try {
-      const withdrawal = await this.withdrawalModel.findOne({
-        clientReference: clientReference
-      }).exec();
-
-      return withdrawal;
+      return await this.withdrawalModel.findOne({ clientReference }).exec();
     } catch (error) {
-      this.logger.error(`Error getting withdrawal by client reference: ${error.message}`);
+      this.logger.error(`Error getting withdrawal: ${error.message}`);
       return null;
     }
   }
@@ -165,27 +116,33 @@ export class WithdrawalService {
   async getUserWithdrawalHistory(mobileNumber: string, limit: number = 20): Promise<any[]> {
     try {
       const withdrawals = await this.withdrawalModel.find({
-        mobileNumber: mobileNumber,
+        mobileNumber,
         logStatus: 'active'
       })
       .sort({ transactionDate: -1 })
-      .limit(limit)
-      .exec();
+      .limit(limit);
 
-      return withdrawals.map(withdrawal => ({
-        transactionId: withdrawal.hubtelTransactionId,
-        clientReference: withdrawal.clientReference,
-        amount: withdrawal.amount,
-        status: withdrawal.status,
-        charges: withdrawal.charges || 0,
-        amountAfterCharges: withdrawal.amountAfterCharges || withdrawal.amount,
-        transactionDate: withdrawal.transactionDate,
-        message: withdrawal.message
+      return withdrawals.map(w => ({
+        transactionId: w.hubtelTransactionId,
+        clientReference: w.clientReference,
+        amount: w.amount,
+        status: w.status,
+        charges: w.charges || 0,
+        amountAfterCharges: w.amountAfterCharges || w.amount,
+        transactionDate: w.transactionDate,
+        message: w.message
       }));
     } catch (error) {
-      this.logger.error(`Error getting user withdrawal history: ${error.message}`);
+      this.logger.error(`Error getting withdrawal history: ${error.message}`);
       return [];
     }
+  }
+
+  /**
+   * Get minimum withdrawal amount
+   */
+  getMinWithdrawalAmount(): number {
+    return this.MIN_WITHDRAWAL_AMOUNT;
   }
 
   /**
@@ -200,19 +157,13 @@ export class WithdrawalService {
             totalWithdrawals: { $sum: '$amount' },
             totalCharges: { $sum: '$charges' },
             completedWithdrawals: {
-              $sum: {
-                $cond: [{ $eq: ['$status', 'Completed'] }, '$amount', 0]
-              }
+              $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, '$amount', 0] }
             },
             failedWithdrawals: {
-              $sum: {
-                $cond: [{ $eq: ['$status', 'Failed'] }, '$amount', 0]
-              }
+              $sum: { $cond: [{ $eq: ['$status', 'Failed'] }, '$amount', 0] }
             },
             pendingWithdrawals: {
-              $sum: {
-                $cond: [{ $eq: ['$status', 'Pending'] }, '$amount', 0]
-              }
+              $sum: { $cond: [{ $eq: ['$status', 'Pending'] }, '$amount', 0] }
             }
           }
         }
@@ -227,9 +178,33 @@ export class WithdrawalService {
         pendingWithdrawals: result.pendingWithdrawals
       };
     } catch (error) {
-      this.logger.error(`Error getting withdrawal statistics: ${error.message}`);
+      this.logger.error(`Error getting statistics: ${error.message}`);
       return this.getDefaultStats();
     }
+  }
+
+  // Private helper methods
+  private async createWithdrawalRecord(clientReference: string, mobileNumber: string, amount: number, response: any): Promise<void> {
+    await this.withdrawalModel.create({
+      clientReference,
+      hubtelTransactionId: response.Data?.TransactionId || null,
+      externalTransactionId: response.Data?.ExternalTransactionId || null,
+      mobileNumber,
+      amount,
+      charges: response.Data?.Charges || 0,
+      amountAfterCharges: amount,
+      currencyCode: 'GHS',
+      paymentMethod: 'mobile_money',
+      status: response.ResponseCode === '0001' ? 'Pending' : 'Failed',
+      isFulfilled: response.ResponseCode === '0000',
+      responseCode: response.ResponseCode,
+      message: response.Data?.Description || 'Withdrawal processed',
+      commissionServiceStatus: response.ResponseCode === '0001' ? 'pending' : 'failed',
+      transactionDate: new Date(),
+      retryCount: 0,
+      isRetryable: response.ResponseCode === '0001',
+      logStatus: 'active'
+    });
   }
 
   private getDefaultStats() {
