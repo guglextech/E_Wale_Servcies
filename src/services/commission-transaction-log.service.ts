@@ -70,7 +70,7 @@ export class CommissionTransactionLogService {
    */
   async updateCommissionAmount(clientReference: string, commissionAmount: number): Promise<void> {
     try {
-      // console.log(`🔍 UPDATING COMMISSION - ClientRef: ${clientReference}, Amount: ${commissionAmount}`);
+      console.log(`🔍 UPDATING COMMISSION - ClientRef: ${clientReference}, Amount: ${commissionAmount}`);
       const result = await this.commissionLogModel.findOneAndUpdate(
         { clientReference },
         { 

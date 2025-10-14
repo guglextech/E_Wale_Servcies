@@ -62,7 +62,8 @@ export class UserCommissionService {
 
       logs.forEach(log => {
         const commission = log.commission || 0;
-        
+
+        console.log(log, "CHECKING LOG");
         if (log.serviceType === 'withdrawal_deduction') {
           totalWithdrawn += Math.abs(commission);
         } else {
@@ -100,6 +101,7 @@ export class UserCommissionService {
       console.log(result, "CHECKING RESULT");
       
       if (result.success) {
+        console.log(result, "CHECKING RESULT");
         // Deduct ALL earnings immediately
         await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId);
         return { ...result, newBalance: 0 }; // Balance becomes 0 after withdrawing all
