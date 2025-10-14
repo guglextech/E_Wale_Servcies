@@ -71,31 +71,34 @@ export class UserCommissionService {
       }).exec();
 
       if (!commissionLogs || commissionLogs.length === 0) {
-        console.log(`No commission logs found for mobile: ${mobileNumber}, returning default earnings`);
         return this.getDefaultEarnings();
       }
       
-      const totalEarnings = commissionLogs.reduce((sum, log) => {
-        const commission = log.commission || 0;
-        console.log(`Log ${log.clientReference}: Commission = ${commission}, Status = ${log.status}`);
-        return sum + commission;
-      }, 0);
+      // Separate earnings from withdrawals
+      let totalEarnings = 0;
+      let totalWithdrawn = 0;
       
-      console.log(`Total earnings calculated: ${totalEarnings}`);
-      console.log(`==========================================`);
-
-      const transactionCount = commissionLogs.length;
-      const availableBalance = totalEarnings;
-      const totalWithdrawn = 0;
+      commissionLogs.forEach(log => {
+        const commission = log.commission || 0;
+        if (log.serviceType === 'withdrawal_deduction') {
+          totalWithdrawn += Math.abs(commission); 
+        } else {
+          totalEarnings += commission; 
+        }
+      });
+      
+      const availableBalance = totalEarnings - totalWithdrawn;
       const pendingWithdrawals = 0; 
-
+      const transactionCount = commissionLogs.length;
+      
       console.log(`Commission logs earnings for ${mobileNumber}:`, {
         totalEarnings,
-        availableBalance,
         totalWithdrawn,
+        availableBalance,
         pendingWithdrawals,
         transactionCount
       });
+      console.log(`==========================================`);
 
       return {
         totalEarnings,
@@ -186,10 +189,7 @@ export class UserCommissionService {
       const { ResponseCode, Data } = callbackData;
       const { ClientReference } = Data;
 
-      // Delegate to withdrawal service
       await this.withdrawalService.handleSendMoneyCallback(callbackData);
-
-      // If withdrawal failed, create refund entry to restore user's balance
       if (ResponseCode !== '0000') {
         const withdrawalRecord = await this.withdrawalService.getWithdrawalByClientReference(ClientReference);
         if (withdrawalRecord) {
