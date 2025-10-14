@@ -84,7 +84,7 @@ export class EarningHandler {
       state.earningFlow = 'withdrawal';
       state.totalEarnings = earnings.availableBalance;
       this.sessionManager.updateSession(req.SessionId, state);
-      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nMinimum Withdrawal: GH ${minWithdrawal.toFixed(2)}\n1. Confirm withdrawal\n2. Cancel`;
+      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nWithdrawal Amount: GH ${earnings.availableBalance.toFixed(2)} (All earnings)\n\n1. Confirm withdrawal\n2. Cancel`;
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
         "Withdrawal Request",
@@ -120,7 +120,7 @@ export class EarningHandler {
         const result = await this.userCommissionService.processWithdrawalRequest(req.Mobile, state.totalEarnings);
         if (result.success) {
           const newBalance = 'newBalance' in result ? result.newBalance : 0;
-          const message = `Withdrawal request submitted successfully!\nAmount: GH ${state.totalEarnings.toFixed(2)}\nNew Balance: GH ${newBalance.toFixed(2)}.You will receive payment within 24 hours.`;
+          const message = `Withdrawal request submitted successfully!\nAmount: GH ${state.totalEarnings.toFixed(2)} (All earnings)\nNew Balance: GH ${newBalance.toFixed(2)}\nYou will receive payment within 24 hours.`;
           return this.responseBuilder.createReleaseResponse(req.SessionId,"Withdrawal Confirmed", message);
         } else {
           return this.responseBuilder.createErrorResponse(req.SessionId, result.message);
