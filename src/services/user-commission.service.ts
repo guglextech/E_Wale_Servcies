@@ -80,15 +80,23 @@ export class UserCommissionService {
       
       commissionLogs.forEach(log => {
         const commission = log.commission || 0;
+        console.log(`Log ${log.clientReference}: Commission = ${commission}, ServiceType = ${log.serviceType}, Status = ${log.status}`);
+        
         if (log.serviceType === 'withdrawal_deduction') {
-          totalWithdrawn += Math.abs(commission); 
+          totalWithdrawn += Math.abs(commission); // Withdrawal deductions are negative
+        } else if (log.serviceType === 'pending_withdrawal') {
+          // Pending withdrawals reduce available balance but don't count as withdrawn yet
         } else {
-          totalEarnings += commission; 
+          totalEarnings += commission; // Regular earnings are positive
         }
       });
       
-      const availableBalance = totalEarnings - totalWithdrawn;
-      const pendingWithdrawals = 0; 
+      // Calculate pending withdrawals separately
+      const pendingWithdrawals = commissionLogs
+        .filter(log => log.serviceType === 'pending_withdrawal')
+        .reduce((sum, log) => sum + log.amount, 0);
+      
+      const availableBalance = totalEarnings - totalWithdrawn - pendingWithdrawals; 
       const transactionCount = commissionLogs.length;
       
       console.log(`Commission logs earnings for ${mobileNumber}:`, {
@@ -129,11 +137,12 @@ export class UserCommissionService {
       const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, amount);
       
       if (result.success) {
-        await this.createWithdrawalDeduction(mobileNumber, amount, result.transactionId);
-        const newBalance = earnings.availableBalance - amount;
+        // DON'T deduct balance immediately - wait for callback confirmation
+        // Only create a pending withdrawal record
+        await this.createPendingWithdrawal(mobileNumber, amount, result.transactionId);
         return { 
           ...result, 
-          newBalance 
+          newBalance: earnings.availableBalance // Balance unchanged until callback confirms
         };
       }
       
@@ -145,7 +154,44 @@ export class UserCommissionService {
   }
 
   /**
-   * Create withdrawal deduction entry in commission logs
+   * Create pending withdrawal record (no balance deduction yet)
+   */
+  private async createPendingWithdrawal(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
+    try {
+      const pendingWithdrawal = {
+        clientReference: `pending_withdrawal_${mobileNumber}_${Date.now()}`,
+        hubtelTransactionId: transactionId || null,
+        externalTransactionId: null,
+        mobileNumber: mobileNumber,
+        sessionId: `pending_withdrawal_${Date.now()}`,
+        serviceType: 'pending_withdrawal',
+        amount: amount,
+        commission: 0, // No commission deduction yet
+        charges: 0,
+        amountAfterCharges: amount,
+        currencyCode: 'GHS',
+        paymentMethod: 'withdrawal',
+        status: 'Pending',
+        isFulfilled: false,
+        responseCode: '0001', // Pending status
+        message: `Pending withdrawal for ${mobileNumber}`,
+        commissionServiceStatus: 'pending',
+        transactionDate: new Date(),
+        retryCount: 0,
+        isRetryable: true,
+        logStatus: 'active'
+      };
+
+      await this.commissionLogModel.create(pendingWithdrawal);
+      this.logger.log(`Created pending withdrawal for ${mobileNumber}: GH ${amount}`);
+    } catch (error) {
+      this.logger.error(`Error creating pending withdrawal: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Create withdrawal deduction entry in commission logs (only after successful callback)
    */
   private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
     try {
@@ -187,56 +233,59 @@ export class UserCommissionService {
   async handleSendMoneyCallback(callbackData: any): Promise<void> {
     try {
       const { ResponseCode, Data } = callbackData;
-      const { ClientReference } = Data;
+      const { ClientReference, TransactionId } = Data;
 
+      // Delegate to withdrawal service
       await this.withdrawalService.handleSendMoneyCallback(callbackData);
-      if (ResponseCode !== '0000') {
-        const withdrawalRecord = await this.withdrawalService.getWithdrawalByClientReference(ClientReference);
-        if (withdrawalRecord) {
-          await this.createWithdrawalRefund(withdrawalRecord.mobileNumber, withdrawalRecord.amount, ClientReference);
-        }
+
+      // Get the withdrawal record to find the mobile number and amount
+      const withdrawalRecord = await this.withdrawalService.getWithdrawalByClientReference(ClientReference);
+      
+      if (!withdrawalRecord) {
+        this.logger.error(`Withdrawal record not found for client reference: ${ClientReference}`);
+        return;
+      }
+
+      const { mobileNumber, amount } = withdrawalRecord;
+
+      if (ResponseCode === '0000') {
+        // Withdrawal successful - now deduct the balance
+        await this.createWithdrawalDeduction(mobileNumber, amount, TransactionId);
+        
+        // Remove the pending withdrawal record
+        await this.commissionLogModel.findOneAndUpdate(
+          { 
+            mobileNumber: mobileNumber,
+            serviceType: 'pending_withdrawal',
+            hubtelTransactionId: TransactionId
+          },
+          { logStatus: 'inactive' }
+        );
+        
+        this.logger.log(`Withdrawal completed successfully for ${mobileNumber}: GH ${amount}`);
+      } else {
+        // Withdrawal failed - remove pending record (no balance deduction needed)
+        await this.commissionLogModel.findOneAndUpdate(
+          { 
+            mobileNumber: mobileNumber,
+            serviceType: 'pending_withdrawal',
+            hubtelTransactionId: TransactionId
+          },
+          { 
+            logStatus: 'inactive',
+            status: 'Failed',
+            message: `Withdrawal failed: ${Data?.Description || 'Unknown error'}`
+          }
+        );
+        
+        this.logger.log(`Withdrawal failed for ${mobileNumber}: GH ${amount} - No balance deduction applied`);
       }
     } catch (error) {
       this.logger.error(`Error handling withdrawal callback: ${error.message}`);
     }
   }
 
-  /**
-   * Create withdrawal refund entry to restore user's balance
-   */
-  private async createWithdrawalRefund(mobileNumber: string, amount: number, clientReference: string): Promise<void> {
-    try {
-      const withdrawalRefund = {
-        clientReference: `withdrawal_refund_${clientReference}`,
-        hubtelTransactionId: null,
-        externalTransactionId: null,
-        mobileNumber: mobileNumber,
-        sessionId: `withdrawal_refund_${Date.now()}`,
-        serviceType: 'withdrawal_refund',
-        amount: amount,
-        commission: amount, // Positive commission to restore earnings
-        charges: 0,
-        amountAfterCharges: amount,
-        currencyCode: 'GHS',
-        paymentMethod: 'refund',
-        status: 'Completed',
-        isFulfilled: true,
-        responseCode: '0000',
-        message: `Withdrawal refund for failed withdrawal: ${clientReference}`,
-        commissionServiceStatus: 'delivered',
-        transactionDate: new Date(),
-        retryCount: 0,
-        isRetryable: false,
-        logStatus: 'active'
-      };
 
-      await this.commissionLogModel.create(withdrawalRefund);
-      this.logger.log(`Created withdrawal refund for ${mobileNumber}: GH ${amount}`);
-    } catch (error) {
-      this.logger.error(`Error creating withdrawal refund: ${error.message}`);
-      throw error;
-    }
-  }
 
   /**
    * Manually update commission for a specific transaction

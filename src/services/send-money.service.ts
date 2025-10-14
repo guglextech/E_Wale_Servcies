@@ -103,7 +103,6 @@ export class SendMoneyService {
     try {
       const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
       const hubtelAuthToken = this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN');
-
       const url = `https://smrsc.hubtel.com/api/merchants/${hubtelPrepaidDepositID}/transactions/status`;
 
       const response = await firstValueFrom(
