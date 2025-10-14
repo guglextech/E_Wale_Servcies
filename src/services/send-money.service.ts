@@ -59,17 +59,17 @@ export class SendMoneyService {
 
       const url = `https://smp.hubtel.com/api/merchants/${hubtelPrepaidDepositID}/send/mobilemoney`;
 
-      // const payload = {
-      //   RecipientName: request.recipientName,
-      //   RecipientMsisdn: request.recipientMsisdn,
-      //   CustomerEmail: request.customerEmail,
-      //   Channel: request.channel,
-      //   Amount: Math.floor(request.amount * 100) / 100, 
-      //   PrimaryCallbackURL: request.primaryCallbackUrl,
-      //   Description: request.description,
-      //   ClientReference: request.clientReference
-      // };
-      const payload = {};
+      const payload = {
+        RecipientName: request.recipientName,
+        RecipientMsisdn: request.recipientMsisdn,
+        CustomerEmail: request.customerEmail,
+        Channel: request.channel,
+        Amount: Math.floor(request.amount * 100) / 100, 
+        PrimaryCallbackURL: request.primaryCallbackUrl,
+        Description: request.description,
+        ClientReference: request.clientReference
+      };
+      // const payload = {};
 
       this.logger.log(`Sending money via Hubtel API: ${JSON.stringify(payload)}`);
 
@@ -103,7 +103,6 @@ export class SendMoneyService {
     try {
       const hubtelPrepaidDepositID = this.getRequiredEnvVar('HUBTEL_PREPAID_DEPOSIT_ID');
       const hubtelAuthToken = this.getRequiredEnvVar('HUBTEL_AUTH_TOKEN');
-
       const url = `https://smrsc.hubtel.com/api/merchants/${hubtelPrepaidDepositID}/transactions/status`;
 
       const response = await firstValueFrom(
