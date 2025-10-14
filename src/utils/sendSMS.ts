@@ -61,10 +61,8 @@ export async function sendVoucherSms(voucherData: {
            },
        });
 
-    //    console.log("Voucher SMS sent successfully:", response);
        return true;
    } catch (error) {
-    //    console.error("Error sending voucher SMS:", error);
        return false;
    }
 }
