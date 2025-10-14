@@ -94,7 +94,7 @@ export class UserCommissionService {
       }
 
       const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, amount);
-      
+      console.log(result, "CHECKING RESULT");
       if (result.success) {
         // Deduct balance immediately
         await this.createWithdrawalDeduction(mobileNumber, amount, result.transactionId);
