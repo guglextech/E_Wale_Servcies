@@ -115,8 +115,6 @@ export class ResultCheckerHandler {
     state.quantity = quantity;
     state.totalAmount = this.getServicePrice(state.service) * quantity;
     this.sessionManager.updateSession(req.SessionId, state);
-
-    // Determine which mobile number to display based on flow
     const displayMobile = state.flow === FlowType.SELF ? req.Mobile : (state.mobile || req.Mobile);
 
     return this.responseBuilder.createNumberInputResponse(
@@ -169,10 +167,10 @@ export class ResultCheckerHandler {
         flow: sessionState.flow,
         bought_for_mobile: sessionState.flow === FlowType.OTHER ? sessionState.mobile : orderInfo.CustomerMobileNumber,
         bought_for_name: sessionState.flow === FlowType.OTHER ? sessionState.name : orderInfo.CustomerMobileNumber,
-        voucherType: sessionState.service // Pass the service name to determine voucher type
+        voucherType: sessionState.service  
       });
 
-      // Send SMS with all assigned voucher details
+    
       await sendVoucherSms({
         mobile: sessionState.flow === FlowType.SELF ? orderInfo.CustomerMobileNumber : sessionState.mobile,
         name: orderInfo.CustomerName,
@@ -183,7 +181,7 @@ export class ResultCheckerHandler {
         voucherType: this.getVoucherTypeFromService(sessionState.service)
       });
 
-      // Update the assigned vouchers to mark them as sold and successful
+      
       await this.voucherModel.updateMany(
         { serial_number: { $in: purchaseResult.assigned_vouchers.map(v => v.serial_number) } },
         {
@@ -228,12 +226,8 @@ export class ResultCheckerHandler {
    * Validate mobile number
    */
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
-    // Remove any non-digit characters
     const cleaned = mobile.replace(/\D/g, '');
-    
-    // Check if it's a valid  mobile number
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
-      // Convert to international format
       const converted = '233' + cleaned.substring(1);
       return { isValid: true, convertedNumber: converted };
     }

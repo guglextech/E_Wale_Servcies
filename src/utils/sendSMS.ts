@@ -48,7 +48,7 @@ export async function sendVoucherSms(voucherData: {
                  `Good luck!`;
    }
 
-   console.log(`Sending voucher SMS to ${voucherData.mobile}:`, message);
+   console.log(`=====> Sending voucher SMS to ${voucherData.mobile}:`, message);
 
    try {
        const response = await axios.get(process.env.SMS_URL, {
@@ -61,10 +61,8 @@ export async function sendVoucherSms(voucherData: {
            },
        });
 
-       console.log("Voucher SMS sent successfully:", response);
        return true;
    } catch (error) {
-       console.error("Error sending voucher SMS:", error);
        return false;
    }
 }

@@ -7,10 +7,7 @@ export class PaymentController {
   @Get('return')
   async paymentReturn(@Query() query: any, @Res() res: Response) {
     try {
-      // Handle successful payment return
       const { clientReference, status, transactionId } = query;
-      
-      // Redirect to success page or return success response
       return res.json({
         success: true,
         message: 'Payment completed successfully',
@@ -35,7 +32,7 @@ export class PaymentController {
   @Get('cancel')
   async paymentCancel(@Query() query: any, @Res() res: Response) {
     try {
-      // Handle cancelled payment
+        
       const { clientReference } = query;
       
       return res.json({
