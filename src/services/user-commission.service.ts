@@ -89,17 +89,20 @@ export class UserCommissionService {
     try {
       const earnings = await this.getUserEarnings(mobileNumber);
 
-      if (earnings.availableBalance < amount) {
+      if (earnings.availableBalance < this.withdrawalService.getMinWithdrawalAmount()) {
         return { success: false, message: 'Insufficient balance' };
       }
 
-      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, amount);
+      // Withdraw ALL available earnings, not just the requested amount
+      const withdrawalAmount = earnings.availableBalance;
+      
+      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, withdrawalAmount);
       console.log(result, "CHECKING RESULT");
+      
       if (result.success) {
-        // Deduct balance immediately
-        await this.createWithdrawalDeduction(mobileNumber, amount, result.transactionId);
-        const newBalance = earnings.availableBalance - amount;
-        return { ...result, newBalance };
+        // Deduct ALL earnings immediately
+        await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId);
+        return { ...result, newBalance: 0 }; // Balance becomes 0 after withdrawing all
       }
       
       return result;
@@ -216,14 +219,25 @@ export class UserCommissionService {
     await this.commissionLogModel.create({
       clientReference: `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
       hubtelTransactionId: transactionId,
+      externalTransactionId: null,
       mobileNumber,
+      sessionId: `withdrawal_deduction_${Date.now()}`,
+      orderId: `withdrawal_deduction_${Date.now()}`,
       serviceType: 'withdrawal_deduction',
       amount,
       commission: -amount,
+      charges: 0,
+      amountAfterCharges: amount,
+      currencyCode: 'GHS',
+      paymentMethod: 'withdrawal',
       status: 'Completed',
+      isFulfilled: true,
       responseCode: '0000',
       message: `Withdrawal deduction for ${mobileNumber}`,
+      commissionServiceStatus: 'delivered',
       transactionDate: new Date(),
+      retryCount: 0,
+      isRetryable: false,
       logStatus: 'active'
     });
   }
@@ -232,14 +246,25 @@ export class UserCommissionService {
     await this.commissionLogModel.create({
       clientReference: `withdrawal_refund_${clientReference}`,
       hubtelTransactionId: null,
+      externalTransactionId: null,
       mobileNumber,
+      sessionId: `withdrawal_refund_${Date.now()}`,
+      orderId: `withdrawal_refund_${Date.now()}`,
       serviceType: 'withdrawal_refund',
       amount,
-      commission: amount, // Positive commission to restore earnings
+      commission: amount, 
+      charges: 0,
+      amountAfterCharges: amount,
+      currencyCode: 'GHS',
+      paymentMethod: 'refund',
       status: 'Completed',
+      isFulfilled: true,
       responseCode: '0000',
       message: `Withdrawal refund for failed withdrawal: ${clientReference}`,
+      commissionServiceStatus: 'delivered',
       transactionDate: new Date(),
+      retryCount: 0,
+      isRetryable: false,
       logStatus: 'active'
     });
   }
