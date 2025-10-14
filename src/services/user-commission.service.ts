@@ -59,28 +59,21 @@ export class UserCommissionService {
 
       let totalEarnings = 0;
       let totalWithdrawn = 0;
-      let pendingWithdrawals = 0;
 
       logs.forEach(log => {
         const commission = log.commission || 0;
         
-        switch (log.serviceType) {
-          case 'withdrawal_deduction':
-            totalWithdrawn += Math.abs(commission);
-            break;
-          case 'pending_withdrawal':
-            pendingWithdrawals += log.amount;
-            break;
-          default:
-            totalEarnings += commission;
+        if (log.serviceType === 'withdrawal_deduction') {
+          totalWithdrawn += Math.abs(commission);
+        } else {
+          totalEarnings += commission;
         }
       });
 
       return {
         totalEarnings,
-        availableBalance: totalEarnings - totalWithdrawn - pendingWithdrawals,
+        availableBalance: totalEarnings - totalWithdrawn,
         totalWithdrawn,
-        pendingWithdrawals,
         transactionCount: logs.length
       };
     } catch (error) {
@@ -103,8 +96,10 @@ export class UserCommissionService {
       const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, amount);
       
       if (result.success) {
-        await this.createPendingWithdrawal(mobileNumber, amount, result.transactionId);
-        return { ...result, newBalance: earnings.availableBalance };
+        // Deduct balance immediately
+        await this.createWithdrawalDeduction(mobileNumber, amount, result.transactionId);
+        const newBalance = earnings.availableBalance - amount;
+        return { ...result, newBalance };
       }
       
       return result;
@@ -120,7 +115,7 @@ export class UserCommissionService {
   async handleSendMoneyCallback(callbackData: any): Promise<void> {
     try {
       const { ResponseCode, Data } = callbackData;
-      const { ClientReference, TransactionId } = Data;
+      const { ClientReference } = Data;
 
       await this.withdrawalService.handleSendMoneyCallback(callbackData);
 
@@ -129,15 +124,12 @@ export class UserCommissionService {
 
       const { mobileNumber, amount } = withdrawalRecord;
 
-      if (ResponseCode === '0000') {
-        // Success: Deduct balance and remove pending record
-        await this.createWithdrawalDeduction(mobileNumber, amount, TransactionId);
-        await this.removePendingWithdrawal(mobileNumber, TransactionId);
-        this.logger.log(`Withdrawal completed: ${mobileNumber} - GH ${amount}`);
+      if (ResponseCode !== '0000') {
+        // Failed: Create refund to restore user balance
+        await this.createWithdrawalRefund(mobileNumber, amount, ClientReference);
+        this.logger.log(`Withdrawal failed, refunded: ${mobileNumber} - GH ${amount}`);
       } else {
-        // Failed: Remove pending record only
-        await this.removePendingWithdrawal(mobileNumber, TransactionId, 'Failed');
-        this.logger.log(`Withdrawal failed: ${mobileNumber} - GH ${amount}`);
+        this.logger.log(`Withdrawal completed: ${mobileNumber} - GH ${amount}`);
       }
     } catch (error) {
       this.logger.error(`Error handling withdrawal callback: ${error.message}`);
@@ -200,7 +192,6 @@ export class UserCommissionService {
             _id: null,
             totalEarnings: { $sum: '$totalEarnings' },
             totalWithdrawn: { $sum: '$totalWithdrawn' },
-            pendingWithdrawals: { $sum: '$pendingWithdrawals' },
             averageEarnings: { $avg: '$totalEarnings' }
           }
         }
@@ -211,7 +202,6 @@ export class UserCommissionService {
         totalUsers,
         totalEarnings: result.totalEarnings,
         totalWithdrawn: result.totalWithdrawn,
-        pendingWithdrawals: result.pendingWithdrawals,
         averageEarningsPerUser: result.averageEarnings
       };
     } catch (error) {
@@ -221,21 +211,6 @@ export class UserCommissionService {
   }
 
   // Private helper methods
-  private async createPendingWithdrawal(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
-    await this.commissionLogModel.create({
-      clientReference: `pending_withdrawal_${mobileNumber}_${Date.now()}`,
-      hubtelTransactionId: transactionId,
-      mobileNumber,
-      serviceType: 'pending_withdrawal',
-      amount,
-      commission: 0,
-      status: 'Pending',
-      responseCode: '0001',
-      message: `Pending withdrawal for ${mobileNumber}`,
-      transactionDate: new Date(),
-      logStatus: 'active'
-    });
-  }
 
   private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
     await this.commissionLogModel.create({
@@ -253,18 +228,20 @@ export class UserCommissionService {
     });
   }
 
-  private async removePendingWithdrawal(mobileNumber: string, transactionId: string, status?: string): Promise<void> {
-    const updateData: any = { logStatus: 'inactive' };
-    if (status) updateData.status = status;
-
-    await this.commissionLogModel.findOneAndUpdate(
-      { 
-        mobileNumber,
-        serviceType: 'pending_withdrawal',
-        hubtelTransactionId: transactionId
-      },
-      { $set: updateData }
-    );
+  private async createWithdrawalRefund(mobileNumber: string, amount: number, clientReference: string): Promise<void> {
+    await this.commissionLogModel.create({
+      clientReference: `withdrawal_refund_${clientReference}`,
+      hubtelTransactionId: null,
+      mobileNumber,
+      serviceType: 'withdrawal_refund',
+      amount,
+      commission: amount, // Positive commission to restore earnings
+      status: 'Completed',
+      responseCode: '0000',
+      message: `Withdrawal refund for failed withdrawal: ${clientReference}`,
+      transactionDate: new Date(),
+      logStatus: 'active'
+    });
   }
 
   private getDefaultEarnings() {
@@ -272,7 +249,6 @@ export class UserCommissionService {
       totalEarnings: 0,
       availableBalance: 0,
       totalWithdrawn: 0,
-      pendingWithdrawals: 0,
       transactionCount: 0
     };
   }
@@ -282,7 +258,6 @@ export class UserCommissionService {
       totalUsers: 0,
       totalEarnings: 0,
       totalWithdrawn: 0,
-      pendingWithdrawals: 0,
       averageEarnings: 0
     };
   }
