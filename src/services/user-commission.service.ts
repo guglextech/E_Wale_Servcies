@@ -109,7 +109,7 @@ export class UserCommissionService {
       
       return result;
     } catch (error) {
-      this.logger.error(`Error processing withdrawal: ${error.message}`);
+      this.logger.error(`Error processing withdrawal inside user commission service: ${error.message}`);
       return { success: false, message: `Withdrawal processing failed: ${error.message}` };
     }
   }

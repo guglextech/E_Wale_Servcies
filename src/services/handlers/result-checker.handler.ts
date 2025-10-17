@@ -204,7 +204,7 @@ export class ResultCheckerHandler {
   private getServicePrice(service: string): number {
     const priceMap = {
       "BECE Checker Voucher": 20,
-      "WASSCE / Nov/Dec Checker": 0.2
+      "WASSCE / Nov/Dec Checker": 20
     };
 
     return priceMap[service] || 21;
