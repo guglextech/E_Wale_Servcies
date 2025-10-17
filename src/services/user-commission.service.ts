@@ -46,7 +46,7 @@ export class UserCommissionService {
   }
 
   /**
-   * Get user earnings by mobile number
+   * Get user earnings by mobile number - Simplified approach
    */
   async getUserEarnings(mobileNumber: string) {
     try {
@@ -64,19 +64,13 @@ export class UserCommissionService {
         const commission = log.commission || 0;
 
         if (log.serviceType === 'withdrawal_deduction') {
-          // Withdrawal deductions - these represent money taken out
+          // These are withdrawn commissions
           totalWithdrawn += commission;
-        } else if (log.serviceType === 'withdrawal_refund') {
-          // Withdrawal refunds - these restore money back to available balance
-          totalWithdrawn -= commission;
         } else {
-          // Regular commission earnings - these add to total earnings
+          // These are active earnings
           totalEarnings += commission;
         }
       });
-
-      // Ensure totalWithdrawn doesn't go negative
-      totalWithdrawn = Math.max(0, totalWithdrawn);
 
       const availableBalance = Math.max(0, totalEarnings - totalWithdrawn);
 
@@ -93,7 +87,7 @@ export class UserCommissionService {
   }
 
   /**
-   * Process withdrawal request
+   * Process withdrawal request - Simplified approach
    */
   async processWithdrawalRequest(mobileNumber: string, amount: number, clientReference?: string) {
     try {
@@ -103,22 +97,17 @@ export class UserCommissionService {
         return { success: false, message: 'Insufficient balance' };
       }
 
-      // Withdraw ALL available earnings, not just the requested amount
+      // Withdraw ALL available earnings
       const withdrawalAmount = earnings.availableBalance;
-      
-      // Use provided clientReference or generate one for commission deduction
       const commissionClientRef = clientReference || `withdrawal_${mobileNumber}_${Date.now()}`;
       
       const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, withdrawalAmount, commissionClientRef);
-      
       if (result.success) {
-        // Create commission deduction record with the same clientReference
-        await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId, commissionClientRef);
-        const updatedEarnings = await this.getUserEarnings(mobileNumber);
+        await this.markAllCommissionsAsWithdrawn(mobileNumber, withdrawalAmount, commissionClientRef);
         
         return { 
           ...result, 
-          newBalance: updatedEarnings.availableBalance 
+          newBalance: 0 
         }; 
       }
       
@@ -232,31 +221,28 @@ export class UserCommissionService {
 
   // Private helper methods
 
-  private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string, clientReference?: string): Promise<void> {
-    await this.commissionLogModel.create({
-      clientReference: clientReference || `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
-      hubtelTransactionId: transactionId,
-      externalTransactionId: null,
-      mobileNumber,
-      sessionId: `withdrawal_deduction_${Date.now()}`,
-      orderId: `withdrawal_deduction_${Date.now()}`,
-      serviceType: 'withdrawal_deduction',
-      amount,
-      commission: amount, // Positive amount representing withdrawal deduction
-      charges: 0,
-      amountAfterCharges: amount,
-      currencyCode: 'GHS',
-      paymentMethod: 'withdrawal',
-      status: 'Completed',
-      isFulfilled: true,
-      responseCode: '0000',
-      message: `Withdrawal deduction for ${mobileNumber}`,
-      commissionServiceStatus: 'delivered',
-      transactionDate: new Date(),
-      retryCount: 0,
-      isRetryable: false,
-      logStatus: 'active'
-    });
+  /**
+   * Mark all existing commission records as withdrawn - Simple approach
+   */
+  private async markAllCommissionsAsWithdrawn(mobileNumber: string, withdrawalAmount: number, clientReference: string): Promise<void> {
+    await this.commissionLogModel.updateMany(
+      { 
+        mobileNumber, 
+        logStatus: 'active',
+        serviceType: { $ne: 'withdrawal_deduction' } 
+      },
+      { 
+        $set: { 
+          serviceType: 'withdrawal_deduction',
+          commission: 0, 
+          status: 'Withdrawn',
+          message: `Withdrawn on ${new Date().toISOString()}`,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    this.logger.log(`Marked all commissions as withdrawn for ${mobileNumber}, amount: ${withdrawalAmount}`);
   }
 
   private async createWithdrawalRefund(mobileNumber: string, amount: number, clientReference: string): Promise<void> {
