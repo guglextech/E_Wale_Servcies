@@ -104,7 +104,7 @@ export class UserCommissionService {
         console.log(result, "CHECKING RESULT");
         // Deduct ALL earnings immediately
         await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId);
-        return { ...result, newBalance: 0 }; // Balance becomes 0 after withdrawing all
+        return { ...result, newBalance: 0 }; 
       }
       
       return result;
