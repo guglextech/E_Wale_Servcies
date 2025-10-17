@@ -49,7 +49,7 @@
     "express": "^4.18.2",
     "handlebars": "^4.7.8",
     "html-pdf": "^3.0.1",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^4.17.2",
     "mongoose": "^6.13.8",
     "nodemailer": "^6.9.14",
@@ -107,6 +107,6 @@
     "testEnvironment": "node"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0 <25.0.0"
   }
 }
