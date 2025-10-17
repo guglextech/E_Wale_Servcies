@@ -86,7 +86,7 @@ export class EarningHandler {
       state.serviceType = 'earning';
       state.earningFlow = 'withdrawal';
       state.totalEarnings = earnings.availableBalance;
-      state.sessionId = clientReference; // Store clientReference in sessionId field
+      state.sessionId = clientReference; 
       this.sessionManager.updateSession(req.SessionId, state);
       
       const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nWithdrawal Amount: GH ${earnings.availableBalance.toFixed(2)} (All earnings)\n1. Confirm withdrawal\n2. Cancel`;
