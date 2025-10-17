@@ -43,10 +43,7 @@ export class EarningHandler {
     try {
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
       const minWithdrawal = this.withdrawalService.getMinWithdrawalAmount();
-      
-      // Format earnings display
       const message = `My Earnings (Minimum Withdrawal: GH ${minWithdrawal.toFixed(2)})\n\nTotal Earned: GH ${earnings.totalEarnings.toFixed(2)}\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nTotal Withdrawn: GH ${earnings.totalWithdrawn.toFixed(2)}`;
-      
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
         "My Earnings",
