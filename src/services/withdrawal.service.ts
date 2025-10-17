@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Withdrawal, WithdrawalDocument } from '../models/schemas/withdrawal.schema';
+import { CommissionTransactionLog, CommissionTransactionLogDocument } from '../models/schemas/commission-transaction-log.schema';
 import { SendMoneyService } from './send-money.service';
 import * as process from "process";
 
@@ -12,6 +13,7 @@ export class WithdrawalService {
 
   constructor(
     @InjectModel(Withdrawal.name) private readonly withdrawalModel: Model<WithdrawalDocument>,
+    @InjectModel(CommissionTransactionLog.name) private readonly commissionLogModel: Model<CommissionTransactionLogDocument>,
     private readonly sendMoneyService: SendMoneyService,
   ) {}
 
@@ -24,10 +26,9 @@ export class WithdrawalService {
         return { success: false, message: `Minimum withdrawal amount is GH ${this.MIN_WITHDRAWAL_AMOUNT.toFixed(2)}` };
       }
 
-      // Use provided clientReference or generate new one if not provided
       const withdrawalClientRef = clientReference || `withdrawal_${mobileNumber}_${Date.now()}`;
       const formattedPhone = this.sendMoneyService.formatPhoneNumber(mobileNumber);
-      const channel = this.sendMoneyService.determineChannel(formattedPhone);
+      const channel = await this.getChannelFromCommissionLogs(mobileNumber);
 
       const sendMoneyRequest = {
         recipientName: mobileNumber,
@@ -221,14 +222,43 @@ export class WithdrawalService {
   }
 
 
-    /**
+  /**
+   * Get channel from commission logs - Simple and clean
+   */
+  private async getChannelFromCommissionLogs(mobileNumber: string): Promise<'mtn-gh' | 'vodafone-gh' | 'tigo-gh'> {
+    try {
+      const recentLog = await this.commissionLogModel.findOne({
+        mobileNumber,
+        logStatus: 'active',
+        network: { $exists: true, $ne: null }
+      })
+      .sort({ createdAt: -1 })
+      .exec();
+
+      if (recentLog?.network) {
+        const network = recentLog.network.toUpperCase();
+        
+        if (network === 'MTN') return 'mtn-gh';
+        if (network === 'TELECEL GHANA') return 'vodafone-gh';
+        if (network === 'AT') return 'tigo-gh';
+      }
+
+      // Default to MTN
+      return 'mtn-gh';
+    } catch (error) {
+      this.logger.error(`Error getting channel: ${error.message}`);
+      return 'mtn-gh';
+    }
+  }
+
+  /**
    * Get required environment variable
    */
-    private getRequiredEnvVar(key: string): string {
-      const value = process.env[key];
-      if (!value) {
-        throw new Error(`${key} environment variable is required`);
-      }
-      return value;
+  private getRequiredEnvVar(key: string): string {
+    const value = process.env[key];
+    if (!value) {
+      throw new Error(`${key} environment variable is required`);
     }
+    return value;
+  }
 }

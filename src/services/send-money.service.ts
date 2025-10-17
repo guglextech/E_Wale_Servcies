@@ -69,7 +69,6 @@ export class SendMoneyService {
         Description: request.description,
         ClientReference: request.clientReference
       };
-      // const payload = {};
       this.logger.log(`Sending money via Hubtel API: ${JSON.stringify(payload)}`);
 
       const response = await firstValueFrom(

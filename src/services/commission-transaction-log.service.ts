@@ -304,11 +304,11 @@ export class CommissionTransactionLogService {
         .find({
           commissionServiceStatus: 'failed',
           isRetryable: true,
-          retryCount: { $lt: 3 }, // Max 3 retries
+          retryCount: { $lt: 3 }, 
           logStatus: 'active'
         })
         .sort({ createdAt: 1 })
-        .limit(100) // Process max 100 at a time
+        .limit(100) 
         .exec();
     } catch (error) {
       console.error('Error fetching retryable failed transactions:', error);
