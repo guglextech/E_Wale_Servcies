@@ -63,13 +63,25 @@ export class UserCommissionService {
       logs.forEach(log => {
         const commission = log.commission || 0;
 
-        console.log(log, "CHECKING LOG");
+        this.logger.debug(`Processing log: ${log.serviceType}, commission: ${commission}, clientRef: ${log.clientReference}`);
+
         if (log.serviceType === 'withdrawal_deduction') {
-          totalWithdrawn += Math.abs(commission);
+          // Withdrawal deductions reduce available balance
+          totalWithdrawn += commission;
+          this.logger.debug(`Withdrawal deduction: ${commission}, totalWithdrawn now: ${totalWithdrawn}`);
+        } else if (log.serviceType === 'withdrawal_refund') {
+          // Withdrawal refunds restore the balance
+          totalWithdrawn -= commission;
+          this.logger.debug(`Withdrawal refund: ${commission}, totalWithdrawn now: ${totalWithdrawn}`);
         } else {
+          // Regular commission earnings
           totalEarnings += commission;
+          this.logger.debug(`Commission earning: ${commission}, totalEarnings now: ${totalEarnings}`);
         }
       });
+
+      // Ensure totalWithdrawn doesn't go negative
+      totalWithdrawn = Math.max(0, totalWithdrawn);
 
       return {
         totalEarnings,
@@ -86,9 +98,12 @@ export class UserCommissionService {
   /**
    * Process withdrawal request
    */
-  async processWithdrawalRequest(mobileNumber: string, amount: number) {
+  async processWithdrawalRequest(mobileNumber: string, amount: number, clientReference?: string) {
     try {
+      this.logger.log(`Processing withdrawal request for ${mobileNumber}, amount: ${amount}, clientRef: ${clientReference}`);
+      
       const earnings = await this.getUserEarnings(mobileNumber);
+      this.logger.log(`Current earnings for ${mobileNumber}: totalEarnings: ${earnings.totalEarnings}, availableBalance: ${earnings.availableBalance}, totalWithdrawn: ${earnings.totalWithdrawn}`);
 
       if (earnings.availableBalance < this.withdrawalService.getMinWithdrawalAmount()) {
         return { success: false, message: 'Insufficient balance' };
@@ -96,15 +111,19 @@ export class UserCommissionService {
 
       // Withdraw ALL available earnings, not just the requested amount
       const withdrawalAmount = earnings.availableBalance;
+      this.logger.log(`Withdrawing all available balance: ${withdrawalAmount}`);
       
-      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, withdrawalAmount);
-      console.log(result, "CHECKING RESULT");
+      // Use provided clientReference or generate one for commission deduction
+      const commissionClientRef = clientReference || `withdrawal_${mobileNumber}_${Date.now()}`;
+      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, withdrawalAmount, commissionClientRef);
       
       if (result.success) {
-        console.log(result, "CHECKING RESULT");
-        // Deduct ALL earnings immediately
-        await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId);
-        return { ...result, newBalance: 0 }; 
+        this.logger.log(`Withdrawal service succeeded, creating commission deduction for ${mobileNumber}`);
+        await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId, commissionClientRef);
+        const updatedEarnings = await this.getUserEarnings(mobileNumber);
+        this.logger.log(`Updated earnings after deduction: totalEarnings: ${updatedEarnings.totalEarnings}, availableBalance: ${updatedEarnings.availableBalance}, totalWithdrawn: ${updatedEarnings.totalWithdrawn}`);
+        
+        return { ...result, newBalance: updatedEarnings.availableBalance }; 
       }
       
       return result;
@@ -217,9 +236,11 @@ export class UserCommissionService {
 
   // Private helper methods
 
-  private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
+  private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string, clientReference?: string): Promise<void> {
+    this.logger.log(`Creating withdrawal deduction: ${mobileNumber}, amount: ${amount}, clientRef: ${clientReference}`);
+    
     await this.commissionLogModel.create({
-      clientReference: `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
+      clientReference: clientReference || `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
       hubtelTransactionId: transactionId,
       externalTransactionId: null,
       mobileNumber,
@@ -227,7 +248,7 @@ export class UserCommissionService {
       orderId: `withdrawal_deduction_${Date.now()}`,
       serviceType: 'withdrawal_deduction',
       amount,
-      commission: -amount,
+      commission: amount, // Use positive amount for withdrawal deduction
       charges: 0,
       amountAfterCharges: amount,
       currencyCode: 'GHS',
@@ -242,6 +263,8 @@ export class UserCommissionService {
       isRetryable: false,
       logStatus: 'active'
     });
+    
+    this.logger.log(`Withdrawal deduction created successfully for ${mobileNumber}`);
   }
 
   private async createWithdrawalRefund(mobileNumber: string, amount: number, clientReference: string): Promise<void> {
