@@ -76,7 +76,7 @@ export class EarningHandler {
       state.sessionId = clientReference; 
       this.sessionManager.updateSession(req.SessionId, state);
       
-      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nWithdrawal Amount: GH ${earnings.availableBalance.toFixed(2)} (All earnings)\n1. Confirm withdrawal\n2. Cancel`;
+      const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nWithdrawal Amount: GH ${earnings.availableBalance.toFixed(2)}\n1. Confirm withdrawal\n2. Cancel`;
       return this.responseBuilder.createNumberInputResponse( req.SessionId, "Withdrawal Request", message);
     } catch (error) {
       console.error('Error processing withdrawal request:', error);
