@@ -7,7 +7,7 @@ import { SendMoneyService } from './send-money.service';
 @Injectable()
 export class WithdrawalService {
   private readonly logger = new Logger(WithdrawalService.name);
-  private readonly MIN_WITHDRAWAL_AMOUNT = parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || '0.5');
+  private readonly MIN_WITHDRAWAL_AMOUNT = parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || '2.0');
 
   constructor(
     @InjectModel(Withdrawal.name) private readonly withdrawalModel: Model<WithdrawalDocument>,
@@ -58,7 +58,7 @@ export class WithdrawalService {
       }
     } catch (error) {
       this.logger.error(`Error processing withdrawal: ${error.message}`);
-      return { success: false, message: `Withdrawal processing failed: ${error.message}` };
+      return { success: false, message: `Withdrawal processing failed here: ${error.message}` };
     }
   }
 
