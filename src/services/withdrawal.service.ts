@@ -8,7 +8,7 @@ import * as process from "process";
 @Injectable()
 export class WithdrawalService {
   private readonly logger = new Logger(WithdrawalService.name);
-  private readonly MIN_WITHDRAWAL_AMOUNT = parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || '0.50');
+  public readonly MIN_WITHDRAWAL_AMOUNT = parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || '2.0');
 
   constructor(
     @InjectModel(Withdrawal.name) private readonly withdrawalModel: Model<WithdrawalDocument>,
@@ -217,4 +217,16 @@ export class WithdrawalService {
       pendingWithdrawals: 0
     };
   }
+
+
+    /**
+   * Get required environment variable
+   */
+    private getRequiredEnvVar(key: string): string {
+      const value = process.env[key];
+      if (!value) {
+        throw new Error(`${key} environment variable is required`);
+      }
+      return value;
+    }
 }
