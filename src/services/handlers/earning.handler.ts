@@ -79,11 +79,16 @@ export class EarningHandler {
         );
       }
 
+      // Generate clientReference for this withdrawal session
+      const clientReference = `withdrawal_${req.Mobile}_${req.SessionId}_${Date.now()}`;
+
       // Set withdrawal flow state
       state.serviceType = 'earning';
       state.earningFlow = 'withdrawal';
       state.totalEarnings = earnings.availableBalance;
+      state.sessionId = clientReference; // Store clientReference in sessionId field
       this.sessionManager.updateSession(req.SessionId, state);
+      
       const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nWithdrawal Amount: GH ${earnings.availableBalance.toFixed(2)} (All earnings)\n1. Confirm withdrawal\n2. Cancel`;
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
@@ -117,7 +122,9 @@ export class EarningHandler {
   async handleWithdrawalConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
     if (req.Message === "1") {
       try {
-        const result = await this.userCommissionService.processWithdrawalRequest(req.Mobile, state.totalEarnings);
+        // Use the clientReference stored in session state
+        const clientReference = state.sessionId;
+        const result = await this.userCommissionService.processWithdrawalRequest(req.Mobile, state.totalEarnings, clientReference);
         if (result.success) {
           const newBalance = 'newBalance' in result ? result.newBalance : 0;
           const message = `Withdrawal request submitted successfully!\nAmount: GH ${state.totalEarnings.toFixed(2)} (All earnings)\nNew Balance: GH ${newBalance.toFixed(2)}\nYou will receive payment within 24 hours.`;

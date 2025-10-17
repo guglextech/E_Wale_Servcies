@@ -63,17 +63,26 @@ export class UserCommissionService {
       logs.forEach(log => {
         const commission = log.commission || 0;
 
-        console.log(log, "CHECKING LOG");
         if (log.serviceType === 'withdrawal_deduction') {
-          totalWithdrawn += Math.abs(commission);
+          // Withdrawal deductions - these represent money taken out
+          totalWithdrawn += commission;
+        } else if (log.serviceType === 'withdrawal_refund') {
+          // Withdrawal refunds - these restore money back to available balance
+          totalWithdrawn -= commission;
         } else {
+          // Regular commission earnings - these add to total earnings
           totalEarnings += commission;
         }
       });
 
+      // Ensure totalWithdrawn doesn't go negative
+      totalWithdrawn = Math.max(0, totalWithdrawn);
+
+      const availableBalance = Math.max(0, totalEarnings - totalWithdrawn);
+
       return {
         totalEarnings,
-        availableBalance: totalEarnings - totalWithdrawn,
+        availableBalance,
         totalWithdrawn,
         transactionCount: logs.length
       };
@@ -86,7 +95,7 @@ export class UserCommissionService {
   /**
    * Process withdrawal request
    */
-  async processWithdrawalRequest(mobileNumber: string, amount: number) {
+  async processWithdrawalRequest(mobileNumber: string, amount: number, clientReference?: string) {
     try {
       const earnings = await this.getUserEarnings(mobileNumber);
 
@@ -97,19 +106,25 @@ export class UserCommissionService {
       // Withdraw ALL available earnings, not just the requested amount
       const withdrawalAmount = earnings.availableBalance;
       
-      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, withdrawalAmount);
-      console.log(result, "CHECKING RESULT");
+      // Use provided clientReference or generate one for commission deduction
+      const commissionClientRef = clientReference || `withdrawal_${mobileNumber}_${Date.now()}`;
+      
+      const result = await this.withdrawalService.processWithdrawalRequest(mobileNumber, withdrawalAmount, commissionClientRef);
       
       if (result.success) {
-        console.log(result, "CHECKING RESULT");
-        // Deduct ALL earnings immediately
-        await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId);
-        return { ...result, newBalance: 0 }; 
+        // Create commission deduction record with the same clientReference
+        await this.createWithdrawalDeduction(mobileNumber, withdrawalAmount, result.transactionId, commissionClientRef);
+        const updatedEarnings = await this.getUserEarnings(mobileNumber);
+        
+        return { 
+          ...result, 
+          newBalance: updatedEarnings.availableBalance 
+        }; 
       }
       
       return result;
     } catch (error) {
-      this.logger.error(`Error processing withdrawal inside user commission service: ${error.message}`);
+      this.logger.error(`Error processing withdrawal: ${error.message}`);
       return { success: false, message: `Withdrawal processing failed: ${error.message}` };
     }
   }
@@ -217,9 +232,9 @@ export class UserCommissionService {
 
   // Private helper methods
 
-  private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string): Promise<void> {
+  private async createWithdrawalDeduction(mobileNumber: string, amount: number, transactionId?: string, clientReference?: string): Promise<void> {
     await this.commissionLogModel.create({
-      clientReference: `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
+      clientReference: clientReference || `withdrawal_deduction_${mobileNumber}_${Date.now()}`,
       hubtelTransactionId: transactionId,
       externalTransactionId: null,
       mobileNumber,
@@ -227,7 +242,7 @@ export class UserCommissionService {
       orderId: `withdrawal_deduction_${Date.now()}`,
       serviceType: 'withdrawal_deduction',
       amount,
-      commission: -amount,
+      commission: amount, // Positive amount representing withdrawal deduction
       charges: 0,
       amountAfterCharges: amount,
       currencyCode: 'GHS',

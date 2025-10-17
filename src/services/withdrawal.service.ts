@@ -18,13 +18,14 @@ export class WithdrawalService {
   /**
    * Process withdrawal request
    */
-  async processWithdrawalRequest(mobileNumber: string, amount: number) {
+  async processWithdrawalRequest(mobileNumber: string, amount: number, clientReference?: string) {
     try {
       if (amount < this.MIN_WITHDRAWAL_AMOUNT) {
         return { success: false, message: `Minimum withdrawal amount is GH ${this.MIN_WITHDRAWAL_AMOUNT.toFixed(2)}` };
       }
 
-      const clientReference = `withdrawal_${mobileNumber}_${Date.now()}`;
+      // Use provided clientReference or generate new one if not provided
+      const withdrawalClientRef = clientReference || `withdrawal_${mobileNumber}_${Date.now()}`;
       const formattedPhone = this.sendMoneyService.formatPhoneNumber(mobileNumber);
       const channel = this.sendMoneyService.determineChannel(formattedPhone);
 
@@ -35,20 +36,21 @@ export class WithdrawalService {
         amount,
         primaryCallbackUrl: process.env.HB_CALLBACK_URL,
         description: `Commission withdrawal for ${mobileNumber}`,
-        clientReference
+        clientReference: withdrawalClientRef
       };
 
       const response = await this.sendMoneyService.sendMoney(sendMoneyRequest);
       
       // Create withdrawal record
-      await this.createWithdrawalRecord(clientReference, mobileNumber, amount, response);
+      await this.createWithdrawalRecord(withdrawalClientRef, mobileNumber, amount, response);
 
       if (response.ResponseCode === '0001') {
         this.logger.log(`Withdrawal submitted: ${mobileNumber} - GH ${amount}`);
         return { 
           success: true, 
           message: 'Withdrawal request submitted successfully. You will receive payment within 24 hours.', 
-          transactionId: response.Data.TransactionId
+          transactionId: response.Data.TransactionId,
+          clientReference: withdrawalClientRef
         };
       } else {
         this.logger.error(`Withdrawal failed: ${mobileNumber} - ${response.Data?.Description}`);
