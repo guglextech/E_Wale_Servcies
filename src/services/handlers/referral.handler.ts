@@ -17,7 +17,7 @@ export class ReferralHandler {
    * Show referral code prompt after successful payment
    */
   async showReferralPrompt(req: HBussdReq, state: SessionState): Promise<string> {
-    const message = `Payment Successful! 🎉\n\nWould you like to enter a referral code?\n\n1. Enter referral code\n2. Skip`;
+    const message = `Payment Successful!\n\nWould you like to enter a referral code?\n\n1. Enter referral code\n2. Skip`;
     
     // Update session state to track referral flow
     state.referralFlow = 'prompt';
@@ -81,7 +81,7 @@ export class ReferralHandler {
     const result = await this.referralService.processReferralCode(referralCode, req.Mobile);
     
     if (result.success) {
-      const message = `Referral Code Applied! ✅\n\nThank you for using referral code ${referralCode}\nReferrer: ${result.referrerName}\n\nYou will earn 5% bonus on future transactions!`;
+      const message = `Referral Code Applied!\n\nThank you for using referral code ${referralCode}\nReferrer: ${result.referrerName}\n\nYou will earn 5% bonus on future transactions!`;
       
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
@@ -90,10 +90,8 @@ export class ReferralHandler {
       );
     } else {
       const message = `Referral Failed\n\n${result.message}\n\n1. Try another code\n2. Skip`;
-      
       state.referralFlow = 'retry';
       this.sessionManager.updateSession(req.SessionId, state);
-      
       return this.responseBuilder.createNumberInputResponse(
         req.SessionId,
         "Referral Failed",
@@ -110,9 +108,7 @@ export class ReferralHandler {
       // Try again
       state.referralFlow = 'input';
       this.sessionManager.updateSession(req.SessionId, state);
-      
       const message = `Enter Referral Code\n\nPlease enter the 2-digit referral code:\n\nExample: 01, 02, etc.`;
-      
       return this.responseBuilder.createTextInputResponse(
         req.SessionId,
         "Enter Referral Code",
@@ -133,7 +129,7 @@ export class ReferralHandler {
    * Handle referral skip
    */
   private handleReferralSkip(req: HBussdReq, state: SessionState): string {
-    const message = `Thank You! 🎉\n\nYour payment was successful!\n\nYou can still use a referral code in future transactions for bonus earnings.`;
+    const message = `Thank You!\n\nYour payment was successful!\n\nYou can still use a referral code in future transactions for bonus earnings.`;
     
     return this.responseBuilder.createReleaseResponse(
       req.SessionId,

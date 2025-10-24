@@ -43,5 +43,10 @@ export class FinalUssdReq {
     SessionId:     string;
     OrderId:       string;
     ServiceStatus: string;
-    MetaData:      null;
+    MetaData:      any;
+    Type?:         string;
+    Label?:        string;
+    Message?:      string;
+    DataType?:     string;
+    FieldType?:    string;
 }
