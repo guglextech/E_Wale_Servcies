@@ -531,8 +531,6 @@ export class UssdService {
    * Handle USSD callback
    */
   async handleUssdCallback(req: HbPayments): Promise<void> {
-    console.error("LOGGING CALLBACK AFTER PAYMENT :::", req);
-
     if (!req.OrderInfo || !req.OrderInfo.Payment) return;
 
     let finalResponse = new FinalUssdReq();
@@ -581,13 +579,7 @@ export class UssdService {
         
         // Check if this is a commission service callback and update commission
         if (req.ResponseCode && req.Data && req.Data.ClientReference) {
-          console.log("=== COMMISSION CALLBACK RECEIVED ===");
-          console.log("📍 LOCATION: USSD Service - handleUssdCallback() - isSuccessful block");
-          console.log("📍 FILE: src/services/ussd/ussd.service.ts");
-          console.log("📍 COMMISSION AMOUNT:", req.Data.Meta.Commission);
-          console.log("📍 CLIENT REFERENCE:", req.Data.ClientReference);
           await this.commissionTransactionLogService.updateCommissionAmount(req.Data.ClientReference, parseFloat(req.Data.Meta.Commission));
-          console.log(`✅ Commission updated for ${req.Data.ClientReference}: ${req.Data.Meta.Commission}`);
           return;
         }
         
@@ -600,11 +592,31 @@ export class UssdService {
             console.error("Error processing commission service after payment:", error);
           }
 
-          // Show referral prompt after successful payment
+          // Set up referral prompt and include it in the response
           try {
             await this.showReferralPromptAfterPayment(req.SessionId, sessionState);
+            const referralPrompt = await this.referralHandler.showReferralPrompt({
+              SessionId: req.SessionId,
+              Mobile: sessionState.mobile || '',
+              Message: '',
+              Type: HbEnums.RESPONSE,
+              Sequence: 11,
+              ServiceCode: '*714*22#',
+              Operator: 'MTN',
+              ClientState: '0',
+              Platform: 'USSD'
+            }, sessionState);
+            
+            // Parse the referral response and include it in the callback
+            const referralData = JSON.parse(referralPrompt);
+            finalResponse.Type = referralData.Type;
+            finalResponse.Label = referralData.Label;
+            finalResponse.Message = referralData.Message;
+            finalResponse.DataType = referralData.DataType;
+            finalResponse.FieldType = referralData.FieldType;
+            console.log(`Referral prompt included in callback for session ${req.SessionId}`);
           } catch (error) {
-            console.error("Error showing referral prompt after payment:", error);
+            console.error("Error including referral prompt in callback:", error);
           }
         }
 
@@ -660,7 +672,6 @@ export class UssdService {
   }
 
   private async handleBuyForSelection(req: HBussdReq, state: SessionState): Promise<string> {
-    // Always handle the selection since we're in step 6
     return await this.bundleHandler.handleBuyForSelection(req, state);
   }
 
@@ -841,35 +852,13 @@ export class UssdService {
    */
   private async showReferralPromptAfterPayment(sessionId: string, sessionState: SessionState): Promise<void> {
     try {
-      // Set referral flow state
+      // Set referral flow state to prompt
       sessionState.referralFlow = 'prompt';
       this.sessionManager.updateSession(sessionId, sessionState);
-      // Send USSD response to continue session
-      const mockRequest: HBussdReq = {
-        SessionId: sessionId,
-        Mobile: sessionState.mobile || '',
-        Message: '',
-        Type: HbEnums.RESPONSE,
-        Sequence: 11,
-        ServiceCode: '*714*22#',
-        Operator: 'MTN',
-        ClientState: '0',
-        Platform: 'USSD'
-      };
       
-      const referralResponse = await this.referralHandler.showReferralPrompt(mockRequest, sessionState);
-      
-      // Send the referral prompt response back to Hubtel
-      await axios.post(`${process.env.HB_CALLBACK_URL}`, referralResponse, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${process.env.HUB_ACCESS_TOKEN}`
-        }
-      });
-      
-      console.log(`Referral prompt sent for session ${sessionId}`);
+      console.log(`Referral flow initiated for session ${sessionId}`);
     } catch (error) {
-      console.error('Error showing referral prompt after payment:', error);
+      console.error('Error setting up referral prompt after payment:', error);
     }
   }
 

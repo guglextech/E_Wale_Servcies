@@ -263,9 +263,7 @@ export class CommissionService {
   private async logCommissionTransaction(request: CommissionServiceRequest, response: any): Promise<void> {
     try {
       const existingLog = await this.commissionTransactionLogService.getCommissionLogByClientReference(request.clientReference);
-      console.log("EXISTING LOG :::", existingLog);
       if (existingLog) {
-        // Update the existing log with commission service response
         await this.commissionTransactionLogService.updateCommissionServiceStatus(request.clientReference,'pending', response.Data?.Description || 'Processing', false);
         this.logger.log(`Updated existing commission log for ${request.clientReference}`);
       } else {
