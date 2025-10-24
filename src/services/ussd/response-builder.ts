@@ -70,6 +70,20 @@ export class ResponseBuilder {
   }
 
   /**
+   * Create an input response for text
+   */
+  createTextInputResponse(sessionId: string, label: string, message: string): string {
+    return this.createResponse(
+      sessionId,
+      label,
+      message,
+      HbEnums.DATATYPE_INPUT,
+      HbEnums.FIELDTYPE_TEXT,
+      HbEnums.RESPONSE
+    );
+  }
+
+  /**
    * Create an input response for decimal numbers
    */
   createDecimalInputResponse(sessionId: string, label: string, message: string): string {

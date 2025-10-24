@@ -20,6 +20,7 @@ import { AirtimeHandler } from "../handlers/airtime.handler";
 import { TVBillsHandler } from "../handlers/tv-bills.handler";
 import { UtilityHandler } from "../handlers/utility.handler";
 import { EarningHandler } from "../handlers/earning.handler";
+import { ReferralHandler } from "../handlers/referral.handler";
 
 // Import business services
 import { TransactionStatusService } from "../transaction-status.service";
@@ -51,6 +52,7 @@ export class UssdService {
     private readonly tvBillsHandler: TVBillsHandler,
     private readonly utilityHandler: UtilityHandler,
     private readonly earningHandler: EarningHandler,
+    private readonly referralHandler: ReferralHandler,
     
     // Business services
     private readonly transactionStatusService: TransactionStatusService,
@@ -142,6 +144,12 @@ export class UssdService {
         return await this.handleStep9(req, state);
       case 10:
         return await this.handlePaymentConfirmation(req, state);
+      case 11:
+        // Handle referral flow after payment success
+        if (state.referralFlow) {
+          return await this.referralHandler.handleReferralFlow(req, state);
+        }
+        return this.releaseSession(req.SessionId);
       default:
         return this.releaseSession(req.SessionId);
     }
@@ -591,6 +599,13 @@ export class UssdService {
           } catch (error) {
             console.error("Error processing commission service after payment:", error);
           }
+
+          // Trigger referral prompt after successful payment
+          try {
+            await this.triggerReferralPrompt(req.SessionId, sessionState);
+          } catch (error) {
+            console.error("Error triggering referral prompt:", error);
+          }
         }
 
         await this.hbPaymentsModel.findOneAndUpdate(
@@ -821,6 +836,21 @@ export class UssdService {
     }
   }
 
+  /**
+   * Trigger referral prompt after successful payment
+   */
+  private async triggerReferralPrompt(sessionId: string, sessionState: SessionState): Promise<void> {
+    try {
+      // Set referral flow state
+      sessionState.referralFlow = 'prompt';
+      this.sessionManager.updateSession(sessionId, sessionState);
+      
+      // Log the referral prompt trigger
+      console.log(`Referral prompt triggered for session ${sessionId}`);
+    } catch (error) {
+      console.error('Error triggering referral prompt:', error);
+    }
+  }
 
   // Expose logging service methods for external use
   async getUssdLogsByMobile(mobileNumber: string, limit: number = 50) {
