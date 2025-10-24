@@ -600,11 +600,11 @@ export class UssdService {
             console.error("Error processing commission service after payment:", error);
           }
 
-          // Trigger referral prompt after successful payment
+          // Show referral prompt after successful payment
           try {
-            await this.triggerReferralPrompt(req.SessionId, sessionState);
+            await this.showReferralPromptAfterPayment(req.SessionId, sessionState);
           } catch (error) {
-            console.error("Error triggering referral prompt:", error);
+            console.error("Error showing referral prompt after payment:", error);
           }
         }
 
@@ -837,18 +837,39 @@ export class UssdService {
   }
 
   /**
-   * Trigger referral prompt after successful payment
+   * Show referral prompt after successful payment
    */
-  private async triggerReferralPrompt(sessionId: string, sessionState: SessionState): Promise<void> {
+  private async showReferralPromptAfterPayment(sessionId: string, sessionState: SessionState): Promise<void> {
     try {
       // Set referral flow state
       sessionState.referralFlow = 'prompt';
       this.sessionManager.updateSession(sessionId, sessionState);
+      // Send USSD response to continue session
+      const mockRequest: HBussdReq = {
+        SessionId: sessionId,
+        Mobile: sessionState.mobile || '',
+        Message: '',
+        Type: HbEnums.RESPONSE,
+        Sequence: 11,
+        ServiceCode: '*714*22#',
+        Operator: 'MTN',
+        ClientState: '0',
+        Platform: 'USSD'
+      };
       
-      // Log the referral prompt trigger
-      console.log(`Referral prompt triggered for session ${sessionId}`);
+      const referralResponse = await this.referralHandler.showReferralPrompt(mockRequest, sessionState);
+      
+      // Send the referral prompt response back to Hubtel
+      await axios.post(`${process.env.HB_CALLBACK_URL}`, referralResponse, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${process.env.HUB_ACCESS_TOKEN}`
+        }
+      });
+      
+      console.log(`Referral prompt sent for session ${sessionId}`);
     } catch (error) {
-      console.error('Error triggering referral prompt:', error);
+      console.error('Error showing referral prompt after payment:', error);
     }
   }
 
