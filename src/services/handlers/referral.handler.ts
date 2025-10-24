@@ -39,7 +39,7 @@ export class ReferralHandler {
       state.referralFlow = 'input';
       this.sessionManager.updateSession(req.SessionId, state);
       
-      const message = `Enter Referral Code\n\nPlease enter the 2-digit referral code:\n\nExample: 01, 02, etc.`;
+      const message = `Enter Referral Code\nPlease enter the 2-digit referral code:\nExample: 01, 02, etc.`;
       
       return this.responseBuilder.createTextInputResponse(
         req.SessionId,
