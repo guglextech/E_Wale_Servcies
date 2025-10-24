@@ -59,7 +59,6 @@ export class EarningHandler {
    */
   private async handleWithdrawMoney(req: HBussdReq, state: SessionState): Promise<string> {
     try {
-      // Get cumulative commission earnings for this mobile number
       const earnings = await this.userCommissionService.getUserEarnings(req.Mobile);
       const minWithdrawal = this.withdrawalService.getMinWithdrawalAmount();
       
@@ -68,14 +67,12 @@ export class EarningHandler {
         return this.responseBuilder.createReleaseResponse(req.SessionId, "Withdrawal Failed", message);
       }
 
-      // Generate clientReference for this withdrawal session
       const clientReference = `withdrawal_${req.Mobile}_${req.SessionId}_${Date.now()}`;
       state.serviceType = 'earning';
       state.earningFlow = 'withdrawal';
       state.totalEarnings = earnings.availableBalance;
       state.sessionId = clientReference; 
       this.sessionManager.updateSession(req.SessionId, state);
-      
       const message = `Withdraw Money\n\nAvailable Balance: GH ${earnings.availableBalance.toFixed(2)}\nWithdrawal Amount: GH ${earnings.availableBalance.toFixed(2)}\n1. Confirm withdrawal\n2. Cancel`;
       return this.responseBuilder.createNumberInputResponse( req.SessionId, "Withdrawal Request", message);
     } catch (error) {
@@ -105,7 +102,6 @@ export class EarningHandler {
   async handleWithdrawalConfirmation(req: HBussdReq, state: SessionState): Promise<string> {
     if (req.Message === "1") {
       try {
-        // Use the clientReference stored in session state
         const clientReference = state.sessionId;
         const result = await this.userCommissionService.processWithdrawalRequest(req.Mobile, state.totalEarnings, clientReference);
         if (result.success) {
@@ -116,22 +112,16 @@ export class EarningHandler {
           return this.responseBuilder.createErrorResponse(req.SessionId, result.message);
         }
       } catch (error) {
-        console.error('Error processing withdrawal:', error);
-        return this.responseBuilder.createErrorResponse(
-          req.SessionId,
-          "Withdrawal request failed. Please try again."
-        );
+        return this.responseBuilder.createErrorResponse(req.SessionId, "Withdrawal request failed. Please try again.");
       }
     } else if (req.Message === "2") {
-      // User cancelled
       return this.responseBuilder.createReleaseResponse(
         req.SessionId,
         "Cancelled",
         "Withdrawal request cancelled."
       );
     } else {
-      return this.responseBuilder.createInvalidSelectionResponse(
-        req.SessionId,
+      return this.responseBuilder.createInvalidSelectionResponse( req.SessionId,
         "Please select 1 to confirm or 2 to cancel"
       );
     }

@@ -65,6 +65,19 @@ export class User {
   @Prop({ default: 0 })
   pendingWithdrawals: number;
 
+  // Referral fields
+  @Prop({ required: false })
+  referralCode: string;
+
+  @Prop({ required: false })
+  referredBy: string;
+
+  @Prop({ default: 0 })
+  referralEarnings: number;
+
+  @Prop({ default: 0 })
+  totalReferrals: number;
+
   @Prop()
   updatedAt: Date
   

@@ -43,6 +43,8 @@ export interface SessionState {
   // Earning specific fields
   earningFlow?: 'withdrawal' | 'earnings' | 'terms';
   totalEarnings?: number;
+  // Referral specific fields
+  referralFlow?: 'prompt' | 'input' | 'retry';
 }
 
 export interface UssdResponse {

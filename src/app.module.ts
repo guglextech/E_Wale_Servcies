@@ -62,7 +62,12 @@ import { AirtimeHandler } from "./services/handlers/airtime.handler";
 import { TVBillsHandler } from "./services/handlers/tv-bills.handler";
 import { UtilityHandler } from "./services/handlers/utility.handler";
 import { EarningHandler } from "./services/handlers/earning.handler";
+import { ReferralHandler } from "./services/handlers/referral.handler";
 import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
+import { Referral, ReferralSchema } from "./models/schemas/referral.schema";
+import { ReferralService } from "./services/referral.service";
+import { ReferralInitializationService } from "./services/referral-initialization.service";
+import { ReferralController } from "./controllers/referral.controller";
 
 @Module({
   imports: [
@@ -90,6 +95,7 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
       { name: UssdLog.name, schema: UssdLogSchema },
       { name: CommissionTransactionLog.name, schema: CommissionTransactionLogSchema },
       { name: Withdrawal.name, schema: WithdrawalSchema },
+      { name: Referral.name, schema: ReferralSchema },
     ]),
     JwtModule.register({
       secret: jwtConstants.secret,
@@ -111,6 +117,7 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
     PaymentController,
     CommissionController,
     SendMoneyController,
+    ReferralController,
   ],
   providers: [
     AppService,
@@ -139,7 +146,10 @@ import { OrderDetailsHandler } from "./services/handlers/order-details.handler";
     TVBillsHandler,
     UtilityHandler,
     EarningHandler,
+    ReferralHandler,
     OrderDetailsHandler,
+    ReferralService,
+    ReferralInitializationService,
     // {
     //   provide: APP_GUARD,
     //   useClass: AuthGuards,
