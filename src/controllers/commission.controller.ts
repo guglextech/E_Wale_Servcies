@@ -9,7 +9,7 @@ export class CommissionController {
   constructor(
     private readonly commissionService: CommissionService,
     private readonly userCommissionService: UserCommissionService
-  ) {}
+  ) { }
 
   /**
    * Process commission service request

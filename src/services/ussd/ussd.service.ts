@@ -30,8 +30,6 @@ import { CommissionTransactionLogService } from "../commission-transaction-log.s
 // Import types
 import { SessionState, UssdLogData } from "./types";
 import { UtilityProvider } from "../../models/dto/utility.dto";
-import { CommissionTransactionLogData } from "../../models/dto/commission-transaction-log.dto";
-import { CommissionServiceRequest } from "../commission.service";
 
 @Injectable()
 export class UssdService {

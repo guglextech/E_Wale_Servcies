@@ -4,7 +4,7 @@ import { BundleQueryDto, BundlePurchaseDto } from '../models/dto/bundle.dto';
 
 @Controller('bundle')
 export class BundleController {
-  constructor(private readonly bundleService: BundleService) {}
+  constructor(private readonly bundleService: BundleService) { }
 
   @Get('query')
   async queryBundles(@Query() queryDto: BundleQueryDto) {

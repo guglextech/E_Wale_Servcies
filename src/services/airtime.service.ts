@@ -156,7 +156,7 @@ export class AirtimeService {
 
     const decimalPlaces = (airtimeDto.amount.toString().split('.')[1] || '').length;
     if (decimalPlaces > 2) {
-      throw new BadRequestException('Enter valid amount (e.g., 10.50)');
+      throw new BadRequestException('Enter valid amount (e.g.10)');
     }
 
     if (!airtimeDto.destination || airtimeDto.destination.trim().length === 0) {

@@ -91,7 +91,7 @@ export class PaymentProcessor {
             ...baseRequest,
             serviceType: 'utility' as const,
             utilityProvider: sessionState.utilityProvider,
-            destination: sessionState.mobile, // Use mobile number as destination for Ghana Water (per Hubtel docs)
+            destination: sessionState.mobile,
             extraData: {
               meterNumber: sessionState.meterNumber,
               email: sessionState.email || 'guglextechnologies@gmail.com', 
@@ -125,7 +125,6 @@ export class PaymentProcessor {
     if (sessionState.utilityProvider) {
       return `${sessionState.utilityProvider} Top-Up`;
     }
-    
     return "Airtime Top-Up";
   }
 

@@ -4,7 +4,7 @@ import { TVAccountQueryDto, TVBillPaymentDto } from '../models/dto/tv-bills.dto'
 
 @Controller('tv-bills')
 export class TVBillsController {
-  constructor(private readonly tvBillsService: TVBillsService) {}
+  constructor(private readonly tvBillsService: TVBillsService) { }
 
   @Get('query')
   async queryAccount(@Query() queryDto: TVAccountQueryDto) {

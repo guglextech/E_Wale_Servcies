@@ -7,7 +7,7 @@ export class ReferralController {
   constructor(
     private readonly referralService: ReferralService,
     private readonly referralInitializationService: ReferralInitializationService
-  ) {}
+  ) { }
 
   /**
    * Initialize default referral codes

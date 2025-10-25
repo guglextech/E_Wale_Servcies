@@ -24,7 +24,10 @@ export class SessionManager {
   /**
    * Update session
    */
-  updateSession(sessionId: string, updates: Partial<SessionState>): SessionState {
+  updateSession(
+    sessionId: string,
+    updates: Partial<SessionState>
+  ): SessionState {
     const session = this.getSession(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);

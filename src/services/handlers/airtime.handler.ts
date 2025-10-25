@@ -156,8 +156,6 @@ export class AirtimeHandler {
    */
   private validateMobileNumber(mobile: string): { isValid: boolean; convertedNumber?: string; error?: string } {
     const cleaned = mobile.replace(/\D/g, '');
-    
-    // Ghanaian mobile number validation
     if (cleaned.length === 10 && cleaned.startsWith('0')) {
       return { isValid: true, convertedNumber: '233' + cleaned.substring(1) };
     }

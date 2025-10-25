@@ -227,8 +227,6 @@ export class TVBillsHandler {
 
     // Log current session state
     await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
-
-    // Show order summary after amount input
     return this.responseBuilder.createResponse(
       req.SessionId,
       "Order Summary",

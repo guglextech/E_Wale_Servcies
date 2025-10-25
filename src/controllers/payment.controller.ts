@@ -3,7 +3,7 @@ import { Response } from 'express';
 
 @Controller('payment')
 export class PaymentController {
-  
+
   @Get('return')
   async paymentReturn(@Query() query: any, @Res() res: Response) {
     try {
@@ -32,9 +32,9 @@ export class PaymentController {
   @Get('cancel')
   async paymentCancel(@Query() query: any, @Res() res: Response) {
     try {
-        
+
       const { clientReference } = query;
-      
+
       return res.json({
         success: false,
         message: 'Payment was cancelled',

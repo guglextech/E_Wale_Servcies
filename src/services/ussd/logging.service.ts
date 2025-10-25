@@ -8,7 +8,7 @@ import { SessionState } from "./types";
 export class UssdLoggingService {
   constructor(
     @InjectModel(UssdLog.name) private readonly ussdLogModel: Model<UssdLog>
-  ) {}
+  ) { }
 
   /**
    * Log current session state once per service
@@ -18,7 +18,7 @@ export class UssdLoggingService {
       const logEntry = {
         mobileNumber,
         sessionId,
-        sequence: 0, // Single log per service
+        sequence: 0, 
         message: 'Session State',
         serviceType: state.serviceType,
         service: state.service,
@@ -48,8 +48,8 @@ export class UssdLoggingService {
       await this.ussdLogModel.findOneAndUpdate(
         { sessionId },
         logEntry,
-        { 
-          upsert: true, 
+        {
+          upsert: true,
           new: true,
           setDefaultsOnInsert: true
         }
@@ -65,7 +65,7 @@ export class UssdLoggingService {
   async updateSessionStatus(sessionId: string, status: string, additionalData: any = {}): Promise<void> {
     try {
       const existingLog = await this.ussdLogModel.findOne({ sessionId });
-      
+
       const updateData = {
         status,
         completedAt: new Date(),
@@ -82,7 +82,7 @@ export class UssdLoggingService {
       await this.ussdLogModel.findOneAndUpdate(
         { sessionId },
         { $set: updateData },
-        { 
+        {
           new: true,
           upsert: false
         }

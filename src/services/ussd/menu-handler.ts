@@ -19,23 +19,68 @@ export class MenuHandler {
     private readonly airtimeHandler: AirtimeHandler,
     private readonly utilityHandler: UtilityHandler,
     private readonly earningHandler: EarningHandler
-  ) { }
+  ) {}
 
   /**
    * Handle main menu selection
    */
-  async handleMainMenuSelection(req: HBussdReq, state: SessionState): Promise<string> {
+  async handleMainMenuSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<string> {
     if (req.Message === "0") {
       return this.responseBuilder.createContactUsResponse(req.SessionId);
     }
 
     const menuHandlers = {
-      "1": () => this.handleServiceSelection(req, state, ServiceType.AIRTIME_TOPUP, "Select Network", "Enjoy an exclusive 100% bonus on selected networks\nSelect Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
-      "2": () => this.handleServiceSelection(req, state, ServiceType.DATA_BUNDLE, "Select Network", "Instant Exclusive Data Bundle. Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"),
-      "3": () => this.handleServiceSelection(req, state, ServiceType.PAY_BILLS, "Select TV Provider", "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"),
-      "4": () => this.handleServiceSelection(req, state, ServiceType.UTILITY_SERVICE, "Select Utility Service", "Select Utility Service:\n1. ECG Power\n2. Ghana Water"),
-      "5": () => this.handleServiceSelection(req, state, ServiceType.RESULT_CHECKER, "Result E-Checkers", "Select Result Checker:\n1. BECE \n2. WASSCE / Nov/Dec Checker"),
-      "6": () => this.handleServiceSelection(req, state, ServiceType.EARNING, "Earnings Menu", "My Earnings\n1. My Balance\n2. Withdraw money\n3. T& C")
+      "1": () =>
+        this.handleServiceSelection(
+          req,
+          state,
+          ServiceType.AIRTIME_TOPUP,
+          "Select Network",
+          "Enjoy an exclusive 100% bonus on selected networks\nSelect Network:\n1. MTN\n2. Telecel Ghana\n3. AT"
+        ),
+      "2": () =>
+        this.handleServiceSelection(
+          req,
+          state,
+          ServiceType.DATA_BUNDLE,
+          "Select Network",
+          "Instant Exclusive Data Bundle. Select Network:\n1. MTN\n2. Telecel Ghana\n3. AT"
+        ),
+      "3": () =>
+        this.handleServiceSelection(
+          req,
+          state,
+          ServiceType.PAY_BILLS,
+          "Select TV Provider",
+          "Select TV Provider:\n1. DSTV\n2. GoTV\n3. StarTimes TV"
+        ),
+      "4": () =>
+        this.handleServiceSelection(
+          req,
+          state,
+          ServiceType.UTILITY_SERVICE,
+          "Select Utility Service",
+          "Select Utility Service:\n1. ECG Power\n2. Ghana Water"
+        ),
+      "5": () =>
+        this.handleServiceSelection(
+          req,
+          state,
+          ServiceType.RESULT_CHECKER,
+          "Result E-Checkers",
+          "Select Result Checker:\n1. BECE \n2. WASSCE / Nov/Dec Checker"
+        ),
+      "6": () =>
+        this.handleServiceSelection(
+          req,
+          state,
+          ServiceType.EARNING,
+          "Earnings Menu",
+          "My Earnings\n1. My Balance\n2. Withdraw money\n3. T& C"
+        ),
     };
 
     const handler = menuHandlers[req.Message];
@@ -64,7 +109,11 @@ export class MenuHandler {
 
     await this.logServiceSelection(req, state);
 
-    return this.responseBuilder.createNumberInputResponse(req.SessionId, label, message);
+    return this.responseBuilder.createNumberInputResponse(
+      req.SessionId,
+      label,
+      message
+    );
   }
 
   /**
@@ -72,7 +121,7 @@ export class MenuHandler {
    */
   private handleComingSoon(req: HBussdReq, state: SessionState): string {
     const serviceNames = {
-      "6": "Other Services"
+      "6": "Other Services",
     };
 
     return this.responseBuilder.createComingSoonResponse(
@@ -84,14 +133,23 @@ export class MenuHandler {
   /**
    * Handle service type selection (step 3)
    */
-  async handleServiceTypeSelection(req: HBussdReq, state: SessionState): Promise<string> {
+  async handleServiceTypeSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<string> {
     const handlers = {
-      [ServiceType.RESULT_CHECKER]: () => this.handleResultCheckerServiceSelection(req, state),
-      [ServiceType.DATA_BUNDLE]: () => this.handleDataBundleServiceSelection(req, state),
-      [ServiceType.AIRTIME_TOPUP]: () => this.handleAirtimeServiceSelection(req, state),
-      [ServiceType.PAY_BILLS]: () => this.handlePayBillsServiceSelection(req, state),
-      [ServiceType.UTILITY_SERVICE]: () => this.handleUtilityServiceSelection(req, state),
-      [ServiceType.EARNING]: () => this.handleEarningServiceSelection(req, state)
+      [ServiceType.RESULT_CHECKER]: () =>
+        this.handleResultCheckerServiceSelection(req, state),
+      [ServiceType.DATA_BUNDLE]: () =>
+        this.handleDataBundleServiceSelection(req, state),
+      [ServiceType.AIRTIME_TOPUP]: () =>
+        this.handleAirtimeServiceSelection(req, state),
+      [ServiceType.PAY_BILLS]: () =>
+        this.handlePayBillsServiceSelection(req, state),
+      [ServiceType.UTILITY_SERVICE]: () =>
+        this.handleUtilityServiceSelection(req, state),
+      [ServiceType.EARNING]: () =>
+        this.handleEarningServiceSelection(req, state),
     };
 
     const handler = handlers[state.serviceType];
@@ -108,7 +166,10 @@ export class MenuHandler {
   /**
    * Handle result checker service selection
    */
-  private handleResultCheckerServiceSelection(req: HBussdReq, state: SessionState): string {
+  private handleResultCheckerServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): string {
     if (!["1", "2"].includes(req.Message)) {
       return this.responseBuilder.createInvalidSelectionResponse(
         req.SessionId,
@@ -118,7 +179,7 @@ export class MenuHandler {
 
     const serviceMap = {
       "1": "BECE Checker Voucher",
-      "2": "WASSCE / Nov/Dec Checker"
+      "2": "WASSCE / Nov/Dec Checker",
     };
 
     state.service = serviceMap[req.Message];
@@ -134,43 +195,65 @@ export class MenuHandler {
   /**
    * Handle data bundle service selection
    */
-  private handleDataBundleServiceSelection(req: HBussdReq, state: SessionState): string {
+  private handleDataBundleServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): string {
     return "BUNDLE_SELECTION_REQUIRED";
   }
 
   /**
    * Handle airtime service selection
    */
-  private async handleAirtimeServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+  private async handleAirtimeServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<string> {
     return await this.airtimeHandler.handleNetworkSelection(req, state);
   }
 
   /**
    * Handle pay bills service selection - delegates to TV bills handler
    */
-  private async handlePayBillsServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+  private async handlePayBillsServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<string> {
     return await this.tvBillsHandler.handleTVProviderSelection(req, state);
   }
 
   /**
    * Handle utility service selection - delegates to utility handler
    */
-  private async handleUtilityServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+  private async handleUtilityServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<string> {
     return await this.utilityHandler.handleUtilityProviderSelection(req, state);
   }
 
   /**
    * Handle earning service selection - delegates to earning handler
    */
-  private async handleEarningServiceSelection(req: HBussdReq, state: SessionState): Promise<string> {
+  private async handleEarningServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<string> {
     return await this.earningHandler.handleEarningMenuSelection(req, state);
   }
-
 
   /**
    * Log service selection
    */
-  private async logServiceSelection(req: HBussdReq, state: SessionState): Promise<void> {
-    await this.loggingService.logSessionState(req.SessionId, req.Mobile, state, 'active');
+  private async logServiceSelection(
+    req: HBussdReq,
+    state: SessionState
+  ): Promise<void> {
+    await this.loggingService.logSessionState(
+      req.SessionId,
+      req.Mobile,
+      state,
+      "active"
+    );
   }
 }
