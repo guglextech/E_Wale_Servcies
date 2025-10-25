@@ -90,11 +90,24 @@ export class VouchersService {
     const voucherType = this.getVoucherTypeFromService(purchaseDto.voucherType);
     
     // Check if we have enough available vouchers of the specified type
-    const availableVouchers = await this.voucherModel.find({ 
+    // Handle legacy BECE vouchers that don't have voucherType field
+    const query: any = {
       sold: false,
-      mobile_number_assigned: { $exists: false },
-      voucherType: voucherType
-    }).limit(purchaseDto.quantity);
+      mobile_number_assigned: { $exists: false }
+    };
+    
+    if (voucherType === 'BECE') {
+      // For BECE: include both vouchers with voucherType='BECE' AND vouchers without voucherType (legacy)
+      query.$or = [
+        { voucherType: 'BECE' },
+        { voucherType: { $exists: false } }
+      ];
+    } else {
+      // For other types (WASSCE, etc.): exact match required
+      query.voucherType = voucherType;
+    }
+    
+    const availableVouchers = await this.voucherModel.find(query).limit(purchaseDto.quantity);
 
     if (availableVouchers.length < purchaseDto.quantity) {
       throw new BadRequestException(`Only ${availableVouchers.length} ${voucherType} vouchers available. Requested: ${purchaseDto.quantity}`);
@@ -108,6 +121,12 @@ export class VouchersService {
       const voucher = availableVouchers[i];
       voucher.mobile_number_assigned = mobileNumber;
       voucher.assigned_date = new Date();
+      
+      // Update legacy vouchers to have proper voucherType
+      if (!voucher.voucherType) {
+        voucher.voucherType = voucherType;
+      }
+      
       await voucher.save();
 
       assignedVouchers.push({
@@ -151,7 +170,16 @@ export class VouchersService {
     };
 
     if (voucherType) {
-      query.voucherType = voucherType;
+      if (voucherType === 'BECE') {
+        // For BECE: include both vouchers with voucherType='BECE' AND vouchers without voucherType (legacy)
+        query.$or = [
+          { voucherType: 'BECE' },
+          { voucherType: { $exists: false } }
+        ];
+      } else {
+        // For other types: exact match required
+        query.voucherType = voucherType;
+      }
     }
 
     const vouchers = await this.voucherModel.find(query);
