@@ -4,13 +4,13 @@ import { TransactionStatusQueryDto } from '../models/dto/transaction-status.dto'
 
 @Controller('transaction-status')
 export class TransactionStatusController {
-  constructor(private readonly transactionStatusService: TransactionStatusService) {}
+  constructor(private readonly transactionStatusService: TransactionStatusService) { }
 
   @Get('check')
   async checkTransactionStatus(@Query() queryDto: TransactionStatusQueryDto) {
     try {
       const result = await this.transactionStatusService.checkTransactionStatus(queryDto);
-      
+
       if (!result) {
         return {
           success: false,
@@ -19,7 +19,7 @@ export class TransactionStatusController {
       }
 
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
-      
+
       return {
         success: true,
         data: result,
@@ -45,7 +45,7 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByClientReference(clientReference);
-      
+
       if (!result) {
         return {
           success: false,
@@ -54,7 +54,7 @@ export class TransactionStatusController {
       }
 
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
-      
+
       return {
         success: true,
         data: result,
@@ -80,7 +80,7 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByHubtelTransactionId(hubtelTransactionId);
-      
+
       if (!result) {
         return {
           success: false,
@@ -89,7 +89,7 @@ export class TransactionStatusController {
       }
 
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
-      
+
       return {
         success: true,
         data: result,
@@ -115,7 +115,7 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByNetworkTransactionId(networkTransactionId);
-      
+
       if (!result) {
         return {
           success: false,
@@ -124,7 +124,7 @@ export class TransactionStatusController {
       }
 
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
-      
+
       return {
         success: true,
         data: result,
@@ -154,7 +154,7 @@ export class TransactionStatusController {
       }
 
       const results = await this.transactionStatusService.batchCheckTransactionStatuses(body.clientReferences);
-      
+
       // Process results to include summaries
       const processedResults = {};
       for (const [clientReference, result] of results.entries()) {
@@ -185,13 +185,13 @@ export class TransactionStatusController {
   async checkPendingTransactions(@Query('olderThanMinutes') olderThanMinutes?: number) {
     try {
       const minutes = olderThanMinutes ? parseInt(olderThanMinutes.toString()) : 5;
-      
+
       if (minutes < 1 || minutes > 60) {
         throw new Error('Older than minutes must be between 1 and 60');
       }
 
       await this.transactionStatusService.checkPendingTransactions();
-      
+
       return {
         success: true,
         message: `Pending transaction check completed for transactions older than ${minutes} minutes`
@@ -215,7 +215,7 @@ export class TransactionStatusController {
       }
 
       const result = await this.transactionStatusService.checkStatusByClientReference(clientReference);
-      
+
       if (!result) {
         return {
           success: false,
@@ -224,7 +224,7 @@ export class TransactionStatusController {
       }
 
       const summary = this.transactionStatusService.getTransactionStatusSummary(result);
-      
+
       return {
         success: true,
         summary: summary,

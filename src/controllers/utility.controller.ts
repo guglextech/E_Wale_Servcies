@@ -4,7 +4,7 @@ import { ECGMeterQueryDto, GhanaWaterQueryDto, ECGTopUpDto, GhanaWaterTopUpDto }
 
 @Controller('utility')
 export class UtilityController {
-  constructor(private readonly utilityService: UtilityService) {}
+  constructor(private readonly utilityService: UtilityService) { }
 
   @Get('ecg/query')
   async queryECGMeters(@Query() queryDto: ECGMeterQueryDto) {

@@ -1,22 +1,22 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Body, 
-  Param, 
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
   BadRequestException,
   Query,
   NotFoundException
 } from '@nestjs/common';
 import { VouchersService } from '../services/vouchers.service';
-import { 
-  AssignVoucherDto, 
-  PurchaseVoucherDto 
+import {
+  AssignVoucherDto,
+  PurchaseVoucherDto
 } from '../models/dto/voucher.dto';
 
 @Controller('api/v1/vouchers')
 export class VouchersController {
-  constructor(private readonly vouchersService: VouchersService) {}
+  constructor(private readonly vouchersService: VouchersService) { }
 
   @Post('create')
   async createVoucher(@Body() body: { serial_number: string; pin: string; voucherType?: string }) {
@@ -28,8 +28,8 @@ export class VouchersController {
   }
 
   @Post('create-bulk')
-  async createVouchersBulk(@Body() body: { 
-    serial_numbers: string[]; 
+  async createVouchersBulk(@Body() body: {
+    serial_numbers: string[];
     pins: string[];
     voucherType?: string;
   }) {
